@@ -16,9 +16,10 @@
             justify-content: center;
             align-items: center;
             color: #444;
+            overflow-y: auto;
         }
         .sticky > .text {
-            background-color: rgba(0,0,0,0.05);
+            background-color: rgba(0,0,0,0.025);
             padding: 5px;
             cursor: text;
             text-align: center;
@@ -30,8 +31,10 @@
         .sticky > .textInput {
             font-family: inherit;
             font-size: 1rem;
+            resize: none;
+            border: none;
         }
-        .sticky.editing > .textInput {
+        /* .sticky.editing > .textInput {
             display: block;
         }
         .sticky > .textInput {
@@ -40,7 +43,7 @@
         }
         .sticky.editing > .text {
             display: none;
-        }
+        } */
         .board {
             /* width: 8000px;
             height: 8000px; */
@@ -76,14 +79,14 @@
                     stickyElement.style.width = size
                     stickyElement.style.height = size
                     stickyElement.style.padding = 10 * element.boardScale + "px"
-                    stickyElement.style.fontSize = element.boardScale + "rem"
+                    // stickyElement.style.fontSize = element.boardScale + "rem"
                     stickyElement.style.backgroundColor = sticky.color || DEFAULT_COLOR
                     textElement.textContent = sticky.text
                     inputElement.value = sticky.text
                     if (!inputElement.oninput) {
                         inputElement.oninput = (event) => {
                             board.updateText(id, event.target.value)
-                            textElement.textContent = event.target.value
+                            
                         }
                     }
                 })
@@ -117,7 +120,7 @@
             let stickyElement = boardElement[stickyIdClass]
             if (!stickyElement) {
                 stickyElement = document.createElement("div")
-                stickyElement.innerHTML = '<span class="text"></span><input class="textInput hidden"/>'
+                stickyElement.innerHTML = '<textarea class="textInput text hidden" rows="1" tabindex="-1"></textarea>'
                 boardElement.appendChild(stickyElement)
                 stickyElement.classList.add(stickyIdClass)
                 stickyElement.textElement = stickyElement.querySelector('.text')
@@ -134,6 +137,7 @@
                         stickyElement.inputElement.focus()
                     } else {
                         stickyElement.classList.remove("editing")
+                        stickyElement.inputElement.blur()
                     }
                 }
                 stickyElement.textElement.onclick = () => setEditable(true)
@@ -143,6 +147,19 @@
                         setEditable(false)
                     }
                 }
+                stickyElement.inputElement.addEventListener('input', (event) => {
+                    inputElement.value = event.target.value.replace(/\n/g, "")
+                    event.target.rows = 1
+                    event.target.style.fontSize = "1rem"
+                    while (event.target.scrollHeight > event.target.clientHeight) {
+                        event.target.rows++
+                    }
+                    let fontSize = 1
+                    while (stickyElement.scrollHeight > stickyElement.clientHeight && fontSize > 0.5) {
+                        fontSize -= 0.01
+                        event.target.style.fontSize = fontSize + "rem"
+                    }
+                })
                 boardElement[stickyIdClass] = stickyElement
             }
             const textElement = stickyElement.textElement
@@ -185,7 +202,7 @@
         }
         
         const board = new Board()
-        for (let i=0; i<10000; i++) {
+        for (let i=0; i<100; i++) {
             board.putSticky({ text: "Test", color: "khaki" }, {x:Math.random() * 8000, y: Math.random() * 8000})
         }
         render(board, document.querySelector(".board"))
