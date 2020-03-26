@@ -1,0 +1,189 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%
+        }
+        .sticky {
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+            position: absolute;
+            box-shadow: 4px 6px 5px 0px rgba(0,0,0,0.36);
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #444;
+        }
+        .sticky > .text {
+            background-color: rgba(0,0,0,0.05);
+            padding: 5px;
+            cursor: text;
+            text-align: center;
+        }
+        .sticky > .text:empty::after {
+            content: 'click to edit';
+            color: grey;
+        }
+        .sticky > .textInput {
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        .sticky.editing > .textInput {
+            display: block;
+        }
+        .sticky > .textInput {
+            width: 10em;
+            display: none;
+        }
+        .sticky.editing > .text {
+            display: none;
+        }
+        .board {
+            /* width: 8000px;
+            height: 8000px; */
+            background-color: grey;
+        }
+        .board.mini {
+            /* width: 2000px;
+            height: 2000px; */
+        }
+        .board.mini .sticky {
+            /* width: 25px;
+            height: 25px;
+            padding: 2px;
+            font-size: 0.25rem; */
+        }
+    </style>
+</head>
+<body>
+    <div class="board mini">
+    </div>
+    <script>
+        const STICKY_TYPE = "application/sticky"
+        const DEFAULT_COLOR = "khaki"
+        function render(board, element) {
+            element.boardScale = element.boardScale || 1
+            Object.entries(board.getState().stickies)
+                .forEach((entry) => {
+                    const [id, sticky] = entry
+                    const [stickyElement, textElement, inputElement] = getStickyElement(element, id)
+                    stickyElement.style.left = sticky.location.x * element.boardScale + "px"
+                    stickyElement.style.top = sticky.location.y * element.boardScale + "px"
+                    const size = 100 * element.boardScale + "px"
+                    stickyElement.style.width = size
+                    stickyElement.style.height = size
+                    stickyElement.style.padding = 10 * element.boardScale + "px"
+                    stickyElement.style.fontSize = element.boardScale + "rem"
+                    stickyElement.style.backgroundColor = sticky.color || DEFAULT_COLOR
+                    textElement.textContent = sticky.text
+                    inputElement.value = sticky.text
+                    inputElement.oninput = (event) => {
+                        board.updateText(id, event.target.value)
+                        textElement.textContent = event.target.value
+                    }
+                })
+            const size = 8000 * element.boardScale + "px"
+            element.style.width = size
+            element.style.height = size
+            element.ondragover = (event) => {
+                event.preventDefault()
+            }
+            element.ondrop = (event) => {
+                const {pageX: x, pageY: y} = event
+                const {id, start} = JSON.parse(event.dataTransfer.getData(STICKY_TYPE))
+                const offset = {x: (x - start.x) / element.boardScale, y: (y - start.y) / element.boardScale}
+                board.moveSticky(id, offset)
+                console.log(start, {x, y}, offset)
+                render(board, element)
+            }
+            // TODO: Keep the center of the board centered while zooming
+            // TODO: Use pointer events to support pinch zoom gesture
+            // TODO: Have fixed zoom scale in an array of constants
+            document.body.onkeyup = (event) => {
+                if (event.key === "+") {
+                    element.boardScale = element.boardScale * 1.5
+                } else if (event.key === "-") {
+                    element.boardScale = element.boardScale / 1.5
+                }
+                console.log(document.body.scrollTop)
+                render(board, element)
+            }
+        }
+        function getStickyElement(boardElement, id) {
+            const stickyIdClass = "sticky-"+id
+            let stickyElement = boardElement.querySelector("."+stickyIdClass)
+            if (!stickyElement) {
+                stickyElement = document.createElement("div")
+                stickyElement.innerHTML = '<span class="text"></span><input class="textInput hidden"/>'
+                boardElement.appendChild(stickyElement)
+                stickyElement.classList.add(stickyIdClass)
+            }
+            const textElement = stickyElement.querySelector('.text')
+            const inputElement = stickyElement.querySelector('.textInput')
+            stickyElement.classList.add("sticky")
+            stickyElement.setAttribute("draggable", "true")
+            stickyElement.ondragstart = (event) => {
+                const {pageX: x, pageY: y} = event
+                event.dataTransfer.setData(STICKY_TYPE, JSON.stringify({id, start: {x, y}}))
+            }
+            function setEditable(enabled) {
+                if (enabled) {
+                    stickyElement.classList.add("editing")
+                    inputElement.focus()
+                } else {
+                    stickyElement.classList.remove("editing")
+                }
+            }
+            textElement.onclick = () => setEditable(true)
+            inputElement.onblur = () => setEditable(false)
+            inputElement.onkeyup = (event) => {
+                if (event.keyCode === 13) {
+                    setEditable(false)
+                }
+            }
+            return [stickyElement, textElement, inputElement]
+        }
+        // TODO: Snap to a grid
+        class Board {
+            stickies = {}
+            idGen = 0
+            putSticky(sticky, location) {
+                const id = ++this.idGen
+                this.stickies[id] = sticky
+                this.moveSticky(id, location)
+                return id
+            }
+
+            updateText(id, text) {
+                const sticky = this.stickies[id]
+                if (!sticky) {
+                    throw new Error("No such sticky " + stickyId)
+                }
+                sticky.text = text
+            }
+
+            moveSticky(id, offset) {
+                offset = offset || {x: 0, y: 0}
+                const sticky = this.stickies[id]
+                if (!sticky) {
+                    throw new Error("No such sticky " + stickyId)
+                }
+                sticky.location = sticky.location || {x: 0, y: 0}
+                sticky.location.x += offset.x
+                sticky.location.y += offset.y
+            }
+
+            getState() {
+                return JSON.parse(JSON.stringify({stickies: this.stickies}))
+            }
+        }
+        
+        const board = new Board()
+        const stickyId = board.putSticky({ text: "Test", color: "khaki" }, {x:200, y: 500})
+        render(board, document.querySelector(".board"))
+    </script>
+</body>
+</html>
