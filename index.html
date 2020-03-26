@@ -80,9 +80,11 @@
                     stickyElement.style.backgroundColor = sticky.color || DEFAULT_COLOR
                     textElement.textContent = sticky.text
                     inputElement.value = sticky.text
-                    inputElement.oninput = (event) => {
-                        board.updateText(id, event.target.value)
-                        textElement.textContent = event.target.value
+                    if (!inputElement.oninput) {
+                        inputElement.oninput = (event) => {
+                            board.updateText(id, event.target.value)
+                            textElement.textContent = event.target.value
+                        }
                     }
                 })
             const size = 8000 * element.boardScale + "px"
@@ -96,7 +98,6 @@
                 const {id, start} = JSON.parse(event.dataTransfer.getData(STICKY_TYPE))
                 const offset = {x: (x - start.x) / element.boardScale, y: (y - start.y) / element.boardScale}
                 board.moveSticky(id, offset)
-                console.log(start, {x, y}, offset)
                 render(board, element)
             }
             // TODO: Keep the center of the board centered while zooming
@@ -108,42 +109,44 @@
                 } else if (event.key === "-") {
                     element.boardScale = element.boardScale / 1.5
                 }
-                console.log(document.body.scrollTop)
                 render(board, element)
             }
         }
         function getStickyElement(boardElement, id) {
             const stickyIdClass = "sticky-"+id
-            let stickyElement = boardElement.querySelector("."+stickyIdClass)
+            let stickyElement = boardElement[stickyIdClass]
             if (!stickyElement) {
                 stickyElement = document.createElement("div")
                 stickyElement.innerHTML = '<span class="text"></span><input class="textInput hidden"/>'
                 boardElement.appendChild(stickyElement)
                 stickyElement.classList.add(stickyIdClass)
-            }
-            const textElement = stickyElement.querySelector('.text')
-            const inputElement = stickyElement.querySelector('.textInput')
-            stickyElement.classList.add("sticky")
-            stickyElement.setAttribute("draggable", "true")
-            stickyElement.ondragstart = (event) => {
-                const {pageX: x, pageY: y} = event
-                event.dataTransfer.setData(STICKY_TYPE, JSON.stringify({id, start: {x, y}}))
-            }
-            function setEditable(enabled) {
-                if (enabled) {
-                    stickyElement.classList.add("editing")
-                    inputElement.focus()
-                } else {
-                    stickyElement.classList.remove("editing")
+                stickyElement.textElement = stickyElement.querySelector('.text')
+                stickyElement.inputElement = stickyElement.querySelector('.textInput')
+                stickyElement.classList.add("sticky")
+                stickyElement.setAttribute("draggable", "true")
+                stickyElement.ondragstart = (event) => {
+                    const {pageX: x, pageY: y} = event
+                    event.dataTransfer.setData(STICKY_TYPE, JSON.stringify({id, start: {x, y}}))
                 }
-            }
-            textElement.onclick = () => setEditable(true)
-            inputElement.onblur = () => setEditable(false)
-            inputElement.onkeyup = (event) => {
-                if (event.keyCode === 13) {
-                    setEditable(false)
+                function setEditable(enabled) {
+                    if (enabled) {
+                        stickyElement.classList.add("editing")
+                        stickyElement.inputElement.focus()
+                    } else {
+                        stickyElement.classList.remove("editing")
+                    }
                 }
+                stickyElement.textElement.onclick = () => setEditable(true)
+                stickyElement.inputElement.onblur = () => setEditable(false)
+                stickyElement.inputElement.onkeyup = (event) => {
+                    if (event.keyCode === 13) {
+                        setEditable(false)
+                    }
+                }
+                boardElement[stickyIdClass] = stickyElement
             }
+            const textElement = stickyElement.textElement
+            const inputElement = stickyElement.inputElement
             return [stickyElement, textElement, inputElement]
         }
         // TODO: Snap to a grid
@@ -182,8 +185,15 @@
         }
         
         const board = new Board()
-        const stickyId = board.putSticky({ text: "Test", color: "khaki" }, {x:200, y: 500})
+        for (let i=0; i<10000; i++) {
+            board.putSticky({ text: "Test", color: "khaki" }, {x:Math.random() * 8000, y: Math.random() * 8000})
+        }
         render(board, document.querySelector(".board"))
+        // const doRender = () => {
+        //     render(board, document.querySelector(".board"))
+        //     window.requestAnimationFrame(doRender)
+        // }
+        // window.requestAnimationFrame(doRender)
     </script>
 </body>
 </html>
