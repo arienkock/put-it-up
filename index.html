@@ -35,6 +35,7 @@
         }
         .board {
             background-color: grey;
+            transform-origin: top left;
         }
     </style>
 </head>
@@ -52,13 +53,15 @@
                     const [stickyElement, inputElement] = getStickyElement(element, id, board.updateText)
                     stickyElement.style.left = sticky.location.x * element.boardScale + "px"
                     stickyElement.style.top = sticky.location.y * element.boardScale + "px"
+                    if (element.boardScale < 0.60) {
+                        inputElement.style.display = "none"
+                    }
                     const size = 100 * element.boardScale + "px"
                     stickyElement.style.width = size
                     stickyElement.style.height = size
                     stickyElement.style.padding = 10 * element.boardScale + "px"
                     stickyElement.style.backgroundColor = sticky.color || DEFAULT_COLOR
                     inputElement.value = sticky.text
-                    fitContentInSticky(stickyElement, inputElement)
                 })
             const size = 8000 * element.boardScale + "px"
             element.style.width = size
@@ -69,7 +72,7 @@
             element.ondrop = (event) => {
                 const {pageX: x, pageY: y} = event
                 const {id, start} = JSON.parse(event.dataTransfer.getData(STICKY_TYPE))
-                const offset = {x: (x - start.x) / element.boardScale, y: (y - start.y) / element.boardScale}
+                const offset = {x: (x - start.x) / (element.boardScale * element.boardScale), y: (y - start.y) / (element.boardScale * element.boardScale)}
                 board.moveSticky(id, offset)
                 render(board, element)
             }
@@ -82,8 +85,10 @@
                 } else if (event.key === "-") {
                     element.boardScale = element.boardScale / 1.5
                 }
+                element.style.transform = `scale(${element.boardScale})`
                 render(board, element)
             }
+            element.style.transform = `scale(${element.boardScale})`
         }
         function getStickyElement(boardElement, id, updateTextById) {
             const stickyIdClass = "sticky-"+id
@@ -119,6 +124,7 @@
                     inputElement.value = updateTextById(id, inputElement.value)
                     fitContentInSticky(stickyElement, inputElement)
                 })
+                fitContentInSticky(stickyElement, stickyElement.inputElement)
                 boardElement[stickyIdClass] = stickyElement
             }
             const inputElement = stickyElement.inputElement
