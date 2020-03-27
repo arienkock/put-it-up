@@ -1,5 +1,5 @@
 export function Board() {
-  const stickies = {};
+  let stickies = {};
   let idGen = 0;
   this.gridWidth = 25
 
@@ -59,4 +59,8 @@ export function Board() {
   )
 
   this.getState = () => clone({ stickies });
+
+  this.setState = (state) => {
+      stickies = clone(state.stickies)
+  }
 }
