@@ -30,34 +30,11 @@
         }
         .sticky > .textInput {
             font-family: inherit;
-            font-size: 1rem;
             resize: none;
             border: none;
         }
-        /* .sticky.editing > .textInput {
-            display: block;
-        }
-        .sticky > .textInput {
-            width: 10em;
-            display: none;
-        }
-        .sticky.editing > .text {
-            display: none;
-        } */
         .board {
-            /* width: 8000px;
-            height: 8000px; */
             background-color: grey;
-        }
-        .board.mini {
-            /* width: 2000px;
-            height: 2000px; */
-        }
-        .board.mini .sticky {
-            /* width: 25px;
-            height: 25px;
-            padding: 2px;
-            font-size: 0.25rem; */
         }
     </style>
 </head>
@@ -72,23 +49,16 @@
             Object.entries(board.getState().stickies)
                 .forEach((entry) => {
                     const [id, sticky] = entry
-                    const [stickyElement, textElement, inputElement] = getStickyElement(element, id)
+                    const [stickyElement, inputElement] = getStickyElement(element, id, board.updateText)
                     stickyElement.style.left = sticky.location.x * element.boardScale + "px"
                     stickyElement.style.top = sticky.location.y * element.boardScale + "px"
                     const size = 100 * element.boardScale + "px"
                     stickyElement.style.width = size
                     stickyElement.style.height = size
                     stickyElement.style.padding = 10 * element.boardScale + "px"
-                    // stickyElement.style.fontSize = element.boardScale + "rem"
                     stickyElement.style.backgroundColor = sticky.color || DEFAULT_COLOR
-                    textElement.textContent = sticky.text
                     inputElement.value = sticky.text
-                    if (!inputElement.oninput) {
-                        inputElement.oninput = (event) => {
-                            board.updateText(id, event.target.value)
-                            
-                        }
-                    }
+                    fitContentInSticky(stickyElement, inputElement)
                 })
             const size = 8000 * element.boardScale + "px"
             element.style.width = size
@@ -115,7 +85,7 @@
                 render(board, element)
             }
         }
-        function getStickyElement(boardElement, id) {
+        function getStickyElement(boardElement, id, updateTextById) {
             const stickyIdClass = "sticky-"+id
             let stickyElement = boardElement[stickyIdClass]
             if (!stickyElement) {
@@ -123,7 +93,6 @@
                 stickyElement.innerHTML = '<textarea class="textInput text hidden" rows="1" tabindex="-1"></textarea>'
                 boardElement.appendChild(stickyElement)
                 stickyElement.classList.add(stickyIdClass)
-                stickyElement.textElement = stickyElement.querySelector('.text')
                 stickyElement.inputElement = stickyElement.querySelector('.textInput')
                 stickyElement.classList.add("sticky")
                 stickyElement.setAttribute("draggable", "true")
@@ -140,7 +109,6 @@
                         stickyElement.inputElement.blur()
                     }
                 }
-                stickyElement.textElement.onclick = () => setEditable(true)
                 stickyElement.inputElement.onblur = () => setEditable(false)
                 stickyElement.inputElement.onkeyup = (event) => {
                     if (event.keyCode === 13) {
@@ -148,53 +116,59 @@
                     }
                 }
                 stickyElement.inputElement.addEventListener('input', (event) => {
-                    inputElement.value = inputElement.value.replace(/\n/g, "")
-                    inputElement.rows = 1
-                    inputElement.style.fontSize = "1rem"
-                    let fontSize = 1
-                    while (true) {
-                        let adjusted = false
-                        if (inputElement.scrollHeight > inputElement.clientHeight && stickyElement.scrollHeight <= stickyElement.clientHeight) {
-                            inputElement.rows++
-                            adjusted = true
-                        }
-                        if (stickyElement.scrollHeight > stickyElement.clientHeight) {
-                            inputElement.rows--
-                            adjusted = false
-                        }
-                        if (inputElement.scrollHeight > inputElement.clientHeight && fontSize > 0.5) {
-                            adjusted = true
-                            fontSize -= 0.01
-                            inputElement.style.fontSize = fontSize + "rem"
-                        }
-                        if (!adjusted) {
-                            break
-                        }
-                    }
+                    inputElement.value = updateTextById(id, inputElement.value)
+                    fitContentInSticky(stickyElement, inputElement)
                 })
                 boardElement[stickyIdClass] = stickyElement
             }
-            const textElement = stickyElement.textElement
             const inputElement = stickyElement.inputElement
-            return [stickyElement, textElement, inputElement]
+            return [stickyElement, inputElement]
+        }
+        
+        function fitContentInSticky(sticky, textarea) {
+            textarea.rows = 1
+            textarea.style.fontSize = "1rem"
+            let fontSize = 1
+            while (true) {
+                let adjusted = false
+                if (textarea.scrollHeight > textarea.clientHeight && sticky.scrollHeight <= sticky.clientHeight) {
+                    textarea.rows++
+                    adjusted = true
+                }
+                if (sticky.scrollHeight > sticky.clientHeight) {
+                    textarea.rows--
+                    adjusted = false
+                }
+                if (textarea.scrollHeight > textarea.clientHeight && fontSize > 0.5) {
+                    adjusted = true
+                    fontSize -= 0.01
+                    textarea.style.fontSize = fontSize + "rem"
+                }
+                if (!adjusted) {
+                    break
+                }
+            }
         }
         // TODO: Snap to a grid
         class Board {
             stickies = {}
             idGen = 0
+
             putSticky(sticky, location) {
                 const id = ++this.idGen
                 this.stickies[id] = sticky
+                this.updateText(id, sticky.text)
                 this.moveSticky(id, location)
                 return id
             }
 
-            updateText(id, text) {
+            updateText = (id, text) => {
                 const sticky = this.stickies[id]
                 if (!sticky) {
                     throw new Error("No such sticky " + stickyId)
                 }
-                sticky.text = text
+                sticky.text = this.removeNewlines(text)
+                return sticky.text
             }
 
             moveSticky(id, offset) {
@@ -206,6 +180,10 @@
                 sticky.location = sticky.location || {x: 0, y: 0}
                 sticky.location.x += offset.x
                 sticky.location.y += offset.y
+            }
+
+            removeNewlines(text) {
+                return text.replace(/\n/g, "")
             }
 
             getState() {
