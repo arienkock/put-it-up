@@ -9,24 +9,25 @@
         }
         .sticky {
             font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-            position: absolute;
             box-shadow: 4px 6px 5px 0px rgba(0,0,0,0.36);
-            cursor: grab;
             display: flex;
             justify-content: center;
             align-items: center;
             color: #444;
             overflow-y: auto;
+            width: 100%;
+        }
+        .sticky-container {
+            box-sizing: border-box;
+            position: absolute;
+            cursor: grab;
+            display: flex;
         }
         .sticky > .text {
-            background-color: rgba(0,0,0,0.025);
             padding: 5px;
             cursor: text;
             text-align: center;
-        }
-        .sticky > .text:empty::after {
-            content: 'click to edit';
-            color: grey;
+            background-color: rgba(0,0,0,0.025);
         }
         .sticky > .textInput {
             font-family: inherit;
@@ -34,7 +35,7 @@
             border: none;
         }
         .board {
-            background-color: grey;
+            background-color: #f9f9f9;
             transform-origin: top left;
         }
     </style>
@@ -42,177 +43,6 @@
 <body>
     <div class="board mini">
     </div>
-    <script>
-        const STICKY_TYPE = "application/sticky"
-        const DEFAULT_STICKY_COLOR = "khaki"
-        function render(board, element) {
-            element.boardScale = element.boardScale || 1
-            Object.entries(board.getState().stickies)
-                .forEach((entry) => {
-                    const [id, sticky] = entry
-                    const [stickyElement, inputElement] = getStickyElement(element, id, board.updateText)
-                    stickyElement.style.left = sticky.location.x * element.boardScale + "px"
-                    stickyElement.style.top = sticky.location.y * element.boardScale + "px"
-                    inputElement.style.display = element.boardScale < 0.60 ? "none" : "block"
-                    const size = 100 * element.boardScale + "px"
-                    stickyElement.style.width = size
-                    stickyElement.style.height = size
-                    stickyElement.style.padding = 10 * element.boardScale + "px"
-                    stickyElement.style.backgroundColor = sticky.color || DEFAULT_STICKY_COLOR
-                    inputElement.value = sticky.text
-                })
-            const size = 8000 * element.boardScale + "px"
-            element.style.width = size
-            element.style.height = size
-            element.ondragover = (event) => {
-                event.preventDefault()
-            }
-            element.ondrop = (event) => {
-                const {clientX: x, clientY: y} = event
-                const {id, start} = JSON.parse(event.dataTransfer.getData(STICKY_TYPE))
-                const offset = {
-                    x: (x - start.x) / (element.boardScale * element.boardScale), 
-                    y: (y - start.y) / (element.boardScale * element.boardScale)
-                }
-                board.moveSticky(id, offset)
-                render(board, element)
-            }
-            // TODO: Keep the center of the board centered while zooming
-            // TODO: Use pointer events to support pinch zoom gesture
-            // TODO: Have fixed zoom scale in an array of constants
-            document.body.onkeyup = (event) => {
-                if (event.key === "+") {
-                    element.boardScale = element.boardScale * 1.5
-                } else if (event.key === "-") {
-                    element.boardScale = element.boardScale / 1.5
-                }
-                element.style.transform = `scale(${element.boardScale})`
-                render(board, element)
-            }
-            element.style.transform = `scale(${element.boardScale})`
-        }
-        function getStickyElement(boardElement, id, updateTextById) {
-            const stickyIdClass = "sticky-"+id
-            let stickyElement = boardElement[stickyIdClass]
-            if (!stickyElement) {
-                stickyElement = document.createElement("div")
-                stickyElement.innerHTML = '<textarea class="textInput text hidden" rows="1" tabindex="-1"></textarea>'
-                boardElement.appendChild(stickyElement)
-                stickyElement.classList.add(stickyIdClass)
-                stickyElement.inputElement = stickyElement.querySelector('.textInput')
-                stickyElement.classList.add("sticky")
-                stickyElement.setAttribute("draggable", "true")
-                stickyElement.ondragstart = (event) => {
-                    const {clientX: x, clientY: y} = event
-                    const originalLocation = 
-                    event.dataTransfer.setData(STICKY_TYPE, JSON.stringify({id, start: {x, y}}))
-                }
-                function setEditable(enabled) {
-                    if (enabled) {
-                        stickyElement.classList.add("editing")
-                        stickyElement.inputElement.focus()
-                    } else {
-                        stickyElement.classList.remove("editing")
-                        stickyElement.inputElement.blur()
-                    }
-                }
-                stickyElement.inputElement.onblur = () => setEditable(false)
-                stickyElement.inputElement.onkeyup = (event) => {
-                    if (event.keyCode === 13) {
-                        setEditable(false)
-                    }
-                }
-                stickyElement.inputElement.addEventListener('input', (event) => {
-                    inputElement.value = updateTextById(id, inputElement.value)
-                    fitContentInSticky(stickyElement, inputElement)
-                })
-                fitContentInSticky(stickyElement, stickyElement.inputElement)
-                boardElement[stickyIdClass] = stickyElement
-            }
-            const inputElement = stickyElement.inputElement
-            return [stickyElement, inputElement]
-        }
-        
-        function fitContentInSticky(sticky, textarea) {
-            textarea.rows = 1
-            textarea.style.fontSize = "1rem"
-            let fontSize = 1
-            while (true) {
-                let adjusted = false
-                if (textarea.scrollHeight > textarea.clientHeight && sticky.scrollHeight <= sticky.clientHeight) {
-                    textarea.rows++
-                    adjusted = true
-                }
-                if (sticky.scrollHeight > sticky.clientHeight) {
-                    textarea.rows--
-                    adjusted = false
-                }
-                if (textarea.scrollHeight > textarea.clientHeight && fontSize > 0.5) {
-                    adjusted = true
-                    fontSize -= 0.01
-                    textarea.style.fontSize = fontSize + "rem"
-                }
-                if (!adjusted) {
-                    break
-                }
-            }
-        }
-        // TODO: Snap to a grid
-        function Board() {
-            stickies = {}
-            idGen = 0
-
-            const getSticky = (id) => {
-                const sticky = stickies[id]
-                if (!sticky) {
-                    throw new Error("No such sticky " + stickyId)
-                }
-                return sticky
-            }
-            const removeNewlines = (text) => {
-                return text.replace(/\n/g, "")
-            }
-            const clone = (data) => JSON.parse(JSON.stringify(data))
-
-            this.putSticky = (sticky, location) => {
-                const id = ++idGen
-                stickies[id] = sticky
-                this.updateText(id, sticky.text)
-                this.moveSticky(id, location)
-                return id
-            }
-
-            this.updateText = (id, text) => {
-                const sticky = getSticky(id)
-                sticky.text = removeNewlines(text)
-                return sticky.text
-            }
-
-            this.getStickyLocation = (id) => {
-                return getSticky(id).location
-            }
-
-            this.moveSticky = (id, offset) => {
-                offset = offset || {x: 0, y: 0}
-                const sticky = getSticky(id)
-                sticky.location = sticky.location || {x: 0, y: 0}
-                sticky.location.x += offset.x
-                sticky.location.y += offset.y
-            }
-
-            this.getState = () => clone({stickies})
-        }
-        
-        const board = new Board()
-        for (let i=0; i<100; i++) {
-            board.putSticky({ text: "Test", color: "khaki" }, {x:Math.random() * 8000, y: Math.random() * 8000})
-        }
-        render(board, document.querySelector(".board"))
-        // const doRender = () => {
-        //     render(board, document.querySelector(".board"))
-        //     window.requestAnimationFrame(doRender)
-        // }
-        // window.requestAnimationFrame(doRender)
-    </script>
+    <script type="module" src="main.js"></script>
 </body>
 </html>
