@@ -148,16 +148,28 @@
                     }
                 }
                 stickyElement.inputElement.addEventListener('input', (event) => {
-                    inputElement.value = event.target.value.replace(/\n/g, "")
-                    event.target.rows = 1
-                    event.target.style.fontSize = "1rem"
-                    while (event.target.scrollHeight > event.target.clientHeight) {
-                        event.target.rows++
-                    }
+                    inputElement.value = inputElement.value.replace(/\n/g, "")
+                    inputElement.rows = 1
+                    inputElement.style.fontSize = "1rem"
                     let fontSize = 1
-                    while (stickyElement.scrollHeight > stickyElement.clientHeight && fontSize > 0.5) {
-                        fontSize -= 0.01
-                        event.target.style.fontSize = fontSize + "rem"
+                    while (true) {
+                        let adjusted = false
+                        if (inputElement.scrollHeight > inputElement.clientHeight && stickyElement.scrollHeight <= stickyElement.clientHeight) {
+                            inputElement.rows++
+                            adjusted = true
+                        }
+                        if (stickyElement.scrollHeight > stickyElement.clientHeight) {
+                            inputElement.rows--
+                            adjusted = false
+                        }
+                        if (inputElement.scrollHeight > inputElement.clientHeight && fontSize > 0.5) {
+                            adjusted = true
+                            fontSize -= 0.01
+                            inputElement.style.fontSize = fontSize + "rem"
+                        }
+                        if (!adjusted) {
+                            break
+                        }
                     }
                 })
                 boardElement[stickyIdClass] = stickyElement
