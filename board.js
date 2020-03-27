@@ -6,7 +6,7 @@ export function Board() {
   const getStickyInternal = id => {
     const sticky = stickies[id];
     if (!sticky) {
-      throw new Error("No such sticky " + stickyId);
+      throw new Error("No such sticky id=" + id);
     }
     return sticky;
   };
@@ -58,9 +58,10 @@ export function Board() {
       }
   )
 
-  this.getState = () => clone({ stickies });
+  this.getState = () => clone({ stickies, idGen });
 
   this.setState = (state) => {
       stickies = clone(state.stickies)
+      idGen = state.idGen
   }
 }

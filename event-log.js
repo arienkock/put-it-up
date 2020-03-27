@@ -32,7 +32,7 @@ export function EventLog() {
     if (index < 0) {
       throw new Error("Log history does not go that far back: " + index);
     }
-    maxIndex = maxIndex || this.data.length
+    maxIndex = (maxIndex - numDiscarderEvents) || this.data.length
     for (let i = index; i < maxIndex; i++) {
       callback(this.data[i]);
     }
