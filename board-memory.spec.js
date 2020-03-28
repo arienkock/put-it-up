@@ -1,10 +1,11 @@
 import { BoardMemory } from "./board-memory";
 import { Board } from "./board";
 import { EventLog } from "./event-log";
+import { PerfectNetwork } from "./network-stubs";
 
 test("processEvent works", () => {
   const b = new Board();
-  const bm = new BoardMemory(b, null);
+  const bm = new BoardMemory(b, null, new PerfectNetwork());
   b.putSticky({ text: "hello" });
   bm.processEvent({
     method: "moveSticky",
@@ -16,10 +17,11 @@ test("processEvent works", () => {
 test("rewind to right place", () => {
   const b = new Board();
   const el = new EventLog();
-  const bm = new BoardMemory(b, el);
+  const bm = new BoardMemory(b, el, new PerfectNetwork());
   jest.spyOn(bm, "rewindTo");
   jest.spyOn(el, "receiveEvent");
   bm.receiveEvent({
+    clientId: 1,
     sequence: 1,
     timestamp: 1,
     method: "putSticky",
@@ -27,6 +29,7 @@ test("rewind to right place", () => {
   });
   expect(bm.rewindTo).toHaveBeenLastCalledWith(0);
   bm.receiveEvent({
+    clientId: 1,
     sequence: 1,
     timestamp: 2,
     method: "moveSticky",
@@ -35,6 +38,7 @@ test("rewind to right place", () => {
   expect(el.receiveEvent).toHaveBeenCalled();
   expect(bm.rewindTo).toHaveBeenLastCalledWith(1);
   bm.receiveEvent({
+    clientId: 1,
     sequence: 2,
     timestamp: 2,
     method: "moveSticky",
@@ -47,16 +51,16 @@ test("rewind to right place", () => {
 test("rewind to 0", () => {
   const b = new Board();
   const el = new EventLog();
-  const bm = new BoardMemory(b, el);
-  jest.spyOn(bm, "rewindTo");
-  jest.spyOn(el, "receiveEvent");
+  const bm = new BoardMemory(b, el, new PerfectNetwork());
   bm.receiveEvent({
+    clientId: 1,
     sequence: 1,
     timestamp: 1,
     method: "putSticky",
     args: [{ text: "hello" }]
   });
   bm.receiveEvent({
+    clientId: 1,
     sequence: 1,
     timestamp: 2,
     method: "moveSticky",
@@ -69,10 +73,11 @@ test("rewind to 0", () => {
 test("rewind to fix out of order", () => {
   const b = new Board();
   const el = new EventLog();
-  const bm = new BoardMemory(b, el);
+  const bm = new BoardMemory(b, el, new PerfectNetwork());
   jest.spyOn(bm, "rewindTo");
   jest.spyOn(el, "receiveEvent");
   bm.receiveEvent({
+    clientId: 1,
     sequence: 1,
     timestamp: 1,
     method: "putSticky",
@@ -82,6 +87,7 @@ test("rewind to fix out of order", () => {
   expect(b.getSticky(1).text).toBe("hello");
   for (let i = 2; i < 10; i++) {
     bm.receiveEvent({
+      clientId: 1,
       sequence: i,
       timestamp: i,
       method: "updateText",
@@ -90,6 +96,7 @@ test("rewind to fix out of order", () => {
   }
   expect(b.getSticky(1).text).toBe("hello3");
   bm.receiveEvent({
+    clientId: 1,
     sequence: 4,
     timestamp: 5,
     method: "updateText",
