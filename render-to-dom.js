@@ -20,7 +20,7 @@ export function mount(board, domElement) {
       board.updateText,
       board.getStickyLocation
     );
-    const shouldAnimateMove = stickyMovedLocally !== stickyId
+    const shouldAnimateMove = stickyMovedLocally !== stickyId;
     setStickyStyles(
       sticky,
       container,
@@ -28,7 +28,7 @@ export function mount(board, domElement) {
       shouldAnimateMove
     );
     if (shouldAnimateMove) {
-      stickyMovedLocally = null
+      stickyMovedLocally = null;
     }
     const textarea = container.inputElement;
     if (textarea.value !== sticky.text) {
@@ -91,14 +91,7 @@ export function mount(board, domElement) {
       board.putSticky({ color: "khaki" }, location);
     }
   };
-  const observer = {
-    onStickyChange(id) {
-      renderSticky(id, board.getSticky(id));
-    },
-    onBoardChange() {
-      render();
-    }
-  };
+  const observer = createBufferedObserver(board, render, renderSticky)
   board.addObserver(observer);
   render();
   return {
@@ -207,4 +200,38 @@ function createStickyContainerDOM(stickyIdClass) {
   container.classList.add("sticky-container");
   container.sticky.setAttribute("draggable", "true");
   return container;
+}
+
+function createBufferedObserver(board, render, renderSticky) {
+  let isRunScheduled = false
+  const tasks = []
+  function doRun() {
+    let timeElapsed = 0
+    while (tasks.length && timeElapsed < 14) {
+      const task = tasks.shift()
+      let start = Date.now()
+      task()
+      timeElapsed += Date.now() - start
+    }
+    if (tasks.length) {
+      requestAnimationFrame(doRun)
+    } else {
+      isRunScheduled = false
+    }
+  }
+  function scheduleRenderTask(task) {
+    if (!isRunScheduled) {
+      requestAnimationFrame(doRun)
+      isRunScheduled = true
+    }
+    tasks.push(task)
+  }
+  return {
+    onStickyChange(id) {
+      scheduleRenderTask(() => renderSticky(id, board.getSticky(id)));
+    },
+    onBoardChange() {
+      scheduleRenderTask(() => render());
+    }
+  };
 }

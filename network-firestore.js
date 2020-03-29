@@ -12,7 +12,7 @@ export class FirestoreNetwork {
       .collection(this.collectionName)
       .orderBy("sequence", "asc")
       .onSnapshot(querySnapshot => {
-        querySnapshot.docChanges().forEach(change => {
+        doBatched(querySnapshot.docChanges(), change => {
             if (change.type === "added" && !change.doc.metadata.hasPendingWrites) {
                 const message = change.doc.data()
                 node.handleNetworkMessage(message);
@@ -34,4 +34,20 @@ export class FirestoreNetwork {
   }
 
   wait() {}
+}
+
+function doBatched(array, task) {
+  function doRun() {
+    let timeElapsed = 0
+    while (array.length && timeElapsed < 5) {
+      const item = array.shift()
+      const start = Date.now()
+      task(item)
+      timeElapsed += Date.now() - start
+    }
+    if (array.length) {
+      requestAnimationFrame(doRun)
+    }
+  }
+  requestAnimationFrame(doRun)
 }
