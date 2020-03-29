@@ -1,4 +1,4 @@
-import { BoardMemory } from "./board-memory";
+import { NetworkedBoard } from "./network-board";
 import { EventLog } from "./event-log";
 import { Board } from "./board";
 import { LossyNetwork, PerfectNetwork } from "./network-stubs";
@@ -13,7 +13,7 @@ test("all state ends up the same LossyNetwork", done => {
 
 function testNetwork(Network, done) {
   const numGuests = 1;
-  const numIterations = 50;
+  const numIterations = 1;
   const network = new Network();
   const { host, guests } = createSession(numGuests, network);
   simulate({ host, guests }, numIterations);
@@ -33,10 +33,10 @@ function testNetwork(Network, done) {
 }
 
 function createSession(numGuests, network) {
-  const host = createBoardMemory(network, 0);
+  const host = createNetworkedBoard(network, 0);
   const guests = [];
   for (let i = 0; i < numGuests; i++) {
-    guests.push(createBoardMemory(network, i + 1));
+    guests.push(createNetworkedBoard(network, i + 1));
   }
   return {
     host,
@@ -44,8 +44,9 @@ function createSession(numGuests, network) {
   };
 }
 
-function createBoardMemory(network, clientId) {
-  const bm = new BoardMemory(new Board(), new EventLog(), network, clientId);
+function createNetworkedBoard(network, clientId) {
+  const bm = new NetworkedBoard(new Board(), new EventLog(), network, clientId);
+  bm.connect()
   const originalPutSticky = bm.putSticky;
   const knownIds = [];
   bm.putSticky = (...args) => {

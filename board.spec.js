@@ -1,4 +1,4 @@
-import { Board } from "./board";
+import { Board, ObservableBoard } from "./board";
 
 test("snapping", () => {
   const b = new Board();
@@ -12,4 +12,10 @@ test("expect throwing behavior", () => {
     const b = new Board();
     expect(() => b.moveSticky(1, {x: 0, y: 0})).toThrow("No such sticky id=1")
     expect(() => b.updateText(2, "sdsda")).toThrow("No such sticky id=2")
+})
+
+test("observable board proxies calls", () => {
+    const b = new Board()
+    const ob = new ObservableBoard(b)
+    ob.getState()
 })

@@ -1,4 +1,4 @@
-export class BoardMemory {
+export class NetworkedBoard {
   constructor(board, log, network, clientId) {
     this.board = board;
     this.log = log;
@@ -8,6 +8,10 @@ export class BoardMemory {
     this.saveStates = {
       "-1": board.getState()
     };
+  }
+
+  // TODO: connect should return a promise
+  connect() {
     this.network.connect(this);
   }
 
@@ -23,10 +27,12 @@ export class BoardMemory {
 
   rewindTo(index) {
     if (index <= this.prevIndex) {
-      const indexesOfSaveStates = Object.keys(this.saveStates)
-      const saveIndex = indexesOfSaveStates.reverse().find(saveIndex => saveIndex < index)
+      const indexesOfSaveStates = Object.keys(this.saveStates);
+      const saveIndex = indexesOfSaveStates
+        .reverse()
+        .find(saveIndex => saveIndex < index);
       this.board.setState(this.saveStates[saveIndex]);
-      this.log.forEachEventFrom((+saveIndex) + 1, this.processEvent, index)
+      this.log.forEachEventFrom(+saveIndex + 1, this.processEvent, index);
     }
     this.prevIndex = index - 1;
   }
@@ -70,7 +76,21 @@ export class BoardMemory {
     try {
       this.board[method](...args);
     } catch (err) {
-        console.log("Error processing event. Out of order?", err)
+      console.log("Error processing event. Out of order?", err);
     }
   };
+
+  getStickyLocation = (...args) => {
+    const result = this.board.getStickyLocation(...args);
+    return result;
+  };
+
+  getSticky = (...args) => {
+    const result = this.board.getSticky(...args);
+    return result;
+  };
+  // TODO: remove duplication by using a generic method to proxy board methods
+  notifyStickyChange = (...args) => this.board.notifyStickyChange(...args)
+  notifyBoardChange = (...args) => this.board.notifyBoardChange(...args)
+  addObserver = (...args) => this.board.addObserver(...args)
 }

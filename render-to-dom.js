@@ -5,7 +5,7 @@
 
 const STICKY_TYPE = "application/sticky";
 const DEFAULT_STICKY_COLOR = "khaki";
-const zoomScale = [0.25, 0.5, 0.75, 1]
+const zoomScale = [0.5, 1];
 export function mount(board, element) {
   const renderSticky = (id, sticky) => {
     const container = getStickyElement(
@@ -43,7 +43,6 @@ export function mount(board, element) {
 
   element.ondragover = event => {
     event.preventDefault();
-    console.log(event);
   };
 
   element.ondrop = event => {
@@ -61,19 +60,38 @@ export function mount(board, element) {
       y: originalLocation.y + offset.y
     };
     board.moveSticky(id, newLocation);
-    renderSticky(id, board.getSticky(id));
   };
+  let nextClickCreatesNewSticky = false;
   document.body.onkeyup = event => {
-    let index = zoomScale.findIndex(v => v === element.boardScale)
-    if (event.key === "+") {
-      index++
-    } else if (event.key === "-") {
-      index--
+    if (event.key === "o") {
+      let index = zoomScale.findIndex(v => v === element.boardScale) + 1;
+      element.boardScale = zoomScale[index % zoomScale.length];
+      render(board, element);
+    } else if (event.key === "n") {
+      nextClickCreatesNewSticky = true;
     }
-    index = Math.max(0, Math.min(zoomScale.length - 1, index))
-    element.boardScale = zoomScale[index]
-    render(board, element);
   };
+  element.onclick = event => {
+    if (nextClickCreatesNewSticky) {
+      nextClickCreatesNewSticky = false;
+      const rect = element.getBoundingClientRect();
+      const location = {
+        x: event.clientX - rect.left - 50,
+        y: event.clientY - rect.top - 50
+      };
+      board.putSticky({ color: "khaki" }, location);
+    }
+  };
+  const observer = {
+    onStickyChange(id) {
+      renderSticky(id, board.getSticky(id));
+    },
+    onBoardChange() {
+      render();
+    }
+  };
+  board.addObserver(observer);
+  render();
   return {
     render
   };
@@ -83,8 +101,9 @@ function getStickyElement(boardElement, id, updateTextById, getStickyLocation) {
   let container = boardElement[stickyIdClass];
   if (!container) {
     container = document.createElement("div");
+    boardElement[stickyIdClass] = container;
     container.innerHTML =
-      '<div class="sticky"><textarea class="textInput text hidden" rows="1" tabindex="-1"></textarea></div>';
+      '<div class="sticky"><textarea class="textInput text" rows="1" tabindex="-1"></textarea></div>';
     boardElement.appendChild(container);
     container.classList.add(stickyIdClass);
     container.inputElement = container.querySelector(".textInput");
@@ -110,6 +129,7 @@ function getStickyElement(boardElement, id, updateTextById, getStickyLocation) {
     }
     container.inputElement.onblur = () => setEditable(false);
     container.inputElement.onkeyup = event => {
+      event.stopPropagation();
       if (event.keyCode === 13) {
         setEditable(false);
       }
@@ -121,12 +141,12 @@ function getStickyElement(boardElement, id, updateTextById, getStickyLocation) {
       );
       fitContentInSticky(container.sticky, container.inputElement);
     });
-    boardElement[stickyIdClass] = container;
   }
   return container;
 }
 
 function fitContentInSticky(sticky, textarea) {
+  console.log("fitting for " + textarea.value, new Error());
   textarea.rows = 1;
   textarea.style.fontSize = "1.5rem";
   let fontSize = 1.5;

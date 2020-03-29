@@ -1,11 +1,11 @@
-import { BoardMemory } from "./board-memory";
-import { Board } from "./board";
+import { NetworkedBoard } from "./network-board";
+import { Board, ObservableBoard } from "./board";
 import { EventLog } from "./event-log";
 import { PerfectNetwork } from "./network-stubs";
 
 test("processEvent works", () => {
-  const b = new Board();
-  const bm = new BoardMemory(b, null, new PerfectNetwork());
+  const b = new ObservableBoard(new Board());
+  const bm = new NetworkedBoard(b, null, new PerfectNetwork());
   b.putSticky({ text: "hello" });
   bm.processEvent({
     method: "moveSticky",
@@ -15,9 +15,9 @@ test("processEvent works", () => {
 });
 
 test("rewind to right place", () => {
-  const b = new Board();
+  const b = new ObservableBoard(new Board());
   const el = new EventLog();
-  const bm = new BoardMemory(b, el, new PerfectNetwork());
+  const bm = new NetworkedBoard(b, el, new PerfectNetwork());
   jest.spyOn(bm, "rewindTo");
   jest.spyOn(el, "receiveEvent");
   bm.receiveEvent({
@@ -49,9 +49,9 @@ test("rewind to right place", () => {
 });
 
 test("rewind to 0", () => {
-  const b = new Board();
+  const b = new ObservableBoard(new Board());
   const el = new EventLog();
-  const bm = new BoardMemory(b, el, new PerfectNetwork());
+  const bm = new NetworkedBoard(b, el, new PerfectNetwork());
   bm.receiveEvent({
     clientId: 1,
     sequence: 1,
@@ -71,9 +71,9 @@ test("rewind to 0", () => {
 });
 
 test("rewind to fix out of order", () => {
-  const b = new Board();
+  const b = new ObservableBoard(new Board());
   const el = new EventLog();
-  const bm = new BoardMemory(b, el, new PerfectNetwork());
+  const bm = new NetworkedBoard(b, el, new PerfectNetwork());
   jest.spyOn(bm, "rewindTo");
   jest.spyOn(el, "receiveEvent");
   bm.receiveEvent({
