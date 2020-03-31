@@ -2,10 +2,10 @@ import { Board, ObservableBoard } from "./board";
 
 test("snapping", () => {
   const b = new Board();
-  b.putSticky({ text: "hey" }, { x: 28, y: 28 });
-  expect(b.getStickyLocation(1)).toEqual({ x: 25, y: 25 });
-  b.putSticky({ text: "hey" }, { x: 45, y: 45 });
-  expect(b.getStickyLocation(2)).toEqual({ x: 50, y: 50 });
+  let id = b.putSticky({ text: "hey", location: { x: 28, y: 28 } });
+  expect(b.getStickyLocation(id)).toEqual({ x: 25, y: 25 });
+  id = b.putSticky({ text: "hey", location: { x: 45, y: 45 }});
+  expect(b.getStickyLocation(id)).toEqual({ x: 50, y: 50 });
 });
 
 test("expect throwing behavior", () => {

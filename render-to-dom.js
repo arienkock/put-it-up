@@ -88,7 +88,7 @@ export function mount(board, domElement) {
         x: event.clientX - rect.left - 50,
         y: event.clientY - rect.top - 50
       };
-      board.putSticky({ color: "khaki" }, location);
+      board.putSticky({ color: "khaki", location });
     }
   };
   const observer = createBufferedObserver(board, render, renderSticky)
@@ -163,7 +163,7 @@ function fitContentInSticky(sticky, textarea) {
     }
     if (textarea.scrollHeight > textarea.clientHeight && fontSize > 0.5) {
       adjusted = true;
-      fontSize -= 0.25;
+      fontSize -= 0.1;
       textarea.style.fontSize = fontSize + "rem";
     }
     if (!adjusted) {
