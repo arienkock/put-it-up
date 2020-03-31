@@ -24,7 +24,6 @@ export function mount(board, domElement) {
     setStickyStyles(
       sticky,
       container,
-      domElement.boardScale,
       shouldAnimateMove
     );
     if (shouldAnimateMove) {
@@ -39,9 +38,11 @@ export function mount(board, domElement) {
   const render = () => {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
-    const size = 8000 * domElement.boardScale + "px";
-    domElement.style.width = size;
-    domElement.style.height = size;
+    // const size = 8000 * domElement.boardScale + "px";
+    // domElement.style.width = size;
+    // domElement.style.height = size;
+    domElement.style.width = 8000
+    domElement.style.height = 8000
     domElement.style.transform = `scale(${domElement.boardScale})`;
     Object.entries(board.getState().stickies).forEach(entry => {
       const [id, sticky] = entry;
@@ -58,10 +59,9 @@ export function mount(board, domElement) {
     const { id, originalLocation, dragStart } = JSON.parse(
       event.dataTransfer.getData(STICKY_TYPE)
     );
-    const squareScale = domElement.boardScale * domElement.boardScale;
     const offset = {
-      x: (x - dragStart.x) / squareScale,
-      y: (y - dragStart.y) / squareScale
+      x: (x - dragStart.x) / domElement.boardScale,
+      y: (y - dragStart.y) / domElement.boardScale
     };
     const newLocation = {
       x: originalLocation.x + offset.x,
@@ -85,8 +85,8 @@ export function mount(board, domElement) {
       nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
       const location = {
-        x: event.clientX - rect.left - 50,
-        y: event.clientY - rect.top - 50
+        x: ((event.clientX - rect.left) / domElement.boardScale) - 50,
+        y: ((event.clientY - rect.top) / domElement.boardScale) - 50
       };
       board.putSticky({ color: "khaki", location });
     }
@@ -172,21 +172,20 @@ function fitContentInSticky(sticky, textarea) {
   }
 }
 
-function setStickyStyles(sticky, container, scaleFactor, animateMove) {
-  const { sticky: stickyElement, inputElement } = container;
+function setStickyStyles(sticky, container, animateMove) {
+  const { sticky: stickyElement } = container;
   if (animateMove) {
     container.style.transition = "left 1s, top 1s";
   } else {
     container.style.transition = "none";
   }
-  container.style.left = sticky.location.x * scaleFactor + "px";
-  container.style.top = sticky.location.y * scaleFactor + "px";
-  inputElement.style.display = scaleFactor < 0.6 ? "none" : "block";
-  const size = 100 * scaleFactor + "px";
+  container.style.left = sticky.location.x + "px";
+  container.style.top = sticky.location.y + "px";
+  const size = 100 + "px";
   container.style.width = size;
   container.style.height = size;
-  stickyElement.style.padding = 10 * scaleFactor + "px";
-  container.style.padding = 5 * scaleFactor + "px";
+  stickyElement.style.padding = 10 + "px";
+  container.style.padding = 5 + "px";
   stickyElement.style.backgroundColor = sticky.color || DEFAULT_STICKY_COLOR;
 }
 
