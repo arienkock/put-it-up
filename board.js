@@ -75,44 +75,6 @@ export class StubDatastore {
 
 }
 
-export class ObservableBoard {
-  static stickyChangeMethods = ["putSticky", "updateText", "moveSticky"];
-  static boardChangeMethods = ["setState"];
-  observers = [];
-  constructor(board) {
-    for (let prop in board) {
-      if (ObservableBoard.stickyChangeMethods.includes(prop)) {
-        this[prop] = (...args) => {
-          const r = board[prop](...args);
-          let id = args[0];
-          if (prop === "putSticky") {
-            id = r;
-          }
-          this.notifyStickyChange(id);
-          return r;
-        };
-      } else if (ObservableBoard.boardChangeMethods.includes(prop)) {
-        this[prop] = (...args) => {
-          const r = board[prop](...args);
-          this.notifyBoardChange();
-          return r;
-        };
-      } else {
-        this[prop] = (...args) => board[prop](...args);
-      }
-    }
-  }
-  notifyStickyChange = id => {
-    this.observers.forEach(o => o.onStickyChange(id));
-  };
-  notifyBoardChange = () => {
-    this.observers.forEach(o => o.onBoardChange());
-  };
-  addObserver = observer => {
-    this.observers.push(observer);
-  };
-}
-
 function snapDimension(x, gridSize) {
   const remainder = x % gridSize;
   x -= remainder;

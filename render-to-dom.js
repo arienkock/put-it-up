@@ -1,117 +1,181 @@
 // TODO: Keep the center of the board centered while zooming
 // TODO: Use pointer events to support pinch zoom gesture
-// TODO: Have fixed zoom scale in an array of constants
 // TODO: Show an indicator of where something will be snapped to
 // TODO: Move multiple stickies at once
 // TODO: Add a sticky without a keyboard
 // TODO: Move a sticky without a keyboard
 // TODO: Delete sticky
+// TODO: Render most recently changed sticky on top
 
 const STICKY_TYPE = "application/sticky";
 const DEFAULT_STICKY_COLOR = "khaki";
-const zoomScale = [0.5, 1];
+const zoomScale = [0.25, 0.5, 1];
+const colorPalette = [
+  "khaki",
+  "#F8C471",
+  "#AED6F1",
+  "#82E0AA",
+  "#F1948A",
+  "#C39BD3",
+];
+const moveDurationMs = 100;
 
-export function mount(board, domElement) {
-  let stickyMovedLocally = null;
-  const renderSticky = (stickyId, sticky) => {
+export function mount(board, boardContainer) {
+  const domElement = boardContainer.querySelector(".board");
+  let stickiesMovedByDragging = [];
+  let currentColor = colorPalette[0];
+  const observer = createBufferedObserver(board, render, renderSticky);
+  board.addObserver(observer);
+  const selectedStickies = new Selection(observer);
+  function renderSticky(stickyId, sticky) {
     const container = getStickyElement(
       domElement,
       stickyId,
       board.updateText,
-      board.getStickyLocation
+      board.getStickyLocation,
+      selectedStickies
     );
-    const shouldAnimateMove = stickyMovedLocally !== stickyId;
-    setStickyStyles(
-      sticky,
-      container,
-      shouldAnimateMove
-    );
-    if (shouldAnimateMove) {
-      stickyMovedLocally = null;
+    const shouldAnimateMove = !stickiesMovedByDragging.includes(stickyId);
+    const stickyIsSelected = selectedStickies.data[stickyId];
+    setStickyStyles(sticky, container, shouldAnimateMove, stickyIsSelected);
+    if (!shouldAnimateMove) {
+      stickiesMovedByDragging = stickiesMovedByDragging.filter(
+        (sid) => sid !== stickyId
+      );
     }
     const textarea = container.inputElement;
     if (textarea.value !== sticky.text) {
       textarea.value = sticky.text;
       fitContentInSticky(container.sticky, textarea);
     }
-  };
-  const render = () => {
+  }
+  function render() {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
-    // const size = 8000 * domElement.boardScale + "px";
-    // domElement.style.width = size;
-    // domElement.style.height = size;
-    domElement.style.width = 8000
-    domElement.style.height = 8000
+    domElement.style.width = 8000;
+    domElement.style.height = 8000;
+    boardContainer.style.width = 8000 * domElement.boardScale;
+    boardContainer.style.height = 8000 * domElement.boardScale;
     domElement.style.transform = `scale(${domElement.boardScale})`;
-    Object.entries(board.getState().stickies).forEach(entry => {
-      const [id, sticky] = entry;
-      renderSticky(id, sticky);
-    });
-  };
+    if (domElement.boardScale < 0.5) {
+      domElement.classList.add("sticky-text-hidden");
+    } else {
+      domElement.classList.remove("sticky-text-hidden");
+    }
+  }
 
-  domElement.ondragover = event => {
+  domElement.ondragover = (event) => {
     event.preventDefault();
   };
 
-  domElement.ondrop = event => {
-    const { clientX: x, clientY: y } = event;
-    const { id, originalLocation, dragStart } = JSON.parse(
+  domElement.ondrop = (event) => {
+    const { pageX: x, pageY: y } = event;
+    const { originalLocations, dragStart } = JSON.parse(
       event.dataTransfer.getData(STICKY_TYPE)
     );
     const offset = {
       x: (x - dragStart.x) / domElement.boardScale,
-      y: (y - dragStart.y) / domElement.boardScale
+      y: (y - dragStart.y) / domElement.boardScale,
     };
-    const newLocation = {
-      x: originalLocation.x + offset.x,
-      y: originalLocation.y + offset.y
-    };
-    stickyMovedLocally = id;
-    board.moveSticky(id, newLocation);
+    Object.keys(originalLocations).forEach((id) => {
+      const originalLocation = originalLocations[id];
+      const newLocation = {
+        x: originalLocation.x + offset.x,
+        y: originalLocation.y + offset.y,
+      };
+      stickiesMovedByDragging.push(id);
+      board.moveSticky(id, newLocation);
+    });
   };
+  function moveSelection(dx, dy) {
+    selectedStickies.forEach(sid => {
+      const originalLocation = board.getStickyLocation(sid)
+      const newLocation = {
+        x: originalLocation.x + dx,
+        y: originalLocation.y + dy,
+      };
+      board.moveSticky(sid, newLocation)
+    })
+  }
   let nextClickCreatesNewSticky = false;
-  document.body.onkeyup = event => {
+  document.body.onkeydown = (event) => {
     if (event.key === "o") {
-      let index = zoomScale.findIndex(v => v === domElement.boardScale) + 1;
+      let index = zoomScale.findIndex((v) => v === domElement.boardScale) + 1;
       domElement.boardScale = zoomScale[index % zoomScale.length];
       render(board, domElement);
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
+    } else if (event.key === "c") {
+      let index = colorPalette.findIndex((c) => c === currentColor);
+      currentColor = colorPalette[(index + 1) % colorPalette.length];
+      selectedStickies.data;
+    } else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {
+      event.preventDefault()
+      switch (event.key) {
+        case "ArrowUp":
+          moveSelection(0, -board.gridSize);
+          break;
+        case "ArrowDown":
+          moveSelection(0, board.gridSize);
+          break;
+        case "ArrowLeft":
+          moveSelection(-board.gridSize, 0);
+          break;
+        case "ArrowRight":
+          moveSelection(board.gridSize, 0);
+          break;
+        default:
+          break;
+      }
     }
   };
-  domElement.onclick = event => {
+  domElement.onclick = (event) => {
     if (nextClickCreatesNewSticky) {
       nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
       const location = {
-        x: ((event.clientX - rect.left) / domElement.boardScale) - 50,
-        y: ((event.clientY - rect.top) / domElement.boardScale) - 50
+        x: (event.pageX - rect.left) / domElement.boardScale - 50 + rect.left,
+        y: (event.pageY - rect.top) / domElement.boardScale - 50 + rect.top,
       };
-      board.putSticky({ color: "khaki", location });
+      const id = board.putSticky({ color: currentColor, location });
+      selectedStickies.replaceSelection(id);
+    } else if (event.target === domElement && !event.shiftKey) {
+      selectedStickies.clearSelection();
     }
   };
-  const observer = createBufferedObserver(board, render, renderSticky)
-  board.addObserver(observer);
   render();
   return {
-    render
+    render,
   };
 }
-function getStickyElement(boardElement, id, updateTextById, getStickyLocation) {
+function getStickyElement(
+  boardElement,
+  id,
+  updateTextById,
+  getStickyLocation,
+  selectedStickies
+) {
   const stickyIdClass = "sticky-" + id;
   let container = boardElement[stickyIdClass];
   if (!container) {
     container = createStickyContainerDOM(stickyIdClass);
     boardElement[stickyIdClass] = container;
     boardElement.appendChild(container);
-    container.ondragstart = event => {
-      const { clientX: x, clientY: y } = event;
-      const originalLocation = getStickyLocation(id);
+    container.ondragstart = (event) => {
+      const { pageX: x, pageY: y } = event;
+      let originalLocations = {};
+      if (selectedStickies.isSelected(id)) {
+        selectedStickies.forEach((sid) => {
+          originalLocations[sid] = getStickyLocation(sid);
+        });
+      } else {
+        originalLocations[id] = getStickyLocation(id);
+      }
       event.dataTransfer.setData(
         STICKY_TYPE,
-        JSON.stringify({ id, originalLocation, dragStart: { x, y } })
+        JSON.stringify({ originalLocations, dragStart: { x, y } })
       );
+      moveToFront();
     };
     function setEditable(enabled) {
       if (enabled) {
@@ -123,19 +187,37 @@ function getStickyElement(boardElement, id, updateTextById, getStickyLocation) {
       }
     }
     container.inputElement.onblur = () => setEditable(false);
-    container.inputElement.onkeyup = event => {
+    container.inputElement.onkeyup = (event) => {
       event.stopPropagation();
       if (event.keyCode === 13) {
         setEditable(false);
       }
     };
+    function moveToFront() {
+      if (container.parentNode.lastChild !== container) {
+        [...container.parentNode.childNodes].forEach((n) => {
+          if (n !== container) {
+            container.parentNode.insertBefore(n, container);
+          }
+        });
+      }
+    }
     container.inputElement.addEventListener("input", () => {
+      moveToFront();
       container.inputElement.value = updateTextById(
         id,
         container.inputElement.value
       );
       fitContentInSticky(container.sticky, container.inputElement);
     });
+    container.sticky.onclick = (event) => {
+      moveToFront();
+      if (event.shiftKey) {
+        selectedStickies.addToSelection(id);
+      } else {
+        selectedStickies.replaceSelection(id);
+      }
+    };
   }
   return container;
 }
@@ -172,15 +254,20 @@ function fitContentInSticky(sticky, textarea) {
   }
 }
 
-function setStickyStyles(sticky, container, animateMove) {
+function setStickyStyles(sticky, container, animateMove, stickyIsSelected) {
   const { sticky: stickyElement } = container;
   if (animateMove) {
-    container.style.transition = "left 1s, top 1s";
+    container.style.transition = `left ${moveDurationMs}ms, top ${moveDurationMs}ms`;
   } else {
     container.style.transition = "none";
   }
   container.style.left = sticky.location.x + "px";
   container.style.top = sticky.location.y + "px";
+  if (stickyIsSelected) {
+    container.style.backgroundColor = "rgba(180,180,255,0.5)";
+  } else {
+    container.style.backgroundColor = "unset";
+  }
   const size = 100 + "px";
   container.style.width = size;
   container.style.height = size;
@@ -202,28 +289,28 @@ function createStickyContainerDOM(stickyIdClass) {
 }
 
 function createBufferedObserver(board, render, renderSticky) {
-  let isRunScheduled = false
-  const tasks = []
+  let isRunScheduled = false;
+  const tasks = [];
   function doRun() {
-    let timeElapsed = 0
+    let timeElapsed = 0;
     while (tasks.length && timeElapsed < 14) {
-      const task = tasks.shift()
-      let start = Date.now()
-      task()
-      timeElapsed += Date.now() - start
+      const task = tasks.shift();
+      let start = Date.now();
+      task();
+      timeElapsed += Date.now() - start;
     }
     if (tasks.length) {
-      requestAnimationFrame(doRun)
+      requestAnimationFrame(doRun);
     } else {
-      isRunScheduled = false
+      isRunScheduled = false;
     }
   }
   function scheduleRenderTask(task) {
     if (!isRunScheduled) {
-      requestAnimationFrame(doRun)
-      isRunScheduled = true
+      requestAnimationFrame(doRun);
+      isRunScheduled = true;
     }
-    tasks.push(task)
+    tasks.push(task);
   }
   return {
     onStickyChange(id) {
@@ -231,6 +318,42 @@ function createBufferedObserver(board, render, renderSticky) {
     },
     onBoardChange() {
       scheduleRenderTask(() => render());
-    }
+    },
   };
+}
+
+class Selection {
+  data = {};
+  // TODO: Make this generally observable, make an StickyObservable mixin.
+  constructor(observer) {
+    this.observer = observer;
+  }
+  replaceSelection(id) {
+    const prevData = this.data;
+    this.data = { [id]: true };
+    Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
+    this.observer.onStickyChange(id);
+  }
+  toggleSelected(id) {
+    this.data[id] = !this.data[id];
+    this.observer.onStickyChange(id);
+  }
+  addToSelection(id) {
+    this.data[id] = true;
+    this.observer.onStickyChange(id);
+  }
+  clearSelection() {
+    const prevData = this.data;
+    this.data = {};
+    Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
+  }
+  isSelected(id) {
+    return this.data[id];
+  }
+  hasItems() {
+    return Object.keys(this.data).length !== 0
+  }
+  forEach(fn) {
+    return Object.keys(this.data).forEach(fn);
+  }
 }
