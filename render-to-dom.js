@@ -1,7 +1,4 @@
 // TODO: Keep the center of the board centered while zooming
-// TODO: Use pointer events to support pinch zoom gesture
-// TODO: Show an indicator of where something will be snapped to
-// TODO: Move multiple stickies at once
 // TODO: Add a sticky without a keyboard
 // TODO: Move a sticky without a keyboard
 // TODO: Delete sticky
@@ -213,7 +210,7 @@ function getStickyElement(
     container.sticky.onclick = (event) => {
       moveToFront();
       if (event.shiftKey) {
-        selectedStickies.addToSelection(id);
+        selectedStickies.toggleSelected(id);
       } else {
         selectedStickies.replaceSelection(id);
       }
@@ -335,7 +332,11 @@ class Selection {
     this.observer.onStickyChange(id);
   }
   toggleSelected(id) {
-    this.data[id] = !this.data[id];
+    if (this.data[id]) {
+      delete this.data[id]
+    } else {
+      this.data[id] = true
+    }
     this.observer.onStickyChange(id);
   }
   addToSelection(id) {
