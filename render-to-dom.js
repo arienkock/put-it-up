@@ -3,7 +3,31 @@
 // TODO: Move a sticky without a keyboard
 // TODO: Delete sticky
 // TODO: Render most recently changed sticky on top
+/*
+This is the UI component.
 
+Features:
+ - Add a sticky to the board by clicking
+ - Move a sticky via drag and drop
+ - Move a sticky with arrow keys
+ - Change the text of a sticky
+ - Text will be fitted to the sticky
+ - Cycle through the palette of colors (c-key) that determine the color of the next sticky to be created
+ - Cycle through zoom levels of the board (o-key)
+ - External updates to the board are reflected through the an observer object
+ - Multiple stickies can be selected by shift+clicking which is shown by surrounding the sticky with a certain color
+ - Each shift+click toggles the selected state
+ - When there is a selection, moving stickies (arrow keys and drag-'n-drop) affects the whole selection
+ - Clicking on the board (outside a sticky), without holding shift, clears the selection
+ - When a sticky is moved by any means other than drag-n-drop (external update, arrow keys) the move is animated
+ - The size the document is bound to the size of the board when zooming
+ - When the zoom level is lower than 50% the text is hidden, so dragging is easier
+ - When zooming the approximate area of focus of the board remains in focus after the zoom (BROKEN ATM)
+ - Clicking on a sticky selects it
+ - When pressing enter/return while typing inside a sticky, the focus is removed from the input field
+ - A sticky is moved to the top/front when it is clicked, moved, or otherwise updated
+ - The observer is buffered, sticky renders/updates happen during an animation frame, and only as long as there is time left to animate smoothly
+*/
 const STICKY_TYPE = "application/sticky";
 const DEFAULT_STICKY_COLOR = "khaki";
 const zoomScale = [0.25, 0.5, 1];
@@ -97,9 +121,18 @@ export function mount(board, boardContainer) {
   let nextClickCreatesNewSticky = false;
   document.body.onkeydown = (event) => {
     if (event.key === "o") {
+      let viewportBefore = document.body.getBoundingClientRect()
+      let boardBefore = domElement.getBoundingClientRect()
+      const leftOffsetBefore = -viewportBefore.left - boardBefore.left 
+      const centerXPercentage = (leftOffsetBefore + (viewportBefore.width / 2)) / boardBefore.width
       let index = zoomScale.findIndex((v) => v === domElement.boardScale) + 1;
       domElement.boardScale = zoomScale[index % zoomScale.length];
       render(board, domElement);
+      let viewportAfter = document.body.getBoundingClientRect()
+      let boardAfter = domElement.getBoundingClientRect()
+      let dx = (boardAfter.left + (centerXPercentage * boardAfter.width)) - (-viewportAfter.left + (viewportAfter.width / 2))
+      document.body.scrollLeft += dx
+
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
     } else if (event.key === "c") {
