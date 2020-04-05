@@ -15,19 +15,19 @@ export class FirestoreStore {
       .doc(this.boardName)
       .collection("stickies");
 
-    this.stickyRef.onSnapshot(querySnapshot => {
-      doBatched(querySnapshot.docChanges(), change => {
+    this.stickyRef.onSnapshot((querySnapshot) => {
+      doBatched(querySnapshot.docChanges(), (change) => {
         if (change.type === "added" || change.type === "modified") {
           this.stickies[change.doc.id] = change.doc.data();
         } else if (change.type === "removed") {
           delete this.stickies[change.doc.id];
         }
-        this.notifyStickyChange(change.doc.id)
+        this.notifyStickyChange(change.doc.id);
       });
     });
   }
 
-  getSticky = id => {
+  getSticky = (id) => {
     const sticky = this.stickies[id];
     if (!sticky) {
       throw new Error("No such sticky id=" + id);
@@ -35,11 +35,11 @@ export class FirestoreStore {
     return sticky;
   };
 
-  createSticky = sticky => {
-    const docRef = this.stickyRef.doc()
+  createSticky = (sticky) => {
+    const docRef = this.stickyRef.doc();
     docRef.set(sticky, { merge: true });
-    this.stickies[docRef.id] = sticky
-    return docRef.id
+    this.stickies[docRef.id] = sticky;
+    return docRef.id;
   };
 
   updateText = (id, text) => {
@@ -52,19 +52,19 @@ export class FirestoreStore {
 
   getState = () => clone({ stickies: this.stickies });
 
-  setState = state => {
+  setState = (state) => {
     this.stickies = state.stickies;
     this.idGen = state.idGen;
-    this.notifyBoardChange()
+    this.notifyBoardChange();
   };
 
-  notifyStickyChange = id => {
-    this.observers.forEach(o => o.onStickyChange(id));
+  notifyStickyChange = (id) => {
+    this.observers.forEach((o) => o.onStickyChange(id));
   };
   notifyBoardChange = () => {
-    this.observers.forEach(o => o.onBoardChange());
+    this.observers.forEach((o) => o.onBoardChange());
   };
-  addObserver = observer => {
+  addObserver = (observer) => {
     this.observers.push(observer);
   };
 }

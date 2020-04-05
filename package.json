@@ -13,8 +13,10 @@
     "@babel/core": "^7.9.0",
     "@babel/plugin-proposal-class-properties": "^7.8.3",
     "@babel/preset-env": "^7.9.0",
-    "babel-jest": "^25.2.3",
-    "jest": "^25.2.3",
-    "node-static": "^0.7.11"
+    "jest": "^25.2.7",
+    "jest-puppeteer": "^4.4.0",
+    "node-static": "^0.7.11",
+    "puppeteer": "^2.1.1",
+    "puppeteer-to-istanbul": "^1.2.2"
   }
 }

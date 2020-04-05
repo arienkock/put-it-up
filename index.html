@@ -49,13 +49,12 @@
         transform-origin: top left;
       }
       .board-container {
+        padding: 100px;
       }
     </style>
   </head>
   <body>
-    <div class="board-container">
-      <div class="board mini"></div>
-    </div>
+    <div class="app"></div>
     <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-firestore.js"></script>
     <script>
@@ -67,10 +66,10 @@
         storageBucket: "putitup-60c9e.appspot.com",
         messagingSenderId: "329311278016",
         appId: "1:329311278016:web:ee1edaf0267ca84e476e25",
-        measurementId: "G-EEMKXP5D05"
+        measurementId: "G-EEMKXP5D05",
       };
       firebase.initializeApp(firebaseConfig);
     </script>
-    <script type="module" src="main.js"></script>
+    <script type="module" src="scripts/main.js"></script>
   </body>
 </html>

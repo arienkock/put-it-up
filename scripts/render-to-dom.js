@@ -3,11 +3,12 @@
 // TODO: Move a sticky without a keyboard
 // TODO: Delete sticky
 // TODO: Render most recently changed sticky on top
+// TODO: Check if you can reorder by moving the node to a fragment before appending it
 /*
 This is the UI component.
 
 Features:
- - Add a sticky to the board by clicking
+ - Add a sticky to the board by clicking and it appears at the location clicked
  - Move a sticky via drag and drop
  - Move a sticky with arrow keys
  - Change the text of a sticky
@@ -27,7 +28,30 @@ Features:
  - When pressing enter/return while typing inside a sticky, the focus is removed from the input field
  - A sticky is moved to the top/front when it is clicked, moved, or otherwise updated
  - The observer is buffered, sticky renders/updates happen during an animation frame, and only as long as there is time left to animate smoothly
+
+Difficult decisions:
+ - how and when selection happens
+ - are selections a type of more generic grouping concept? i.e. by color, named groups, etc.
+ - dimensions of stickies and if there are variations in size
+ - how ordering/layering happens, z-index or dom content order
+ - where changes to state come from, e.g. store, dragging, clicking, key presses
+ - how zooming is implemented: transform, redraw,
+ - how click coordinates are translated to board coordinates
+ - how moving is going to work on mobile
+ - how and when text is resized to fit in the box
+ - when changes to dom actually happen and optimize using animation frames
+ - how the board size is determined and changes
+
+Modules:
+ - selection/grouping
+ - rendering, batching of changes coming from different sources
+ - keyboard controls
+ - touch controls
+ - movement
+ - text input
+ - geometry
 */
+
 const STICKY_TYPE = "application/sticky";
 const DEFAULT_STICKY_COLOR = "khaki";
 const zoomScale = [0.25, 0.5, 1];
@@ -41,11 +65,15 @@ const colorPalette = [
 ];
 const moveDurationMs = 100;
 
-export function mount(board, boardContainer) {
-  const domElement = boardContainer.querySelector(".board");
+export function mount(board, root, Observer) {
+  root.innerHTML = `<div class="board-container">
+                      <div class="board mini"></div>
+                    </div>`;
+  const boardContainer = root.firstElementChild;
+  const domElement = boardContainer.firstElementChild;
   let stickiesMovedByDragging = [];
   let currentColor = colorPalette[0];
-  const observer = createBufferedObserver(board, render, renderSticky);
+  const observer = new Observer(board, render, renderSticky);
   board.addObserver(observer);
   const selectedStickies = new Selection(observer);
   function renderSticky(stickyId, sticky) {
@@ -109,30 +137,21 @@ export function mount(board, boardContainer) {
     });
   };
   function moveSelection(dx, dy) {
-    selectedStickies.forEach(sid => {
-      const originalLocation = board.getStickyLocation(sid)
+    selectedStickies.forEach((sid) => {
+      const originalLocation = board.getStickyLocation(sid);
       const newLocation = {
         x: originalLocation.x + dx,
         y: originalLocation.y + dy,
       };
-      board.moveSticky(sid, newLocation)
-    })
+      board.moveSticky(sid, newLocation);
+    });
   }
   let nextClickCreatesNewSticky = false;
   document.body.onkeydown = (event) => {
     if (event.key === "o") {
-      let viewportBefore = document.body.getBoundingClientRect()
-      let boardBefore = domElement.getBoundingClientRect()
-      const leftOffsetBefore = -viewportBefore.left - boardBefore.left 
-      const centerXPercentage = (leftOffsetBefore + (viewportBefore.width / 2)) / boardBefore.width
       let index = zoomScale.findIndex((v) => v === domElement.boardScale) + 1;
       domElement.boardScale = zoomScale[index % zoomScale.length];
       render(board, domElement);
-      let viewportAfter = document.body.getBoundingClientRect()
-      let boardAfter = domElement.getBoundingClientRect()
-      let dx = (boardAfter.left + (centerXPercentage * boardAfter.width)) - (-viewportAfter.left + (viewportAfter.width / 2))
-      document.body.scrollLeft += dx
-
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
     } else if (event.key === "c") {
@@ -140,19 +159,20 @@ export function mount(board, boardContainer) {
       currentColor = colorPalette[(index + 1) % colorPalette.length];
       selectedStickies.data;
     } else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {
-      event.preventDefault()
+      event.preventDefault();
+      const gridUnit = board.getGridUnit();
       switch (event.key) {
         case "ArrowUp":
-          moveSelection(0, -board.gridSize);
+          moveSelection(0, -gridUnit);
           break;
         case "ArrowDown":
-          moveSelection(0, board.gridSize);
+          moveSelection(0, gridUnit);
           break;
         case "ArrowLeft":
-          moveSelection(-board.gridSize, 0);
+          moveSelection(-gridUnit, 0);
           break;
         case "ArrowRight":
-          moveSelection(board.gridSize, 0);
+          moveSelection(gridUnit, 0);
           break;
         default:
           break;
@@ -164,8 +184,12 @@ export function mount(board, boardContainer) {
       nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
       const location = {
-        x: (event.pageX - rect.left) / domElement.boardScale - 50 + rect.left,
-        y: (event.pageY - rect.top) / domElement.boardScale - 50 + rect.top,
+        x:
+          (event.clientX - rect.left - 50 * domElement.boardScale) /
+          domElement.boardScale,
+        y:
+          (event.clientY - rect.top - 50 * domElement.boardScale) /
+          domElement.boardScale,
       };
       const id = board.putSticky({ color: currentColor, location });
       selectedStickies.replaceSelection(id);
@@ -176,6 +200,7 @@ export function mount(board, boardContainer) {
   render();
   return {
     render,
+    observer,
   };
 }
 function getStickyElement(
@@ -217,6 +242,9 @@ function getStickyElement(
       }
     }
     container.inputElement.onblur = () => setEditable(false);
+    container.inputElement.onkeydown = (event) => {
+      event.stopPropagation();
+    };
     container.inputElement.onkeyup = (event) => {
       event.stopPropagation();
       if (event.keyCode === 13) {
@@ -318,40 +346,6 @@ function createStickyContainerDOM(stickyIdClass) {
   return container;
 }
 
-function createBufferedObserver(board, render, renderSticky) {
-  let isRunScheduled = false;
-  const tasks = [];
-  function doRun() {
-    let timeElapsed = 0;
-    while (tasks.length && timeElapsed < 14) {
-      const task = tasks.shift();
-      let start = Date.now();
-      task();
-      timeElapsed += Date.now() - start;
-    }
-    if (tasks.length) {
-      requestAnimationFrame(doRun);
-    } else {
-      isRunScheduled = false;
-    }
-  }
-  function scheduleRenderTask(task) {
-    if (!isRunScheduled) {
-      requestAnimationFrame(doRun);
-      isRunScheduled = true;
-    }
-    tasks.push(task);
-  }
-  return {
-    onStickyChange(id) {
-      scheduleRenderTask(() => renderSticky(id, board.getSticky(id)));
-    },
-    onBoardChange() {
-      scheduleRenderTask(() => render());
-    },
-  };
-}
-
 class Selection {
   data = {};
   // TODO: Make this generally observable, make an StickyObservable mixin.
@@ -366,9 +360,9 @@ class Selection {
   }
   toggleSelected(id) {
     if (this.data[id]) {
-      delete this.data[id]
+      delete this.data[id];
     } else {
-      this.data[id] = true
+      this.data[id] = true;
     }
     this.observer.onStickyChange(id);
   }
@@ -385,7 +379,7 @@ class Selection {
     return this.data[id];
   }
   hasItems() {
-    return Object.keys(this.data).length !== 0
+    return Object.keys(this.data).length !== 0;
   }
   forEach(fn) {
     return Object.keys(this.data).forEach(fn);
