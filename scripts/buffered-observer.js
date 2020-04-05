@@ -38,15 +38,10 @@ export function BufferedObserver(board, render, renderSticky) {
 
   function invokeScheduleCallbacks() {
     scheduleCallbacks.forEach((cb) => cb());
-    console.log(
-      "DID SCHEDULE, num interested = " + scheduleCallbacks.length,
-      new Error().stack
-    );
     scheduleCallbacks.length = 0;
   }
   function invokeRunCallbacks() {
     runCallbacks.forEach((cb) => cb());
-    console.log("DID RUN, num interested = " + runCallbacks.length);
     runCallbacks.length = 0;
   }
   this.addScheduleCallback = (callback) => {

@@ -54,7 +54,7 @@ Modules:
 
 const STICKY_TYPE = "application/sticky";
 const DEFAULT_STICKY_COLOR = "khaki";
-const zoomScale = [0.25, 0.5, 1];
+const zoomScale = [0.3, 0.6, 1];
 const colorPalette = [
   "khaki",
   "#F8C471",
@@ -66,9 +66,8 @@ const colorPalette = [
 const moveDurationMs = 100;
 
 export function mount(board, root, Observer) {
-  root.innerHTML = `<div class="board-container">
-                      <div class="board mini"></div>
-                    </div>`;
+  root.innerHTML =
+    '<div class="board-container"><div class="board"></div></div>';
   const boardContainer = root.firstElementChild;
   const domElement = boardContainer.firstElementChild;
   let stickiesMovedByDragging = [];
@@ -101,11 +100,12 @@ export function mount(board, root, Observer) {
   function render() {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
-    domElement.style.width = 8000;
-    domElement.style.height = 8000;
-    boardContainer.style.width = 8000 * domElement.boardScale;
-    boardContainer.style.height = 8000 * domElement.boardScale;
-    domElement.style.transform = `scale(${domElement.boardScale})`;
+    const size = board.getBoardSize();
+    domElement.style.width = size.width;
+    domElement.style.height = size.height;
+    boardContainer.style.width = size.width;
+    boardContainer.style.height = size.height;
+    domElement.style.transform = `scale3d(${domElement.boardScale},${domElement.boardScale},1)`;
     if (domElement.boardScale < 0.5) {
       domElement.classList.add("sticky-text-hidden");
     } else {

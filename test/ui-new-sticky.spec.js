@@ -2,7 +2,7 @@ import http from "http";
 import nodeStatic from "node-static";
 import pti from "puppeteer-to-istanbul";
 
-describe("new sticky added", () => {
+describe("Board UI", () => {
   let server;
   beforeAll(() =>
     Promise.all([
@@ -22,7 +22,7 @@ describe("new sticky added", () => {
       }),
     ])
   );
-  afterAll(async () => {
+  afterAll(() =>
     Promise.all([
       Promise.all([
         page.coverage.stopJSCoverage(),
@@ -33,25 +33,39 @@ describe("new sticky added", () => {
       new Promise((resolve) => {
         server.close(() => resolve);
       }),
-    ]);
-  });
+    ])
+  );
+  beforeEach(() => page.goto("about:blank"));
 
-  it("new sticky added", async () => {
+  it("creates new sticky close to mouse position when a click happens after 'n' is pressed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
-    await pressN();
+    await press("n");
     const clickLocation = await locationInsideBoard();
     const stickyLocation = await clickToCreateSticky(clickLocation);
     expect(stickyLocation).toBeInTheVicinityOf(
       clickLocation,
-      await withinHalfOfStickySize()
+      await withinGridUnit()
+    );
+  });
+
+  it("creates new sticky close to mouse when zoomed", async () => {
+    await page.goto(pageWithEmptyLocalBoard());
+    await press("o");
+    await boardTransitionFinish();
+    await scrollBoardIntoView();
+    await press("n");
+    const clickLocation = await locationInsideBoard();
+    // await jestPuppeteer.debug();
+    const stickyLocation = await clickToCreateSticky(clickLocation);
+    expect(stickyLocation).toBeInTheVicinityOf(
+      clickLocation,
+      await withinGridUnit()
     );
   });
 
   async function clickToCreateSticky(clickLocation) {
     await startWatchingForSettling();
     await page.mouse.click(clickLocation.x, clickLocation.y);
-    // let state = await page.evaluate(() => board.getState());
-    // return Object.values(state.stickies)[0];
     await nextSettling();
     let stickyBox = await (await page.$(".sticky")).boundingBox();
     return {
@@ -61,13 +75,16 @@ describe("new sticky added", () => {
   }
   async function locationInsideBoard() {
     let box = await (await page.$(".board")).boundingBox();
-    return { x: box.x + 210, y: box.y + 210 };
+    return {
+      x: box.x + 200,
+      y: box.y + 200,
+    };
   }
-  async function withinHalfOfStickySize() {
+  async function withinGridUnit() {
     return page.evaluate(() => board.getGridUnit());
   }
-  function pressN() {
-    return page.type(".board", "n");
+  function press(letter) {
+    return page.type(".board", letter);
   }
   function nextSettling() {
     return page.evaluate(() => settlingPromise);
@@ -78,11 +95,31 @@ describe("new sticky added", () => {
   function pageWithEmptyLocalBoard() {
     return `http://127.0.0.1:${server.address().port}/test/pages/index.html`;
   }
+  function boardTransitionFinish() {
+    return page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          document
+            .querySelector(".board")
+            .addEventListener("transitionend", () => {
+              resolve();
+            });
+        })
+    );
+  }
+  function scrollBoardIntoView() {
+    return page.evaluate(() => {
+      let app = document.querySelector(".app");
+      app.scrollLeft = 300;
+      app.scrollTop = 0;
+      document.body.scrollTop = 944;
+      document.body.scrollLeft = 642;
+    });
+  }
 });
 
 expect.extend({
   toBeInTheVicinityOf(received, expected, tolerance) {
-    console.log(...arguments);
     return {
       message: () =>
         `${Math.abs(received.x - expected.x)} should be less than ${tolerance}

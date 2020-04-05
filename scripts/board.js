@@ -38,6 +38,7 @@ export function Board(aStore) {
 
   this.getStickyBaseSize = () => 100;
   this.getGridUnit = () => gridSize;
+  this.getBoardSize = () => ({ width: 2400, height: 1350 });
 
   this.addObserver = store.addObserver;
 }

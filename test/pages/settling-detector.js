@@ -24,7 +24,6 @@ export function installSettlingDetector(observer) {
     function newTask() {
       return new Promise((resolve, reject) => {
         observer.addScheduleCallback(resolve);
-        console.log("I'm interested");
       });
     }
     function watchForNewError() {

@@ -6,7 +6,7 @@ body {
 }
 body {
   margin: 0;
-  padding: 100px;
+  padding: 0;
 }
 .sticky {
   font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
@@ -31,9 +31,6 @@ body {
   text-align: center;
   background-color: rgba(0, 0, 0, 0.025);
 }
-.sticky-text-hidden .sticky > .text {
-  display: none;
-}
 .sticky > .textInput {
   font-family: inherit;
   resize: none;
@@ -41,8 +38,8 @@ body {
 }
 .board {
   background-color: #f9f9f9;
-  transform-origin: top left;
+  transition: transform 400ms;
 }
-.board-container {
-  padding: 100px;
+.sticky-text-hidden .sticky > .text {
+  display: none;
 }

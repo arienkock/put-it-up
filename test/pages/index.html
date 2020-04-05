@@ -4,8 +4,16 @@
     <title>Document</title>
     <link rel="stylesheet" href="../../styles/board.css" />
   </head>
-  <body>
-    <div class="app"></div>
+  <body style="background-color: orange; padding: 100px;">
+    <div
+      class="app"
+      style="
+        background-color: blue;
+        padding: 100px;
+        width: 200vw;
+        overflow: scroll;
+      "
+    ></div>
     <script type="module">
       import { mount } from "../../scripts/render-to-dom.js";
       import { Board } from "../../scripts/board.js";
