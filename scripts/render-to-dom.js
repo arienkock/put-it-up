@@ -4,6 +4,14 @@
 // TODO: Delete sticky
 // TODO: Render most recently changed sticky on top
 // TODO: Check if you can reorder by moving the node to a fragment before appending it
+// TODO: Change color of existing stickies/selection
+// TODO: Add buttons to the edges of board so mofre space can be added
+// TODO: Order/layering of stickes must eb conssitent across clients
+// TODO: Text search
+// TODO: Export/import the baord data
+// TODO: Stick arbitrary images on the board and resize/reorient them
+// TODO: When zooming the approximate area of focus of the board remains in focus after the zoomp
+
 /*
 This is the UI component.
 
@@ -23,7 +31,6 @@ Features:
  - When a sticky is moved by any means other than drag-n-drop (external update, arrow keys) the move is animated
  - The size the document is bound to the size of the board when zooming
  - When the zoom level is lower than 50% the text is hidden, so dragging is easier
- - When zooming the approximate area of focus of the board remains in focus after the zoom (BROKEN ATM)
  - Clicking on a sticky selects it
  - When pressing enter/return while typing inside a sticky, the focus is removed from the input field
  - A sticky is moved to the top/front when it is clicked, moved, or otherwise updated

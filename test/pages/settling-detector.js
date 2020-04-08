@@ -7,6 +7,18 @@ export function installSettlingDetector(observer) {
       "Settling detector only works with observer of type BufferedObserver"
     );
   }
+  let transitionsInProgress = [];
+  let transitionCompletionCallbacks = [];
+  window.addEventListener("transitionrun", (event) =>
+    addTransitionsInProgress(event.target, event.propertyName)
+  );
+  window.addEventListener("transitionend", () =>
+    removeTransitionsInProgress(event.target, event.propertyName)
+  );
+  window.addEventListener("transitioncancel", () =>
+    removeTransitionsInProgress(event.target, event.propertyName)
+  );
+
   window.watchForSettle = () => {
     window.settlingPromise = (async () => {
       if (!hasRunningTasks()) {
@@ -14,12 +26,18 @@ export function installSettlingDetector(observer) {
       }
       const newError = watchForNewError();
       while (hasRunningTasks()) {
-        await Promise.race([nextTaskRun(), newError]);
+        let result = await Promise.race([
+          nextTaskRun(),
+          nextTransitionCompletion(),
+          newError,
+        ]);
+        if (result instanceof Error) {
+          throw result;
+        }
       }
     })();
-
     function hasRunningTasks() {
-      return observer.numTasks() > 0;
+      return observer.numTasks() > 0 || transitionsInProgress.length > 0;
     }
     function newTask() {
       return new Promise((resolve, reject) => {
@@ -39,4 +57,21 @@ export function installSettlingDetector(observer) {
       });
     }
   };
+  function addTransitionsInProgress(element, property) {
+    transitionsInProgress.push([element, property]);
+    console.log("transitionsInProgress ", transitionsInProgress);
+  }
+  function removeTransitionsInProgress(element, property) {
+    transitionsInProgress = transitionsInProgress.filter(
+      (entry) => !(element === entry[0] && property === entry[1])
+    );
+    transitionCompletionCallbacks.forEach((cb) => cb());
+    transitionCompletionCallbacks = [];
+    console.log("transitionsInProgress ", transitionsInProgress);
+  }
+  function nextTransitionCompletion() {
+    return new Promise((resolve) => {
+      transitionCompletionCallbacks.push(resolve);
+    });
+  }
 }
