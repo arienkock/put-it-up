@@ -1,7 +1,7 @@
 module.exports = {
   launch: {
-    dumpio: true,
-    headless: false,
-    slowMo: 20,
+    // dumpio: true,
+    // headless: false,
+    // slowMo: 20,
   },
 };

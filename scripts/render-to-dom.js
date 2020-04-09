@@ -23,7 +23,6 @@ Features:
  - Text will be fitted to the sticky
  - Cycle through the palette of colors (c-key) that determine the color of the next sticky to be created
  - Cycle through zoom levels of the board (o-key)
- - External updates to the board are reflected through the an observer object
  - Multiple stickies can be selected by shift+clicking which is shown by surrounding the sticky with a certain color
  - Each shift+click toggles the selected state
  - When there is a selection, moving stickies (arrow keys and drag-'n-drop) affects the whole selection

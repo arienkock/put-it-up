@@ -16,7 +16,7 @@ module.exports = {
 
   // Automatically clear mock calls and instances between every test
   clearMocks: true,
-  testTimeout: 5000,
+  // testTimeout: 100000,
   // Indicates whether the coverage information should be collected while executing the test
   // collectCoverage: false,
 
@@ -131,7 +131,7 @@ module.exports = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  // testEnvironment: "node",
+  testEnvironment: "./test/custom-jest-environment.js",
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},

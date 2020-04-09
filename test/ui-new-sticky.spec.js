@@ -1,40 +1,4 @@
-import http from "http";
-import nodeStatic from "node-static";
-import pti from "puppeteer-to-istanbul";
-
 describe("Board UI", () => {
-  let server;
-  beforeAll(() =>
-    Promise.all([
-      page.coverage.startJSCoverage(),
-      page.coverage.startCSSCoverage(),
-      new Promise((resolve, reject) => {
-        const fileServer = new nodeStatic.Server("./");
-        server = http
-          .createServer(function (request, response) {
-            request
-              .addListener("end", function () {
-                fileServer.serve(request, response);
-              })
-              .resume();
-          })
-          .listen(0, "127.0.0.1", (err) => (err ? reject(err) : resolve()));
-      }),
-    ])
-  );
-  afterAll(() =>
-    Promise.all([
-      Promise.all([
-        page.coverage.stopJSCoverage(),
-        page.coverage.stopCSSCoverage(),
-      ]).then(([jsCoverage, cssCoverage]) => {
-        pti.write([...jsCoverage, ...cssCoverage]);
-      }),
-      new Promise((resolve) => {
-        server.close(() => resolve);
-      }),
-    ])
-  );
   beforeEach(() => page.goto("about:blank"));
 
   it("creates new sticky close to mouse position when a click happens after 'n' is pressed", async () => {
@@ -77,7 +41,6 @@ describe("Board UI", () => {
     await nextSettling();
     const sticky = await expect(page).toMatchElement(".sticky-1 .sticky");
     const stickyLocation = await sticky.boundingBox();
-    console.log(stickyLocation);
     // await jestPuppeteer.debug();
     page.screenshot({ path: "./test.png" });
     expect(stickyLocation).toBeInTheVicinityOf(
@@ -110,14 +73,27 @@ describe("Board UI", () => {
     expect(stickyEndLocation).toBeInTheVicinityOf(expectedDestination, 2);
   });
 
+  it("text is updated by activating the text input and typing", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitFor(".sticky-1 .sticky .textInput");
+    await page.click(".sticky-1 .sticky .textInput");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.type(".sticky-1 .sticky .textInput", "Test");
+    const textOnBoard = await page.evaluate(() => board.getSticky(1).text);
+    expect(textOnBoard).toBe("Test");
+  });
+
   function pageWithEmptyLocalBoard() {
     return `http://127.0.0.1:${
-      server.address().port
+      httpServer.address().port
     }/test/pages/empty-scrollable.html`;
   }
   function pageWithBasicContentOnALocalBoard() {
     return `http://127.0.0.1:${
-      server.address().port
+      httpServer.address().port
     }/test/pages/starter-content.html`;
   }
 });
@@ -126,8 +102,12 @@ expect.extend({
   toBeInTheVicinityOf(received, expected, tolerance) {
     return {
       message: () =>
-        `${Math.abs(received.x - expected.x)} should be less than ${tolerance}
-${Math.abs(received.y - expected.y)} should be less than ${tolerance}`,
+        `Difference between ${received.x} and ${expected.x} (${Math.abs(
+          received.x - expected.x
+        )}) should be less than ${tolerance}
+Difference between ${received.y} and ${expected.y} (${Math.abs(
+          received.y - expected.y
+        )}) should be less than ${tolerance}`,
       pass:
         Math.abs(received.x - expected.x) <= tolerance &&
         Math.abs(received.y - expected.y) <= tolerance,
