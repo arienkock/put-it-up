@@ -1,8 +1,7 @@
 export function BufferedObserver(board, render, renderSticky) {
   let isRunScheduled = false;
   const tasks = [];
-  const scheduleCallbacks = [];
-  const runCallbacks = [];
+  let tasksScheduledCount = 0;
   function doRun() {
     let timeElapsed = 0;
     while (tasks.length && timeElapsed < 14) {
@@ -16,15 +15,15 @@ export function BufferedObserver(board, render, renderSticky) {
     } else {
       isRunScheduled = false;
     }
-    invokeRunCallbacks();
   }
+
   function scheduleRenderTask(task) {
     if (!isRunScheduled) {
       requestAnimationFrame(doRun);
       isRunScheduled = true;
     }
     tasks.push(task);
-    invokeScheduleCallbacks();
+    tasksScheduledCount++;
   }
 
   this.numTasks = () => tasks.length;
@@ -35,19 +34,5 @@ export function BufferedObserver(board, render, renderSticky) {
   this.onBoardChange = () => {
     scheduleRenderTask(() => render());
   };
-
-  function invokeScheduleCallbacks() {
-    scheduleCallbacks.forEach((cb) => cb());
-    scheduleCallbacks.length = 0;
-  }
-  function invokeRunCallbacks() {
-    runCallbacks.forEach((cb) => cb());
-    runCallbacks.length = 0;
-  }
-  this.addScheduleCallback = (callback) => {
-    scheduleCallbacks.push(callback);
-  };
-  this.addRunCallback = (callback) => {
-    runCallbacks.push(callback);
-  };
+  this.tasksScheduledCount = () => tasksScheduledCount;
 }

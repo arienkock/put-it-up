@@ -7,8 +7,43 @@ export function installSettlingDetector(observer) {
       "Settling detector only works with observer of type BufferedObserver"
     );
   }
+
+  window.waitForThingsToSettleDown = (
+    expectedScheduledTasksCount,
+    expectedNumErrors = 0
+  ) =>
+    new Promise((resolve) => {
+      function checkStatus() {
+        if (errors.length > expectedNumErrors) {
+          resolve(errors[errors.length - 1].message);
+        } else if (
+          expectedScheduledTasksCount !== undefined &&
+          observer.tasksScheduledCount() !== expectedScheduledTasksCount
+        ) {
+          resolve(
+            `A different number of tasks (${observer.tasksScheduledCount()}) were executed than expected (${expectedScheduledTasksCount})`
+          );
+        } else if (
+          observer.numTasks() === 0 &&
+          transitionsInProgress.length === 0
+        ) {
+          resolve();
+        } else {
+          timeoutHandle = setTimeout(checkStatus, 15);
+        }
+      }
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+      checkStatus();
+    });
+  let timeoutHandle = undefined;
+  let errors = [];
+  window.addEventListener("error", (event) => {
+    errors.push(event.error);
+  });
+
   let transitionsInProgress = [];
-  let transitionCompletionCallbacks = [];
   window.addEventListener("transitionrun", (event) =>
     addTransitionsInProgress(event.target, event.propertyName)
   );
@@ -19,59 +54,12 @@ export function installSettlingDetector(observer) {
     removeTransitionsInProgress(event.target, event.propertyName)
   );
 
-  window.watchForSettle = () => {
-    window.settlingPromise = (async () => {
-      if (!hasRunningTasks()) {
-        await newTask();
-      }
-      const newError = watchForNewError();
-      while (hasRunningTasks()) {
-        let result = await Promise.race([
-          nextTaskRun(),
-          nextTransitionCompletion(),
-          newError,
-        ]);
-        if (result instanceof Error) {
-          throw result;
-        }
-      }
-    })();
-    function hasRunningTasks() {
-      return observer.numTasks() > 0 || transitionsInProgress.length > 0;
-    }
-    function newTask() {
-      return new Promise((resolve, reject) => {
-        observer.addScheduleCallback(resolve);
-      });
-    }
-    function watchForNewError() {
-      return new Promise((resolve, reject) => {
-        window.addEventListener("error", (event) => {
-          reject(event.error);
-        });
-      });
-    }
-    function nextTaskRun() {
-      return new Promise((resolve, reject) => {
-        observer.addRunCallback(resolve);
-      });
-    }
-  };
   function addTransitionsInProgress(element, property) {
     transitionsInProgress.push([element, property]);
-    console.log("transitionsInProgress ", transitionsInProgress);
   }
   function removeTransitionsInProgress(element, property) {
     transitionsInProgress = transitionsInProgress.filter(
       (entry) => !(element === entry[0] && property === entry[1])
     );
-    transitionCompletionCallbacks.forEach((cb) => cb());
-    transitionCompletionCallbacks = [];
-    console.log("transitionsInProgress ", transitionsInProgress);
-  }
-  function nextTransitionCompletion() {
-    return new Promise((resolve) => {
-      transitionCompletionCallbacks.push(resolve);
-    });
   }
 }

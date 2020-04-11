@@ -24,9 +24,9 @@ Features:
  - Cycle through the palette of colors (c-key) that determine the color of the next sticky to be created
  - Cycle through zoom levels of the board (o-key)
  - Multiple stickies can be selected by shift+clicking which is shown by surrounding the sticky with a certain color
- - Each shift+click toggles the selected state
- - When there is a selection, moving stickies (arrow keys and drag-'n-drop) affects the whole selection
- - Clicking on the board (outside a sticky), without holding shift, clears the selection
+    - Each shift+click toggles the selected state
+    - When there is a selection, moving stickies (arrow keys and drag-'n-drop) affects the whole selection
+    - Clicking on the board (outside a sticky), without holding shift, clears the selection
  - When a sticky is moved by any means other than drag-n-drop (external update, arrow keys) the move is animated
  - The size the document is bound to the size of the board when zooming
  - When the zoom level is lower than 50% the text is hidden, so dragging is easier
@@ -47,6 +47,7 @@ Difficult decisions:
  - how and when text is resized to fit in the box
  - when changes to dom actually happen and optimize using animation frames
  - how the board size is determined and changes
+ - What can be put on the board, general images, arrows?
 
 Modules:
  - selection/grouping
@@ -69,7 +70,6 @@ const colorPalette = [
   "#F1948A",
   "#C39BD3",
 ];
-const moveDurationMs = 100;
 
 export function mount(board, root, Observer) {
   root.innerHTML =
@@ -321,16 +321,17 @@ function fitContentInSticky(sticky, textarea) {
 function setStickyStyles(sticky, container, animateMove, stickyIsSelected) {
   const { sticky: stickyElement } = container;
   if (animateMove) {
-    container.style.transition = `left ${moveDurationMs}ms, top ${moveDurationMs}ms`;
+    container.classList.add("animate-move");
   } else {
-    container.style.transition = "none";
+    container.classList.remove("animate-move");
   }
   container.style.left = sticky.location.x + "px";
   container.style.top = sticky.location.y + "px";
   if (stickyIsSelected) {
-    container.style.backgroundColor = "rgba(180,180,255,0.5)";
+    container.classList.add("selected");
+    container.style.backgroundColor = "";
   } else {
-    container.style.backgroundColor = "unset";
+    container.classList.remove("selected");
   }
   const size = 100 + "px";
   container.style.width = size;
@@ -343,9 +344,9 @@ function setStickyStyles(sticky, container, animateMove, stickyIsSelected) {
 function createStickyContainerDOM(stickyIdClass) {
   const container = document.createElement("div");
   container.innerHTML =
-    '<div class="sticky"><textarea class="textInput text" rows="1" tabindex="-1"></textarea></div>';
+    '<div class="sticky"><textarea class="text-input text" rows="1" tabindex="-1"></textarea></div>';
   container.classList.add(stickyIdClass);
-  container.inputElement = container.querySelector(".textInput");
+  container.inputElement = container.querySelector(".text-input");
   container.sticky = container.querySelector(".sticky");
   container.classList.add("sticky-container");
   container.sticky.setAttribute("draggable", "true");

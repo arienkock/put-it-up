@@ -25,13 +25,19 @@ body {
   cursor: grab;
   display: flex;
 }
+.sticky-container.selected {
+  background-color: rgba(70, 70, 216, 0.5);
+}
+.sticky-container.animate-move {
+  transition: left 100ms, top 100ms;
+}
 .sticky > .text {
   padding: 5px;
   cursor: text;
   text-align: center;
   background-color: rgba(0, 0, 0, 0.025);
 }
-.sticky > .textInput {
+.sticky > .text-input {
   font-family: inherit;
   resize: none;
   border: none;
