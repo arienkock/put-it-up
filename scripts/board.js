@@ -4,7 +4,15 @@ export function Board(aStore) {
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
-  this.getSticky = (id) => clone(store.getSticky(id));
+  this.getSticky = (id) => store.getSticky(id);
+
+  this.getStickySafe = (id) => {
+    let sticky;
+    try {
+      sticky = this.getSticky(id);
+    } catch (e) {}
+    return sticky;
+  };
 
   this.putSticky = (sticky) => {
     sticky.text = sticky.text || "";
@@ -12,6 +20,10 @@ export function Board(aStore) {
     sticky.location = snapLocation(sticky.location || { x: 0, y: 0 }, gridSize);
     const id = store.createSticky(sticky);
     return id;
+  };
+
+  this.deleteSticky = (id) => {
+    store.deleteSticky(id);
   };
 
   this.updateText = (id, text) => {
@@ -22,7 +34,7 @@ export function Board(aStore) {
   };
 
   this.getStickyLocation = (id) => {
-    return clone(store.getSticky(id).location);
+    return store.getSticky(id).location;
   };
 
   this.moveSticky = (id, newLocation) => {
@@ -57,8 +69,4 @@ function snapLocation(location, gridSize) {
     x: snapDimension(Math.floor(location.x), gridSize),
     y: snapDimension(Math.floor(location.y), gridSize),
   };
-}
-
-function clone(data) {
-  return JSON.parse(JSON.stringify(data));
 }

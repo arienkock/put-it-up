@@ -8,30 +8,34 @@
     <script type="module">
       import { mount } from "../../scripts/render-to-dom.js";
       import { Board } from "../../scripts/board.js";
-      import { FakeDatastore } from "../../scripts/fake-datastore.js";
+      import { LocalDatastore } from "../../scripts/local-datastore.js";
       import { BufferedObserver } from "../../scripts/buffered-observer.js";
       import { installSettlingDetector } from "./settling-detector.js";
 
-      const store = new FakeDatastore();
+      const store = new LocalDatastore();
       const board = new Board(store);
       const { observer } = mount(board, document.body, BufferedObserver);
       store.connect();
       window.board = board;
-      board.putSticky({ text: "One", color: "red", location: { x: 0, y: 0 } });
+      board.putSticky({
+        text: "One",
+        color: "red",
+        location: { x: 200, y: 0 },
+      });
       board.putSticky({
         text: "Two",
         color: "green",
-        location: { x: 100, y: 0 },
+        location: { x: 300, y: 0 },
       });
       board.putSticky({
         text: "Three",
         color: "blue",
-        location: { x: 200, y: 0 },
+        location: { x: 400, y: 0 },
       });
       board.putSticky({
         text: "Four",
         color: "cyan",
-        location: { x: 300, y: 0 },
+        location: { x: 500, y: 0 },
       });
       installSettlingDetector(observer);
     </script>

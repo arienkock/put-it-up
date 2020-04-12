@@ -1,31 +1,63 @@
 const pti = require("puppeteer-to-istanbul");
 
 describe("Board UI", () => {
-  beforeEach(() => page.goto("about:blank"));
-  beforeEach(() =>
-    Promise.all([
+  beforeEach(async () => {
+    await page.goto("about:blank");
+    return Promise.all([
       page.coverage.startJSCoverage(),
       page.coverage.startCSSCoverage(),
-    ])
-  );
+    ]);
+  });
   afterEach(() =>
     Promise.all([
       page.coverage.stopJSCoverage(),
       page.coverage.stopCSSCoverage(),
-    ]).then(([jsCoverage, cssCoverage]) => {
-      pti.write([...jsCoverage, ...cssCoverage]);
-    })
+    ])
+      .then(([jsCoverage, cssCoverage]) => {
+        pti.write([...jsCoverage, ...cssCoverage]);
+      })
+      .then(() => page.keyboard.up("Shift"))
   );
 
   it("creates new sticky close to mouse position when a click happens after 'n' is pressed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
+    await page.waitFor(".board");
     await press("n");
+    await createNewAndCheckExpectations();
+  });
+
+  it("can create new sticky from menu button", async () => {
+    await page.goto(pageWithEmptyLocalBoard());
+    await page.waitFor(".board");
+    expect(await (await page.$$(".sticky")).length).toBe(0);
+    await page.click(".board-action-menu .new-sticky");
+    await thingsSettleDown(0);
+    expect(await (await page.$$(".sticky")).length).toBe(0);
+    await createNewAndCheckExpectations();
+  });
+
+  async function createNewAndCheckExpectations() {
+    expect(await cursorOnBoard()).toBe("crosshair");
     const clickLocation = await locationInsideBoard();
     const stickyLocation = await clickToCreateSticky(clickLocation);
     expect(stickyLocation).toBeInTheVicinityOf(
       clickLocation,
       await withinGridUnit()
     );
+  }
+
+  it("can delete selected stickies with a menu button", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitFor(".board");
+    await page.click(".board-action-menu .delete");
+    expect(await (await page.$$(".sticky")).length).toBe(4);
+    await page.click(".sticky-1 .sticky");
+    page.keyboard.down("Shift");
+    await page.click(".sticky-2 .sticky");
+    await page.click(".board-action-menu .delete");
+    await thingsSettleDown();
+    expect(await (await page.$$(".sticky-1, .sticky-2")).length).toBe(0);
+    expect(await (await page.$$(".sticky")).length).toBe(2);
   });
 
   it("creates new sticky close to mouse when zoomed", async () => {
@@ -45,7 +77,7 @@ describe("Board UI", () => {
   it("moves with drag and drop", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
     await expect(page).toMatchElement(".sticky-1 .sticky");
-    const dragDestination = { x: 10, y: 140 };
+    const dragDestination = { x: 205, y: 155 };
     await dragAndDrop(".sticky-1 .sticky", ".board", page, {
       x: 10,
       y: 140,
@@ -66,8 +98,8 @@ describe("Board UI", () => {
     const sticky = await expect(page).toMatchElement(".sticky-1 .sticky");
     const stickyStartLocation = await sticky.boundingBox();
     await page.mouse.click(
-      stickyStartLocation.x + 1,
-      stickyStartLocation.y + 1
+      stickyStartLocation.x + 3,
+      stickyStartLocation.y + 3
     );
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
@@ -135,53 +167,54 @@ describe("Board UI", () => {
 
   it("manages selection with shift clicks and selections can be moved together", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
-    await page.click(".sticky-1");
+    await page.click(".sticky-1 .sticky");
     expect(await isStickySelected(1)).toBe(true);
     await page.click(".board");
+    await thingsSettleDown();
     expect(await isStickySelected(1)).toBe(false);
     await page.keyboard.down("Shift");
-    await page.click(".sticky-2");
-    await page.click(".sticky-3");
-    await page.click(".sticky-4");
+    await page.click(".sticky-2 .sticky");
+    await page.click(".sticky-3 .sticky");
+    await page.click(".sticky-4 .sticky");
     expect(await isStickySelected(1)).toBe(false);
     expect(await isStickySelected(2)).toBe(true);
     expect(await isStickySelected(3)).toBe(true);
     expect(await isStickySelected(4)).toBe(true);
-    await page.click(".sticky-2");
+    await page.click(".sticky-2 .sticky");
     expect(await isStickySelected(1)).toBe(false);
     expect(await isStickySelected(2)).toBe(false);
     expect(await isStickySelected(3)).toBe(true);
     expect(await isStickySelected(4)).toBe(true);
     await page.keyboard.press("ArrowDown");
     await thingsSettleDown(12);
-    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 0, y: 0 }, 0);
-    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 100, y: 0 }, 0);
+    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 200, y: 0 }, 0);
+    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 300, y: 0 }, 0);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
-      { x: 200, y: 25 },
+      { x: 400, y: 25 },
       0
     );
     expect(await stickyBoundingBox(4)).toBeInTheVicinityOf(
-      { x: 300, y: 25 },
+      { x: 500, y: 25 },
       0
     );
     await dragAndDrop(".sticky-3 .sticky", ".board", page, {
-      x: 100,
-      y: 300,
+      x: 300,
+      y: 500,
       height: 0,
       width: 0,
     });
     await thingsSettleDown(14);
-    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 0, y: 0 }, 0);
-    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 100, y: 0 }, 0);
+    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 200, y: 0 }, 0);
+    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 300, y: 0 }, 0);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
-      { x: 300, y: 325 },
+      { x: 700, y: 525 },
       0
     );
     expect(await stickyBoundingBox(4)).toBeInTheVicinityOf(
-      { x: 400, y: 325 },
+      { x: 800, y: 525 },
       0
     );
-  });
+  }, 9999999);
 
   function pageWithEmptyLocalBoard() {
     return `http://127.0.0.1:${
@@ -377,4 +410,12 @@ function isStickySelected(id) {
 async function stickyBoundingBox(id) {
   const sticky = await page.waitFor(`.sticky-${id}`);
   return sticky.boundingBox();
+}
+
+async function cursorOnBoard() {
+  return page.evaluate(() =>
+    window
+      .getComputedStyle(document.querySelector(".board"))
+      .getPropertyValue("cursor")
+  );
 }

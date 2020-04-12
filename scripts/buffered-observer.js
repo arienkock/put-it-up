@@ -29,7 +29,7 @@ export function BufferedObserver(board, render, renderSticky) {
   this.numTasks = () => tasks.length;
 
   this.onStickyChange = (id) => {
-    scheduleRenderTask(() => renderSticky(id, board.getSticky(id)));
+    scheduleRenderTask(() => renderSticky(id, board.getStickySafe(id)));
   };
   this.onBoardChange = () => {
     scheduleRenderTask(() => render());

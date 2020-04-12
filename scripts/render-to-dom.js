@@ -1,10 +1,13 @@
+// TODO: Menu item delete sticky
+// TODO: Delete sticky with keyboard
+// TODO: Show current color in next to "change color" menu button
+// TODO: Change color of existing stickies/selection
+// TODO: Make the menu pretty and accessible
 // TODO: Keep the center of the board centered while zooming
 // TODO: Add a sticky without a keyboard
 // TODO: Move a sticky without a keyboard
-// TODO: Delete sticky
 // TODO: Render most recently changed sticky on top
 // TODO: Check if you can reorder by moving the node to a fragment before appending it
-// TODO: Change color of existing stickies/selection
 // TODO: Add buttons to the edges of board so mofre space can be added
 // TODO: Order/layering of stickes must eb conssitent across clients
 // TODO: Text search
@@ -13,6 +16,7 @@
 // TODO: Arrows connecting stickies
 // TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
 // TODO: Implement tab order as top-to-bottom+left-to-right order
+// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 
 /*
 This is the UI component.
@@ -84,28 +88,33 @@ export function mount(board, root, Observer) {
   board.addObserver(observer);
   const selectedStickies = new Selection(observer);
   function renderSticky(stickyId, sticky) {
+    const shouldDelete = sticky === undefined;
     const container = getStickyElement(
       domElement,
       stickyId,
       board.updateText,
       board.getStickyLocation,
-      selectedStickies
+      selectedStickies,
+      shouldDelete
     );
-    const shouldAnimateMove = !stickiesMovedByDragging.includes(stickyId);
-    const stickyIsSelected = selectedStickies.data[stickyId];
-    setStickyStyles(sticky, container, shouldAnimateMove, stickyIsSelected);
-    if (!shouldAnimateMove) {
-      stickiesMovedByDragging = stickiesMovedByDragging.filter(
-        (sid) => sid !== stickyId
-      );
-    }
-    const textarea = container.inputElement;
-    if (textarea.value !== sticky.text) {
-      textarea.value = sticky.text;
-      fitContentInSticky(container.sticky, textarea);
+    if (container) {
+      // Sticky was NOT deleted
+      const shouldAnimateMove = !stickiesMovedByDragging.includes(stickyId);
+      const stickyIsSelected = selectedStickies.data[stickyId];
+      setStickyStyles(sticky, container, shouldAnimateMove, stickyIsSelected);
+      if (!shouldAnimateMove) {
+        stickiesMovedByDragging = stickiesMovedByDragging.filter(
+          (sid) => sid !== stickyId
+        );
+      }
+      const textarea = container.inputElement;
+      if (textarea.value !== sticky.text) {
+        textarea.value = sticky.text;
+        fitContentInSticky(container.sticky, textarea);
+      }
     }
   }
-  function render() {
+  function renderBoard() {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
     const size = board.getBoardSize();
@@ -119,6 +128,52 @@ export function mount(board, root, Observer) {
     } else {
       domElement.classList.remove("sticky-text-hidden");
     }
+    if (nextClickCreatesNewSticky) {
+      domElement.classList.add("click-to-create");
+    } else {
+      domElement.classList.remove("click-to-create");
+    }
+  }
+  let menuElement;
+  const menuItems = [
+    {
+      itemLabel: "New sticky",
+      className: "new-sticky",
+      itemClickHandler: () => {
+        nextClickCreatesNewSticky = true;
+        renderBoard();
+      },
+    },
+    {
+      itemLabel: "Delete",
+      className: "delete",
+      itemClickHandler: () => {
+        selectedStickies.forEach((id) => {
+          board.deleteSticky(id);
+        });
+      },
+    },
+  ];
+  function renderMenu() {
+    if (!menuElement) {
+      menuElement = document.createElement("div");
+      menuElement.classList.add("board-action-menu");
+      menuItems.forEach(({ itemLabel, className, itemClickHandler }) => {
+        const itemElement = document.createElement("button");
+        itemElement.textContent = itemLabel;
+        itemElement.onclick = itemClickHandler;
+        itemElement.classList.add(className);
+        menuElement.appendChild(itemElement);
+      });
+      boardContainer.appendChild(menuElement);
+    }
+  }
+  function render() {
+    renderBoard();
+    renderMenu();
+    Object.entries(board.getState().stickies).forEach(([stickyId, sticky]) =>
+      renderSticky(stickyId, sticky)
+    );
   }
 
   domElement.ondragover = (event) => {
@@ -162,6 +217,7 @@ export function mount(board, root, Observer) {
       render(board, domElement);
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
+      renderBoard();
     } else if (event.key === "c") {
       let index = colorPalette.findIndex((c) => c === currentColor);
       currentColor = colorPalette[(index + 1) % colorPalette.length];
@@ -188,6 +244,9 @@ export function mount(board, root, Observer) {
     }
   };
   domElement.onclick = (event) => {
+    if (menuElement.contains(event.target)) {
+      return;
+    }
     if (nextClickCreatesNewSticky) {
       nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
@@ -201,6 +260,7 @@ export function mount(board, root, Observer) {
       };
       const id = board.putSticky({ color: currentColor, location });
       selectedStickies.replaceSelection(id);
+      renderBoard();
     } else if (event.target === domElement && !event.shiftKey) {
       selectedStickies.clearSelection();
     }
@@ -216,11 +276,18 @@ function getStickyElement(
   id,
   updateTextById,
   getStickyLocation,
-  selectedStickies
+  selectedStickies,
+  shouldDelete = false
 ) {
   const stickyIdClass = "sticky-" + id;
   let container = boardElement[stickyIdClass];
-  if (!container) {
+  if (shouldDelete) {
+    delete boardElement[stickyIdClass];
+    if (container) {
+      boardElement.removeChild(container);
+    }
+    container = undefined;
+  } else if (!container) {
     container = createStickyContainerDOM(stickyIdClass);
     boardElement[stickyIdClass] = container;
     boardElement.appendChild(container);
@@ -259,6 +326,11 @@ function getStickyElement(
         setEditable(false);
       }
     };
+    container.inputElement.onclick = (event) => {
+      if (event.shiftKey) {
+        event.preventDefault();
+      }
+    };
     function moveToFront() {
       if (container.parentNode.lastChild !== container) {
         [...container.parentNode.childNodes].forEach((n) => {
@@ -280,6 +352,7 @@ function getStickyElement(
       moveToFront();
       if (event.shiftKey) {
         selectedStickies.toggleSelected(id);
+        setEditable(false);
       } else {
         selectedStickies.replaceSelection(id);
       }

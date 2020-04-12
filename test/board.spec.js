@@ -1,8 +1,8 @@
 import { Board } from "../scripts/board.js";
-import { FakeDatastore } from "../scripts/fake-datastore.js";
+import { LocalDatastore } from "../scripts/local-datastore.js";
 
 it("snapping", () => {
-  const b = new Board(new FakeDatastore());
+  const b = new Board(new LocalDatastore());
   let id = b.putSticky({ text: "hey", location: { x: 28, y: 28 } });
   expect(b.getStickyLocation(id)).toEqual({ x: 25, y: 25 });
   id = b.putSticky({ text: "hey", location: { x: 45, y: 45 } });
@@ -10,7 +10,7 @@ it("snapping", () => {
 });
 
 it("expect throwing behavior", () => {
-  const b = new Board(new FakeDatastore());
+  const b = new Board(new LocalDatastore());
   expect(() => b.moveSticky(1, { x: 0, y: 0 })).toThrow("No such sticky id=1");
   expect(() => b.updateText(2, "test")).toThrow("No such sticky id=2");
 });

@@ -17,11 +17,11 @@
     <script type="module">
       import { mount } from "../../scripts/render-to-dom.js";
       import { Board } from "../../scripts/board.js";
-      import { FakeDatastore } from "../../scripts/fake-datastore.js";
+      import { LocalDatastore } from "../../scripts/local-datastore.js";
       import { BufferedObserver } from "../../scripts/buffered-observer.js";
       import { installSettlingDetector } from "./settling-detector.js";
 
-      const store = new FakeDatastore();
+      const store = new LocalDatastore();
       const board = new Board(store);
       const { observer } = mount(
         board,

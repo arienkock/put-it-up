@@ -49,3 +49,16 @@ body {
 .sticky-text-hidden .sticky > .text {
   display: none;
 }
+.board.click-to-create,
+.board.click-to-create .sticky-container {
+  cursor: crosshair;
+}
+
+.board-action-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 25%;
+  max-width: 10em;
+  height: auto;
+}

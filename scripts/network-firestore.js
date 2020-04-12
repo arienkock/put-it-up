@@ -42,6 +42,10 @@ export class FirestoreStore {
     return docRef.id;
   };
 
+  deleteSticky = (id) => {
+    this.stickyRef.doc(id).delete();
+  };
+
   updateText = (id, text) => {
     this.stickyRef.doc(id).update({ text });
   };

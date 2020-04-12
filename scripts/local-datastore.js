@@ -1,4 +1,4 @@
-export class FakeDatastore {
+export class LocalDatastore {
   stickies = {};
   idGen = 0;
   observers = [];
@@ -15,6 +15,11 @@ export class FakeDatastore {
     this.stickies[++this.idGen] = sticky;
     this.notifyStickyChange(this.idGen);
     return this.idGen;
+  };
+
+  deleteSticky = (id) => {
+    delete this.stickies[id];
+    this.notifyStickyChange(id);
   };
 
   updateText = (id, text) => {
@@ -46,4 +51,8 @@ export class FakeDatastore {
   addObserver = (observer) => {
     this.observers.push(observer);
   };
+}
+
+function clone(data) {
+  return JSON.parse(JSON.stringify(data));
 }
