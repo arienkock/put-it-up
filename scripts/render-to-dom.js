@@ -10,7 +10,9 @@
 // TODO: Text search
 // TODO: Export/import the baord data
 // TODO: Stick arbitrary images on the board and resize/reorient them
-// TODO: When zooming the approximate area of focus of the board remains in focus after the zoomp
+// TODO: Arrows connecting stickies
+// TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
+// TODO: Implement tab order as top-to-bottom+left-to-right order
 
 /*
 This is the UI component.

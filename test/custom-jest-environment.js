@@ -27,12 +27,7 @@ class CustomEnvironment extends PuppeteerEnvironment {
   }
 
   async teardown() {
-    return await Promise.all([
-      new Promise((resolve) => {
-        this.global.httpServer.close(() => resolve());
-      }),
-      super.teardown(),
-    ]);
+    return super.teardown();
   }
 }
 
