@@ -15,7 +15,7 @@ export function installSettlingDetector(observer) {
     new Promise((resolve) => {
       function checkStatus() {
         if (errors.length > expectedNumErrors) {
-          resolve(errors[errors.length - 1].message);
+          resolve(errors[errors.length - 1] + "");
         } else if (
           expectedScheduledTasksCount !== undefined &&
           observer.tasksScheduledCount() !== expectedScheduledTasksCount

@@ -1,5 +1,21 @@
+const pti = require("puppeteer-to-istanbul");
+
 describe("Board UI", () => {
   beforeEach(() => page.goto("about:blank"));
+  beforeEach(() =>
+    Promise.all([
+      page.coverage.startJSCoverage(),
+      page.coverage.startCSSCoverage(),
+    ])
+  );
+  afterEach(() =>
+    Promise.all([
+      page.coverage.stopJSCoverage(),
+      page.coverage.stopCSSCoverage(),
+    ]).then(([jsCoverage, cssCoverage]) => {
+      pti.write([...jsCoverage, ...cssCoverage]);
+    })
+  );
 
   it("creates new sticky close to mouse position when a click happens after 'n' is pressed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
@@ -15,11 +31,10 @@ describe("Board UI", () => {
   it("creates new sticky close to mouse when zoomed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await press("o");
-    await thingsToSettleDown(0);
+    await thingsSettleDown(0);
     await scrollBoardIntoView();
     await press("n");
     const clickLocation = await locationInsideBoard();
-    // await jestPuppeteer.debug();
     const stickyLocation = await clickToCreateSticky(clickLocation);
     expect(stickyLocation).toBeInTheVicinityOf(
       clickLocation,
@@ -37,7 +52,7 @@ describe("Board UI", () => {
       height: 0,
       width: 0,
     });
-    await thingsToSettleDown(5);
+    await thingsSettleDown(5);
     const sticky = await expect(page).toMatchElement(".sticky-1 .sticky");
     const stickyLocation = await sticky.boundingBox();
     expect(stickyLocation).toBeInTheVicinityOf(
@@ -60,7 +75,7 @@ describe("Board UI", () => {
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("ArrowLeft");
-    await thingsToSettleDown(11);
+    await thingsSettleDown(11);
     const expectedDestination = {
       x: stickyStartLocation.x + 25,
       y: stickyStartLocation.y + 25,
@@ -109,7 +124,7 @@ describe("Board UI", () => {
     const boardBox = await (await page.waitFor(".board")).boundingBox();
     const stickyBox = await (await page.waitFor(".sticky")).boundingBox();
     await press("o");
-    await thingsToSettleDown();
+    await thingsSettleDown();
     const boardBoxAfter = await (await page.waitFor(".board")).boundingBox();
     const stickyBoxAfter = await (await page.waitFor(".sticky")).boundingBox();
     expect(boardBoxAfter.width).toBeLessThan(boardBox.width);
@@ -138,7 +153,7 @@ describe("Board UI", () => {
     expect(await isStickySelected(3)).toBe(true);
     expect(await isStickySelected(4)).toBe(true);
     await page.keyboard.press("ArrowDown");
-    await thingsToSettleDown(12);
+    await thingsSettleDown(12);
     expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 0, y: 0 }, 0);
     expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 100, y: 0 }, 0);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
@@ -155,7 +170,7 @@ describe("Board UI", () => {
       height: 0,
       width: 0,
     });
-    await thingsToSettleDown(14);
+    await thingsSettleDown(14);
     expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 0, y: 0 }, 0);
     expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 100, y: 0 }, 0);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
@@ -199,7 +214,7 @@ Difference between ${received.y} and ${expected.y} (${Math.abs(
 
 async function clickToCreateSticky(clickLocation) {
   await page.mouse.click(clickLocation.x, clickLocation.y);
-  await thingsToSettleDown();
+  await thingsSettleDown();
   let stickyBox = await (await page.$(".sticky")).boundingBox();
   return {
     x: stickyBox.x + stickyBox.width / 2,
@@ -219,7 +234,7 @@ async function withinGridUnit() {
 function press(letter) {
   return page.type(".board", letter);
 }
-async function thingsToSettleDown(
+async function thingsSettleDown(
   expectedScheduledTasksCount,
   expectedNumErrors
 ) {

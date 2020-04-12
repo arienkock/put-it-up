@@ -1,6 +1,5 @@
 const http = require("http");
 const nodeStatic = require("node-static");
-const pti = require("puppeteer-to-istanbul");
 
 const PuppeteerEnvironment = require("jest-environment-puppeteer");
 
@@ -9,10 +8,8 @@ class CustomEnvironment extends PuppeteerEnvironment {
     super(config, ...args);
   }
   async setup() {
-    await super.setup();
     return Promise.all([
-      this.global.page.coverage.startJSCoverage(),
-      this.global.page.coverage.startCSSCoverage(),
+      super.setup(),
       new Promise((resolve, reject) => {
         const fileServer = new nodeStatic.Server("./");
         this.global.httpServer = http
@@ -30,18 +27,12 @@ class CustomEnvironment extends PuppeteerEnvironment {
   }
 
   async teardown() {
-    await Promise.all([
-      Promise.all([
-        this.global.page.coverage.stopJSCoverage(),
-        this.global.page.coverage.stopCSSCoverage(),
-      ]).then(([jsCoverage, cssCoverage]) => {
-        pti.write([...jsCoverage, ...cssCoverage]);
-      }),
+    return await Promise.all([
       new Promise((resolve) => {
         this.global.httpServer.close(() => resolve());
       }),
+      super.teardown(),
     ]);
-    return super.teardown();
   }
 }
 
