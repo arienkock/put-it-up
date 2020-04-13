@@ -60,6 +60,20 @@ describe("Board UI", () => {
     expect(await (await page.$$(".sticky")).length).toBe(2);
   });
 
+  it.only("can delete selected stickies with the delete key", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitFor(".board");
+    await page.keyboard.press("Delete");
+    expect(await (await page.$$(".sticky")).length).toBe(4);
+    await page.click(".sticky-1 .sticky");
+    page.keyboard.down("Shift");
+    await page.click(".sticky-2 .sticky");
+    await page.keyboard.press("Delete");
+    await thingsSettleDown();
+    expect(await (await page.$$(".sticky-1, .sticky-2")).length).toBe(0);
+    expect(await (await page.$$(".sticky")).length).toBe(2);
+  });
+
   it("creates new sticky close to mouse when zoomed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await press("o");

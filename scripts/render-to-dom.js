@@ -221,6 +221,10 @@ export function mount(board, root, Observer) {
       let index = colorPalette.findIndex((c) => c === currentColor);
       currentColor = colorPalette[(index + 1) % colorPalette.length];
       selectedStickies.data;
+    } else if (event.key === "Delete") {
+      selectedStickies.forEach((id) => {
+        board.deleteSticky(id);
+      });
     } else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {
       event.preventDefault();
       const gridUnit = board.getGridUnit();
