@@ -112,10 +112,10 @@ export function mount(board, root, Observer) {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
     const size = board.getBoardSize();
-    domElement.style.width = size.width;
-    domElement.style.height = size.height;
-    boardContainer.style.width = size.width;
-    boardContainer.style.height = size.height;
+    domElement.style.width = size.width + "px";
+    domElement.style.height = size.height + "px";
+    boardContainer.style.width = size.width + "px";
+    boardContainer.style.height = size.height + "px";
     domElement.style.transform = `scale3d(${domElement.boardScale},${domElement.boardScale},1)`;
     if (domElement.boardScale < 0.5) {
       domElement.classList.add("sticky-text-hidden");
