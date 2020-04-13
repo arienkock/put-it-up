@@ -50,6 +50,9 @@ export class FirestoreStore {
     this.stickyRef.doc(id).update({ text });
   };
 
+  updateColor = (id, color) => {
+    this.stickyRef.doc(id).update({ color });
+  };
   setLocation = (id, location) => {
     this.stickyRef.doc(id).update({ location });
   };

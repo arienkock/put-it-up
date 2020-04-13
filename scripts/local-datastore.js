@@ -27,6 +27,11 @@ export class LocalDatastore {
     this.notifyStickyChange(id);
   };
 
+  updateColor = (id, color) => {
+    this.getSticky(id).color = color;
+    this.notifyStickyChange(id);
+  };
+
   setLocation = (id, location) => {
     this.getSticky(id).location = location;
     this.notifyStickyChange(id);

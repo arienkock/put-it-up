@@ -47,32 +47,27 @@ describe("Board UI", () => {
   }
 
   it("can delete selected stickies with a menu button", async () => {
-    await page.goto(pageWithBasicContentOnALocalBoard());
-    await page.waitFor(".board");
-    await page.click(".board-action-menu .delete");
-    expect(await (await page.$$(".sticky")).length).toBe(4);
-    await page.click(".sticky-1 .sticky");
-    page.keyboard.down("Shift");
-    await page.click(".sticky-2 .sticky");
-    await page.click(".board-action-menu .delete");
-    await thingsSettleDown();
-    expect(await (await page.$$(".sticky-1, .sticky-2")).length).toBe(0);
-    expect(await (await page.$$(".sticky")).length).toBe(2);
+    await testStickyDeletion(() => page.click(".board-action-menu .delete"));
   });
 
-  it.only("can delete selected stickies with the delete key", async () => {
+  it("can delete selected stickies with the delete key", async () => {
+    await testStickyDeletion(() => page.keyboard.press("Delete"));
+  });
+
+  async function testStickyDeletion(deleteAction) {
     await page.goto(pageWithBasicContentOnALocalBoard());
     await page.waitFor(".board");
-    await page.keyboard.press("Delete");
+    await deleteAction();
+    await thingsSettleDown();
     expect(await (await page.$$(".sticky")).length).toBe(4);
     await page.click(".sticky-1 .sticky");
     page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
-    await page.keyboard.press("Delete");
+    await deleteAction();
     await thingsSettleDown();
     expect(await (await page.$$(".sticky-1, .sticky-2")).length).toBe(0);
     expect(await (await page.$$(".sticky")).length).toBe(2);
-  });
+  }
 
   it("creates new sticky close to mouse when zoomed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
@@ -80,6 +75,7 @@ describe("Board UI", () => {
     await thingsSettleDown(0);
     await scrollBoardIntoView();
     await press("n");
+    await thingsSettleDown(0);
     const clickLocation = await locationInsideBoard();
     const stickyLocation = await clickToCreateSticky(clickLocation);
     expect(stickyLocation).toBeInTheVicinityOf(
@@ -126,6 +122,8 @@ describe("Board UI", () => {
       x: stickyStartLocation.x + 25,
       y: stickyStartLocation.y + 25,
     };
+    // TIMING
+    await page.waitFor(100);
     const stickyEndLocation = await sticky.boundingBox();
     expect(stickyEndLocation).toBeInTheVicinityOf(expectedDestination, 2);
   });
@@ -148,9 +146,21 @@ describe("Board UI", () => {
     await page.waitFor(".sticky-1 .sticky .text-input");
     await page.click(".sticky-1 .sticky .text-input");
     const fontSizeBefore = await getComputedFontSize(".sticky-1 .text-input");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
     await page.type(".sticky-1 .sticky .text-input", "Testing");
     const fontSizeAfter = await getComputedFontSize(".sticky-1 .text-input");
     expect(fontSizeBefore).toBeGreaterThan(fontSizeAfter);
+    expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(1);
+    await page.type(".sticky-1 .sticky .text-input", " sizing");
+    expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(2);
+    await page.type(
+      ".sticky-1 .sticky .text-input",
+      " more more more more more more more more more more more more more"
+    );
+    expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(6);
   });
 
   it("colors can be selected by pressing the c-key", async () => {
@@ -171,8 +181,10 @@ describe("Board UI", () => {
     const stickyBox = await (await page.waitFor(".sticky")).boundingBox();
     await press("o");
     await thingsSettleDown();
+    await page.waitFor(100);
     const boardBoxAfter = await (await page.waitFor(".board")).boundingBox();
     const stickyBoxAfter = await (await page.waitFor(".sticky")).boundingBox();
+    // TIMING
     expect(boardBoxAfter.width).toBeLessThan(boardBox.width);
     expect(boardBoxAfter.height).toBeLessThan(boardBox.height);
     expect(stickyBoxAfter.width).toBeLessThan(stickyBox.width);
@@ -181,10 +193,10 @@ describe("Board UI", () => {
 
   it("manages selection with shift clicks and selections can be moved together", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
+    await thingsSettleDown();
     await page.click(".sticky-1 .sticky");
     expect(await isStickySelected(1)).toBe(true);
     await page.click(".board");
-    await thingsSettleDown();
     expect(await isStickySelected(1)).toBe(false);
     await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
@@ -203,6 +215,8 @@ describe("Board UI", () => {
     await thingsSettleDown(12);
     expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 200, y: 0 }, 0);
     expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 300, y: 0 }, 0);
+    // TODO: FIX TIMING
+    await page.waitFor(100);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
       { x: 400, y: 25 },
       0
@@ -229,6 +243,37 @@ describe("Board UI", () => {
       0
     );
   }, 9999999);
+});
+
+it("has a menu item to change colors", async () => {
+  await page.goto(pageWithEmptyLocalBoard());
+  await press("n");
+  const boardBox = await (await page.waitFor(".board")).boundingBox();
+  await page.mouse.click(boardBox.x + 50, boardBox.y + 50);
+  let firstColor = await getComputedColor(".sticky-1 .sticky");
+  await setSelected(1, false);
+  await page.click(".board-action-menu .change-color");
+  await thingsSettleDown();
+  await press("n");
+  await page.mouse.click(boardBox.x + 150, boardBox.y + 50);
+  let secondColor = await getComputedColor(".sticky-2 .sticky");
+  expect(firstColor).not.toBe(secondColor);
+  await clickStickyOutsideOfText(1);
+  expect(await isStickySelected(1)).toBe(true);
+  expect(await isStickySelected(2)).toBe(false);
+  await page.click(".board-action-menu .change-color");
+  await thingsSettleDown();
+  firstColor = await getComputedColor(".sticky-1 .sticky");
+  expect(firstColor).toBe(secondColor);
+  await setSelected(2, true);
+  let colorBeforeSelectionColorChange = firstColor;
+  await page.click(".board-action-menu .change-color");
+  await thingsSettleDown();
+  firstColor = await getComputedColor(".sticky-1 .sticky");
+  secondColor = await getComputedColor(".sticky-2 .sticky");
+  expect(firstColor).not.toBe(colorBeforeSelectionColorChange);
+  expect(secondColor).not.toBe(colorBeforeSelectionColorChange);
+  expect(firstColor).toBe(secondColor);
 });
 
 function pageWithEmptyLocalBoard() {
@@ -260,10 +305,24 @@ Difference between ${received.y} and ${expected.y} (${Math.abs(
   },
 });
 
+async function setSelected(id, selected) {
+  if (selected === (await isStickySelected(id))) {
+    return;
+  }
+  page.keyboard.down("Shift");
+  await clickStickyOutsideOfText(id);
+  page.keyboard.up("Shift");
+}
+
+async function clickStickyOutsideOfText(id) {
+  const stickyBox = await (
+    await page.waitFor(`.sticky-${id} .sticky`)
+  ).boundingBox();
+  return page.mouse.click(stickyBox.x + stickyBox.width / 2, stickyBox.y + 2);
+}
 async function clickToCreateSticky(clickLocation) {
   await page.mouse.click(clickLocation.x, clickLocation.y);
-  await thingsSettleDown();
-  let stickyBox = await (await page.$(".sticky")).boundingBox();
+  let stickyBox = await (await page.waitFor(".sticky")).boundingBox();
   return {
     x: stickyBox.x + stickyBox.width / 2,
     y: stickyBox.y + stickyBox.height / 2,
@@ -405,6 +464,7 @@ async function getComputedFontSize(selector) {
 }
 
 async function getComputedColor(selector) {
+  await page.waitFor(selector);
   return page.evaluate(
     (selector) =>
       window
@@ -414,7 +474,15 @@ async function getComputedColor(selector) {
   );
 }
 
-function isStickySelected(id) {
+async function numTextAreaRows(selector) {
+  return page.evaluate(
+    (selector) => +document.querySelector(selector).getAttribute("rows"),
+    selector
+  );
+}
+
+async function isStickySelected(id) {
+  await thingsSettleDown();
   return page.evaluate(
     (id) =>
       document.querySelector(`.sticky-${id}`).classList.contains("selected"),

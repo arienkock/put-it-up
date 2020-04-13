@@ -2,20 +2,17 @@
 // TODO: Show current color in next to "change color" menu button
 // TODO: Change color of existing stickies/selection
 // TODO: Make the menu pretty and accessible
+// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Keep the center of the board centered while zooming
-// TODO: Add a sticky without a keyboard
-// TODO: Move a sticky without a keyboard
-// TODO: Render most recently changed sticky on top
-// TODO: Check if you can reorder by moving the node to a fragment before appending it
+// TODO: Render most recently changed sticky on top consistend across clients
+//       Check if you can reorder by moving the node to a fragment before appending it
 // TODO: Add buttons to the edges of board so mofre space can be added
-// TODO: Order/layering of stickes must eb conssitent across clients
 // TODO: Text search
 // TODO: Export/import the baord data
 // TODO: Stick arbitrary images on the board and resize/reorient them
 // TODO: Arrows connecting stickies
 // TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
 // TODO: Implement tab order as top-to-bottom+left-to-right order
-// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 
 /*
 This is the UI component.
@@ -152,6 +149,13 @@ export function mount(board, root, Observer) {
         });
       },
     },
+    {
+      itemLabel: "Change color",
+      className: "change-color",
+      itemClickHandler: () => {
+        changeColor();
+      },
+    },
   ];
   function renderMenu() {
     if (!menuElement) {
@@ -208,6 +212,35 @@ export function mount(board, root, Observer) {
       board.moveSticky(sid, newLocation);
     });
   }
+  function changeColor() {
+    if (selectedStickies.hasItems()) {
+      if (multipleSelectedHaveSameColor() || singleSelectedHasCurrentColor()) {
+        nextColor();
+      }
+      selectedStickies.forEach((id) => {
+        board.updateColor(id, currentColor);
+      });
+    } else {
+      nextColor();
+    }
+    function nextColor() {
+      let index = colorPalette.findIndex((c) => c === currentColor);
+      currentColor = colorPalette[(index + 1) % colorPalette.length];
+    }
+    function multipleSelectedHaveSameColor() {
+      const colors = selectedColors();
+      return colors.length > 1 && colors.every((color) => color === colors[0]);
+    }
+    function singleSelectedHasCurrentColor() {
+      const colors = selectedColors();
+      return colors.length === 1 && colors[0] === currentColor;
+    }
+    function selectedColors() {
+      const colors = [];
+      selectedStickies.forEach((id) => colors.push(board.getSticky(id).color));
+      return colors;
+    }
+  }
   let nextClickCreatesNewSticky = false;
   document.body.onkeydown = (event) => {
     if (event.key === "o") {
@@ -218,9 +251,7 @@ export function mount(board, root, Observer) {
       nextClickCreatesNewSticky = true;
       renderBoard();
     } else if (event.key === "c") {
-      let index = colorPalette.findIndex((c) => c === currentColor);
-      currentColor = colorPalette[(index + 1) % colorPalette.length];
-      selectedStickies.data;
+      changeColor();
     } else if (event.key === "Delete") {
       selectedStickies.forEach((id) => {
         board.deleteSticky(id);
@@ -247,9 +278,6 @@ export function mount(board, root, Observer) {
     }
   };
   domElement.onclick = (event) => {
-    if (menuElement.contains(event.target)) {
-      return;
-    }
     if (nextClickCreatesNewSticky) {
       nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
@@ -451,10 +479,6 @@ class Selection {
     }
     this.observer.onStickyChange(id);
   }
-  addToSelection(id) {
-    this.data[id] = true;
-    this.observer.onStickyChange(id);
-  }
   clearSelection() {
     const prevData = this.data;
     this.data = {};
@@ -464,9 +488,12 @@ class Selection {
     return this.data[id];
   }
   hasItems() {
-    return Object.keys(this.data).length !== 0;
+    return this.size() !== 0;
   }
   forEach(fn) {
     return Object.keys(this.data).forEach(fn);
+  }
+  size() {
+    return Object.keys(this.data).length;
   }
 }

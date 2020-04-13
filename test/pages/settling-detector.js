@@ -13,6 +13,7 @@ export function installSettlingDetector(observer) {
     expectedNumErrors = 0
   ) =>
     new Promise((resolve) => {
+      requestAnimationFrame(() => checkStatus());
       function checkStatus() {
         if (errors.length > expectedNumErrors) {
           resolve(errors[errors.length - 1] + "");
@@ -29,15 +30,10 @@ export function installSettlingDetector(observer) {
         ) {
           resolve();
         } else {
-          timeoutHandle = setTimeout(checkStatus, 15);
+          requestAnimationFrame(() => checkStatus());
         }
       }
-      if (timeoutHandle !== undefined) {
-        clearTimeout(timeoutHandle);
-      }
-      checkStatus();
     });
-  let timeoutHandle = undefined;
   let errors = [];
   window.addEventListener("error", (event) => {
     errors.push(event.error);

@@ -33,6 +33,10 @@ export function Board(aStore) {
     return text;
   };
 
+  this.updateColor = (id, color) => {
+    store.updateColor(id, color);
+  };
+
   this.getStickyLocation = (id) => {
     return store.getSticky(id).location;
   };
