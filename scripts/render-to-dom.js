@@ -1,4 +1,3 @@
-// TODO: Menu item delete sticky
 // TODO: Delete sticky with keyboard
 // TODO: Show current color in next to "change color" menu button
 // TODO: Change color of existing stickies/selection

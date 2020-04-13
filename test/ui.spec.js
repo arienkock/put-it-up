@@ -215,18 +215,19 @@ describe("Board UI", () => {
       0
     );
   }, 9999999);
-
-  function pageWithEmptyLocalBoard() {
-    return `http://127.0.0.1:${
-      httpServer.address().port
-    }/test/pages/empty-scrollable.html`;
-  }
-  function pageWithBasicContentOnALocalBoard() {
-    return `http://127.0.0.1:${
-      httpServer.address().port
-    }/test/pages/starter-content.html`;
-  }
 });
+
+function pageWithEmptyLocalBoard() {
+  return `http://127.0.0.1:${
+    httpServer.address().port
+  }/test/pages/empty-scrollable.html`;
+}
+
+function pageWithBasicContentOnALocalBoard() {
+  return `http://127.0.0.1:${
+    httpServer.address().port
+  }/test/pages/starter-content.html`;
+}
 
 expect.extend({
   toBeInTheVicinityOf(received, expected, tolerance) {
