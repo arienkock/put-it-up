@@ -1,5 +1,3 @@
-// TODO: Delete sticky with keyboard
-// TODO: Show current color in next to "change color" menu button
 // TODO: Change color of existing stickies/selection
 // TODO: Make the menu pretty and accessible
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
@@ -13,6 +11,7 @@
 // TODO: Arrows connecting stickies
 // TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
 // TODO: Implement tab order as top-to-bottom+left-to-right order
+// TODO: Configure Firebase config via UI and remember it in web storage
 
 /*
 This is the UI component.
@@ -155,21 +154,33 @@ export function mount(board, root, Observer) {
       itemClickHandler: () => {
         changeColor();
       },
+      customLabel: (dom, label) => {
+        dom.innerHTML = 'text<div class="color-preview"></div>';
+        dom.firstChild.textContent = label;
+        dom.lastChild.style.backgroundColor = currentColor;
+      },
     },
   ];
   function renderMenu() {
     if (!menuElement) {
       menuElement = document.createElement("div");
       menuElement.classList.add("board-action-menu");
-      menuItems.forEach(({ itemLabel, className, itemClickHandler }) => {
+      menuItems.forEach(({ itemClickHandler, className }, i) => {
         const itemElement = document.createElement("button");
-        itemElement.textContent = itemLabel;
+        menuItems[i].dom = itemElement;
         itemElement.onclick = itemClickHandler;
         itemElement.classList.add(className);
         menuElement.appendChild(itemElement);
       });
       boardContainer.appendChild(menuElement);
     }
+    menuItems.forEach(({ itemLabel, customLabel, dom }) => {
+      if (customLabel) {
+        customLabel(dom, itemLabel);
+      } else {
+        dom.textContent = itemLabel;
+      }
+    });
   }
   function render() {
     renderBoard();
@@ -226,6 +237,7 @@ export function mount(board, root, Observer) {
     function nextColor() {
       let index = colorPalette.findIndex((c) => c === currentColor);
       currentColor = colorPalette[(index + 1) % colorPalette.length];
+      renderMenu();
     }
     function multipleSelectedHaveSameColor() {
       const colors = selectedColors();
