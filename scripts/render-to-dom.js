@@ -1,17 +1,16 @@
-// TODO: Change color of existing stickies/selection
 // TODO: Make the menu pretty and accessible
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
-// TODO: Keep the center of the board centered while zooming
+// TODO: Implement tab order as top-to-bottom+left-to-right order
 // TODO: Render most recently changed sticky on top consistend across clients
 //       Check if you can reorder by moving the node to a fragment before appending it
-// TODO: Add buttons to the edges of board so mofre space can be added
+// TODO: Add buttons to the edges of board so more space can be added
 // TODO: Text search
-// TODO: Export/import the baord data
+// TODO: Export/import the board data
 // TODO: Stick arbitrary images on the board and resize/reorient them
 // TODO: Arrows connecting stickies
-// TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
-// TODO: Implement tab order as top-to-bottom+left-to-right order
+// TOOD: Store board in web storage when using LocalDatastore
 // TODO: Configure Firebase config via UI and remember it in web storage
+// TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
 
 /*
 This is the UI component.
