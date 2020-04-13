@@ -7,6 +7,7 @@ body {
 body {
   margin: 0;
   padding: 0;
+  font-
 }
 .sticky {
   font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
@@ -58,9 +59,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 25%;
-  max-width: 10em;
-  height: auto;
+  width: 100%;
+  display: flex;
 }
 
 .board-action-menu .change-color .color-preview {
