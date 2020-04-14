@@ -26,6 +26,17 @@ describe("Board UI", () => {
     await createNewAndCheckExpectations();
   });
 
+  it("creates sticky can be cancelede with Escape key", async () => {
+    await page.goto(pageWithEmptyLocalBoard());
+    await page.waitFor(".board");
+    await press("n");
+    expect(await cursorOnBoard()).toBe("crosshair");
+    await page.keyboard.press("Escape");
+    expect(await cursorOnBoard()).toBe("auto");
+    await page.click(".board");
+    expect(await (await page.$$(".sticky")).length).toBe(0);
+  });
+
   it("can create new sticky from menu button", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await page.waitFor(".board");
@@ -138,6 +149,23 @@ describe("Board UI", () => {
     await page.type(".sticky-1 .sticky .text-input", "Testing");
     const textOnBoard = await page.evaluate(() => board.getSticky(1).text);
     expect(textOnBoard).toBe("Testing");
+  });
+
+  it("text editing can be completed with Escape", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitFor(".sticky-1 .sticky .text-input");
+    await page.click(".sticky-1 .sticky .text-input");
+    await page.keyboard.press("End");
+    await press("x");
+    await page.keyboard.press("Enter");
+    await press("y");
+    await page.click(".sticky-1 .sticky .text-input");
+    await page.keyboard.press("End");
+    await press("z");
+    await page.keyboard.press("Escape");
+    await press("0");
+    const textOnBoard = await page.evaluate(() => board.getSticky(1).text);
+    expect(textOnBoard).toBe("Onexz");
   });
 
   it("text resizes as you type", async () => {

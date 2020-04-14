@@ -1,15 +1,14 @@
-// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
-// TODO: Implement tab order as top-to-bottom+left-to-right order
-// TODO: Render most recently changed sticky on top consistend across clients
-//       Check if you can reorder by moving the node to a fragment before appending it
-// TODO: Add buttons to the edges of board so more space can be added
 // TODO: Use ESC key to reset insert mode and to remove focus from textarea
 // TODO: Shift+c cycles color backwards
+// TODO: Add buttons to the edges of board so more space can be added
+// TODO: Render most recently changed sticky on top consistend across clients
+// TODO: Implement tab order as top-to-bottom+left-to-right order
+// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Select by dragging box area around items
-// TODO: Text search
-// TODO: Export/import the board data
 // TODO: Stick arbitrary images on the board and resize/reorient them
 // TODO: Arrows connecting stickies
+// TODO: Text search
+// TODO: Export/import the board data
 // TOOD: Store board in web storage when using LocalDatastore
 // TODO: Configure Firebase config via UI and remember it in web storage
 // TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
@@ -263,6 +262,11 @@ export function mount(board, root, Observer) {
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
       renderBoard();
+    } else if (event.key === "Escape") {
+      if (nextClickCreatesNewSticky) {
+        nextClickCreatesNewSticky = false;
+        renderBoard();
+      }
     } else if (event.key === "c") {
       changeColor();
     } else if (event.key === "Delete") {
@@ -363,6 +367,9 @@ function getStickyElement(
     container.inputElement.onblur = () => setEditable(false);
     container.inputElement.onkeydown = (event) => {
       event.stopPropagation();
+      if (event.key === "Escape") {
+        setEditable(false);
+      }
     };
     container.inputElement.onkeyup = (event) => {
       event.stopPropagation();
