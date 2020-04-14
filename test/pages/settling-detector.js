@@ -7,13 +7,15 @@ export function installSettlingDetector(observer) {
       "Settling detector only works with observer of type BufferedObserver"
     );
   }
-
+  window.printTransitionsInProgress = () => {
+    return JSON.stringify(transitionsInProgress);
+  };
   window.waitForThingsToSettleDown = (
     expectedScheduledTasksCount,
     expectedNumErrors = 0
   ) =>
     new Promise((resolve) => {
-      requestAnimationFrame(() => checkStatus());
+      setTimeout(() => checkStatus(), 50);
       function checkStatus() {
         if (errors.length > expectedNumErrors) {
           resolve(errors[errors.length - 1] + "");

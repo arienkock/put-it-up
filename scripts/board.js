@@ -1,6 +1,8 @@
 export function Board(aStore) {
   let store = aStore;
   let gridSize = 25;
+  const baseSize = { width: 2400, height: 1350 };
+  const size = { width: 2400, height: 1350 };
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
@@ -17,7 +19,11 @@ export function Board(aStore) {
   this.putSticky = (sticky) => {
     sticky.text = sticky.text || "";
     sticky.text = removeNewlines(sticky.text);
-    sticky.location = snapLocation(sticky.location || { x: 0, y: 0 }, gridSize);
+    sticky.location = snapLocation(
+      sticky.location || { x: 0, y: 0 },
+      gridSize,
+      size
+    );
     const id = store.createSticky(sticky);
     return id;
   };
@@ -42,7 +48,7 @@ export function Board(aStore) {
   };
 
   this.moveSticky = (id, newLocation) => {
-    newLocation = snapLocation(newLocation || { x: 0, y: 0 }, gridSize);
+    newLocation = snapLocation(newLocation || { x: 0, y: 0 }, gridSize, size);
     store.setLocation(id, newLocation);
   };
 
@@ -54,7 +60,7 @@ export function Board(aStore) {
 
   this.getStickyBaseSize = () => 100;
   this.getGridUnit = () => gridSize;
-  this.getBoardSize = () => ({ width: 2400, height: 1350 });
+  this.getBoardSize = () => size;
 
   this.addObserver = store.addObserver;
 }
@@ -68,9 +74,15 @@ function snapDimension(x, gridSize) {
   return x;
 }
 
-function snapLocation(location, gridSize) {
+function snapLocation(location, gridSize, boardSize) {
   return {
-    x: snapDimension(Math.floor(location.x), gridSize),
-    y: snapDimension(Math.floor(location.y), gridSize),
+    x: Math.min(
+      boardSize.width - 100,
+      Math.max(0, snapDimension(Math.floor(location.x), gridSize))
+    ),
+    y: Math.min(
+      boardSize.height - 100,
+      Math.max(0, snapDimension(Math.floor(location.y), gridSize))
+    ),
   };
 }

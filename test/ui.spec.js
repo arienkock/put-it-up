@@ -82,12 +82,12 @@ describe("Board UI", () => {
       clickLocation,
       await withinGridUnit()
     );
-  });
+  }, 999999);
 
   it("moves with drag and drop", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
     await expect(page).toMatchElement(".sticky-1 .sticky");
-    const dragDestination = { x: 205, y: 155 };
+    const dragDestination = { x: 205, y: 355 };
     await dragAndDrop(".sticky-1 .sticky", ".board", page, {
       x: 10,
       y: 140,
@@ -123,7 +123,6 @@ describe("Board UI", () => {
       y: stickyStartLocation.y + 25,
     };
     // TIMING
-    await page.waitFor(100);
     const stickyEndLocation = await sticky.boundingBox();
     expect(stickyEndLocation).toBeInTheVicinityOf(expectedDestination, 2);
   });
@@ -213,16 +212,22 @@ describe("Board UI", () => {
     expect(await isStickySelected(4)).toBe(true);
     await page.keyboard.press("ArrowDown");
     await thingsSettleDown(12);
-    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 200, y: 0 }, 0);
-    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 300, y: 0 }, 0);
+    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
+      { x: 200, y: 200 },
+      0
+    );
+    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf(
+      { x: 300, y: 200 },
+      0
+    );
     // TODO: FIX TIMING
     await page.waitFor(100);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
-      { x: 400, y: 25 },
+      { x: 400, y: 225 },
       0
     );
     expect(await stickyBoundingBox(4)).toBeInTheVicinityOf(
-      { x: 500, y: 25 },
+      { x: 500, y: 225 },
       0
     );
     await dragAndDrop(".sticky-3 .sticky", ".board", page, {
@@ -232,14 +237,20 @@ describe("Board UI", () => {
       width: 0,
     });
     await thingsSettleDown(14);
-    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 200, y: 0 }, 0);
-    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf({ x: 300, y: 0 }, 0);
+    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
+      { x: 200, y: 200 },
+      0
+    );
+    expect(await stickyBoundingBox(2)).toBeInTheVicinityOf(
+      { x: 300, y: 200 },
+      0
+    );
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
-      { x: 700, y: 525 },
+      { x: 700, y: 725 },
       0
     );
     expect(await stickyBoundingBox(4)).toBeInTheVicinityOf(
-      { x: 800, y: 525 },
+      { x: 800, y: 725 },
       0
     );
   }, 9999999);
@@ -276,6 +287,22 @@ it("has a menu item to change colors", async () => {
   expect(firstColor).toBe(secondColor);
 });
 
+it("doesn't allow stickies out of bounds", async () => {
+  await page.goto(pageWithBasicContentOnALocalBoard());
+  await clickStickyOutsideOfText(1);
+  await repeat(10, () => page.keyboard.press("ArrowLeft"));
+  await repeat(10, () => page.keyboard.press("ArrowUp"));
+  await thingsSettleDown();
+  expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 0, y: 0 }, 0);
+  await repeat(60, () => page.keyboard.press("ArrowDown"));
+  await repeat(95, () => page.keyboard.press("ArrowRight"));
+  await thingsSettleDown();
+  expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
+    { x: 2300, y: 1250 },
+    0
+  );
+});
+
 function pageWithEmptyLocalBoard() {
   return `http://127.0.0.1:${
     httpServer.address().port
@@ -305,6 +332,12 @@ Difference between ${received.y} and ${expected.y} (${Math.abs(
   },
 });
 
+async function repeat(times, action) {
+  for (let i = 0; i < times; i++) {
+    await action();
+  }
+}
+
 async function setSelected(id, selected) {
   if (selected === (await isStickySelected(id))) {
     return;
@@ -322,6 +355,7 @@ async function clickStickyOutsideOfText(id) {
 }
 async function clickToCreateSticky(clickLocation) {
   await page.mouse.click(clickLocation.x, clickLocation.y);
+  await thingsSettleDown();
   let stickyBox = await (await page.waitFor(".sticky")).boundingBox();
   return {
     x: stickyBox.x + stickyBox.width / 2,
@@ -355,10 +389,11 @@ async function thingsSettleDown(
     throw new Error(errMsg);
   }
 }
-function scrollBoardIntoView() {
+async function scrollBoardIntoView() {
   return page.evaluate(() => {
-    document.body.scrollLeft = 1020;
-    document.body.scrollTop = 650;
+    document
+      .querySelectorAll(".app, .board-container, .board")
+      .forEach((el) => el.scrollIntoView({ block: "start", inline: "start" }));
   });
 }
 

@@ -1,9 +1,11 @@
-// TODO: Make the menu pretty and accessible
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Implement tab order as top-to-bottom+left-to-right order
 // TODO: Render most recently changed sticky on top consistend across clients
 //       Check if you can reorder by moving the node to a fragment before appending it
 // TODO: Add buttons to the edges of board so more space can be added
+// TODO: Use ESC key to reset insert mode and to remove focus from textarea
+// TODO: Shift+c cycles color backwards
+// TODO: Select by dragging box area around items
 // TODO: Text search
 // TODO: Export/import the board data
 // TODO: Stick arbitrary images on the board and resize/reorient them
