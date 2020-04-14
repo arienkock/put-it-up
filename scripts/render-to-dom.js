@@ -1,5 +1,4 @@
 // TODO: Add buttons to the edges of board so more space can be added
-// TODO: Render most recently changed sticky on top consistent across clients
 // TODO: Implement tab order as top-to-bottom+left-to-right order
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Select by dragging box area around items
@@ -395,6 +394,10 @@ function getStickyElement(
       }
     }
     container.inputElement.onblur = () => setEditable(false);
+    container.inputElement.onfocus = () => {
+      setEditable(true);
+      moveToFront();
+    };
     container.inputElement.onkeydown = (event) => {
       event.stopPropagation();
       if (event.key === "Escape") {
@@ -500,7 +503,7 @@ function setStickyStyles(sticky, container, animateMove, stickyIsSelected) {
 function createStickyContainerDOM(stickyIdClass) {
   const container = document.createElement("div");
   container.innerHTML =
-    '<div class="sticky"><textarea class="text-input text" rows="1" tabindex="-1"></textarea></div>';
+    '<div class="sticky"><textarea class="text-input text" rows="1"></textarea></div>';
   container.classList.add(stickyIdClass);
   container.inputElement = container.querySelector(".text-input");
   container.sticky = container.querySelector(".sticky");
