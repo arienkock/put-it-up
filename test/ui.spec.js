@@ -348,6 +348,54 @@ it("doesn't allow stickies out of bounds", async () => {
   );
 });
 
+it("tab order based on positioning", async () => {
+  await page.goto(pageWithEmptyLocalBoard());
+  await scrollBoardIntoView();
+  for (let y = 0; y < 3; y++) {
+    for (let x = 1; x < 4; x++) {
+      await press("n");
+      await page.mouse.click(x * 50, 150 + y * 50);
+      await thingsSettleDown();
+    }
+  }
+  for (let y = 0; y < 3; y++) {
+    for (let x = 1; x < 4; x++) {
+      await press("n");
+      await page.mouse.click((4 - x) * 50 + 300, 150 + (3 - y) * 50);
+      await thingsSettleDown();
+    }
+  }
+  const classNames = await page.evaluate(() => {
+    return [...document.querySelectorAll(".board .sticky-container")].map(
+      (el) => el.className
+    );
+  });
+  console.log(classNames);
+  expect(classNames).toEqual([
+    "sticky-1 sticky-container animate-move",
+    "sticky-2 sticky-container animate-move",
+    "sticky-3 sticky-container animate-move",
+    "sticky-4 sticky-container animate-move",
+    "sticky-5 sticky-container animate-move",
+    "sticky-6 sticky-container animate-move",
+    "sticky-18 sticky-container animate-move selected",
+    "sticky-17 sticky-container animate-move",
+    "sticky-16 sticky-container animate-move",
+    "sticky-7 sticky-container animate-move",
+    "sticky-8 sticky-container animate-move",
+    "sticky-9 sticky-container animate-move",
+    "sticky-15 sticky-container animate-move",
+    "sticky-14 sticky-container animate-move",
+    "sticky-13 sticky-container animate-move",
+    "sticky-12 sticky-container animate-move",
+    "sticky-11 sticky-container animate-move",
+    "sticky-10 sticky-container animate-move",
+  ]);
+  const selectedZIndex = await page.evaluate(() => {
+    return document.querySelector(".sticky-container.selected").style.zIndex;
+  });
+  expect(selectedZIndex).toBe("1");
+});
 function pageWithEmptyLocalBoard() {
   return `http://127.0.0.1:${
     httpServer.address().port

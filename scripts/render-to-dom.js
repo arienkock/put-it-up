@@ -1,5 +1,4 @@
 // TODO: Add buttons to the edges of board so more space can be added
-// TODO: Implement tab order as top-to-bottom+left-to-right order
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Select by dragging box area around items
 // TODO: Add help texts/instructions
@@ -441,6 +440,7 @@ function getStickyElement(
         selectedStickies.replaceSelection(id);
       }
     };
+    moveToFront();
   }
   return container;
 }
