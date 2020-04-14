@@ -71,7 +71,7 @@ describe("Board UI", () => {
     await deleteAction();
     await thingsSettleDown();
     expect(await (await page.$$(".sticky")).length).toBe(4);
-    await page.click(".sticky-1 .sticky");
+    clickStickyOutsideOfText(1);
     page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
     await deleteAction();
@@ -242,7 +242,9 @@ describe("Board UI", () => {
     expect(await isStickySelected(1)).toBe(false);
     await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
+    await page.waitFor(50);
     await page.click(".sticky-3 .sticky");
+    await page.waitFor(50);
     await page.click(".sticky-4 .sticky");
     expect(await isStickySelected(1)).toBe(false);
     expect(await isStickySelected(2)).toBe(true);

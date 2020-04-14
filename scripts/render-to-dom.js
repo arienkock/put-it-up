@@ -1,9 +1,9 @@
-// TODO: Shift+c cycles color backwards
 // TODO: Add buttons to the edges of board so more space can be added
-// TODO: Render most recently changed sticky on top consistend across clients
+// TODO: Render most recently changed sticky on top consistent across clients
 // TODO: Implement tab order as top-to-bottom+left-to-right order
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Select by dragging box area around items
+// TODO: Add help texts/instructions
 // TODO: Stick arbitrary images on the board and resize/reorient them
 // TODO: Arrows connecting stickies
 // TODO: Text search
@@ -91,8 +91,8 @@ export function mount(board, root, Observer) {
       selectedStickies,
       shouldDelete
     );
+    // if container is falsy, then sticky was deleted
     if (container) {
-      // Sticky was NOT deleted
       const shouldAnimateMove = !stickiesMovedByDragging.includes(stickyId);
       const stickyIsSelected = selectedStickies.data[stickyId];
       setStickyStyles(sticky, container, shouldAnimateMove, stickyIsSelected);
@@ -105,6 +105,29 @@ export function mount(board, root, Observer) {
       if (textarea.value !== sticky.text) {
         textarea.value = sticky.text;
         fitContentInSticky(container.sticky, textarea);
+      }
+      // ordering
+      const elementsOnBoard = [...domElement.children];
+      const removePx = (s) => +s.substring(0, s.length - 2);
+      const activeElement = document.activeElement;
+      let shouldRefocus = false;
+      if (elementsOnBoard.some((el) => el.contains(activeElement))) {
+        shouldRefocus = true;
+      }
+      elementsOnBoard.sort((a, b) => {
+        let yDif = removePx(a.style.top) - removePx(b.style.top);
+        if (yDif === 0) {
+          const xDif = removePx(a.style.left) - removePx(b.style.left);
+          if (xDif === 0) {
+            return b.className > a.className;
+          }
+          return xDif;
+        }
+        return yDif;
+      });
+      elementsOnBoard.forEach((el) => domElement.appendChild(el));
+      if (shouldRefocus) {
+        activeElement.focus();
       }
     }
   }
@@ -390,13 +413,13 @@ function getStickyElement(
       }
     };
     function moveToFront() {
-      if (container.parentNode.lastChild !== container) {
-        [...container.parentNode.childNodes].forEach((n) => {
-          if (n !== container) {
-            container.parentNode.insertBefore(n, container);
-          }
-        });
-      }
+      [...container.parentNode.children].forEach((el) => {
+        if (el === container) {
+          el.style.zIndex = "1";
+        } else {
+          el.style.zIndex = "unset";
+        }
+      });
     }
     container.inputElement.addEventListener("input", () => {
       moveToFront();
