@@ -1,4 +1,3 @@
-// TODO: Use ESC key to reset insert mode and to remove focus from textarea
 // TODO: Shift+c cycles color backwards
 // TODO: Add buttons to the edges of board so more space can be added
 // TODO: Render most recently changed sticky on top consistend across clients
@@ -223,7 +222,7 @@ export function mount(board, root, Observer) {
       board.moveSticky(sid, newLocation);
     });
   }
-  function changeColor() {
+  function changeColor(reverse) {
     if (selectedStickies.hasItems()) {
       if (multipleSelectedHaveSameColor() || singleSelectedHasCurrentColor()) {
         nextColor();
@@ -235,8 +234,14 @@ export function mount(board, root, Observer) {
       nextColor();
     }
     function nextColor() {
-      let index = colorPalette.findIndex((c) => c === currentColor);
-      currentColor = colorPalette[(index + 1) % colorPalette.length];
+      const delta = reverse ? -1 : 1;
+      let index =
+        (colorPalette.findIndex((c) => c === currentColor) + delta) %
+        colorPalette.length;
+      if (index < 0) {
+        index += colorPalette.length;
+      }
+      currentColor = colorPalette[index];
       renderMenu();
     }
     function multipleSelectedHaveSameColor() {
@@ -269,6 +274,8 @@ export function mount(board, root, Observer) {
       }
     } else if (event.key === "c") {
       changeColor();
+    } else if (event.key === "C") {
+      changeColor(true);
     } else if (event.key === "Delete") {
       selectedStickies.forEach((id) => {
         board.deleteSticky(id);

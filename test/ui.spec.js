@@ -26,7 +26,7 @@ describe("Board UI", () => {
     await createNewAndCheckExpectations();
   });
 
-  it("creates sticky can be cancelede with Escape key", async () => {
+  it("creates sticky can be canceled with Escape key", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await page.waitFor(".board");
     await press("n");
@@ -200,6 +200,21 @@ describe("Board UI", () => {
     await page.click(".board");
     const secondColor = await getComputedColor(".sticky-2 .sticky");
     expect(firstColor).not.toBe(secondColor);
+  });
+
+  it("colors cycle backwars with Shift+c", async () => {
+    await page.goto(pageWithEmptyLocalBoard());
+    await press("n");
+    await page.click(".board");
+    const firstColor = await getComputedColor(".sticky-1 .sticky");
+    await press("c");
+    await press("c");
+    await press("C");
+    await press("C");
+    await press("n");
+    await page.click(".board");
+    const secondColor = await getComputedColor(".sticky-2 .sticky");
+    expect(firstColor).toBe(secondColor);
   });
 
   it("cycles through zoom levels with the o-key", async () => {
