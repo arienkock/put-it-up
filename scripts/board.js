@@ -1,8 +1,9 @@
 export function Board(aStore) {
   let store = aStore;
   let gridSize = 25;
-  const baseSize = { width: 2400, height: 1350 };
-  const size = { width: 2400, height: 1350 };
+  const sizeIncrements = { x: 1200, y: 1350 };
+  const origin = { x: 0, y: 0 };
+  const limit = { x: 2400, y: 1350 };
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
@@ -22,7 +23,8 @@ export function Board(aStore) {
     sticky.location = snapLocation(
       sticky.location || { x: 0, y: 0 },
       gridSize,
-      size
+      origin,
+      limit
     );
     const id = store.createSticky(sticky);
     return id;
@@ -39,6 +41,16 @@ export function Board(aStore) {
     return text;
   };
 
+  this.moreSpace = (direction) => {
+    switch (direction) {
+      case "left":
+        origin.x -= sizeIncrements.x;
+        return sizeIncrements.x;
+      default:
+        break;
+    }
+  };
+
   this.updateColor = (id, color) => {
     store.updateColor(id, color);
   };
@@ -48,7 +60,12 @@ export function Board(aStore) {
   };
 
   this.moveSticky = (id, newLocation) => {
-    newLocation = snapLocation(newLocation || { x: 0, y: 0 }, gridSize, size);
+    newLocation = snapLocation(
+      newLocation || { x: 0, y: 0 },
+      gridSize,
+      origin,
+      limit
+    );
     store.setLocation(id, newLocation);
   };
 
@@ -60,7 +77,11 @@ export function Board(aStore) {
 
   this.getStickyBaseSize = () => 100;
   this.getGridUnit = () => gridSize;
-  this.getBoardSize = () => size;
+  this.getBoardSize = () => ({
+    width: limit.x - origin.x,
+    height: limit.y - origin.y,
+  });
+  this.getOrigin = () => ({ x: origin.x, y: origin.y });
 
   this.addObserver = store.addObserver;
 }
@@ -74,15 +95,15 @@ function snapDimension(x, gridSize) {
   return x;
 }
 
-function snapLocation(location, gridSize, boardSize) {
+function snapLocation(location, gridSize, origin, limit) {
   return {
     x: Math.min(
-      boardSize.width - 100,
-      Math.max(0, snapDimension(Math.floor(location.x), gridSize))
+      limit.x - 100,
+      Math.max(origin.x, snapDimension(Math.floor(location.x), gridSize))
     ),
     y: Math.min(
-      boardSize.height - 100,
-      Math.max(0, snapDimension(Math.floor(location.y), gridSize))
+      limit.y - 100,
+      Math.max(origin.y, snapDimension(Math.floor(location.y), gridSize))
     ),
   };
 }

@@ -4,11 +4,11 @@
 // TODO: Add help texts/instructions
 // TODO: Stick arbitrary images on the board and resize/reorient them
 // TODO: Arrows connecting stickies
-// TODO: Text search
 // TODO: Export/import the board data
 // TOOD: Store board in web storage when using LocalDatastore
 // TODO: Configure Firebase config via UI and remember it in web storage
 // TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
+// TODO: Web RTC
 
 /*
 This is the UI component.
@@ -46,12 +46,13 @@ Difficult decisions:
  - when changes to dom actually happen and optimize using animation frames
  - how the board size is determined and changes
  - What can be put on the board, general images, arrows?
+ - ordering sorting/layers of items
 
 Modules:
  - selection/grouping
  - rendering, batching of changes coming from different sources
- - keyboard controls
- - touch controls
+ - user actions (hides diff between kb shortcuts and menu items)
+ - dragging
  - movement
  - text input
  - geometry
@@ -93,7 +94,13 @@ export function mount(board, root, Observer) {
     if (container) {
       const shouldAnimateMove = !stickiesMovedByDragging.includes(stickyId);
       const stickyIsSelected = selectedStickies.data[stickyId];
-      setStickyStyles(sticky, container, shouldAnimateMove, stickyIsSelected);
+      setStickyStyles(
+        sticky,
+        container,
+        shouldAnimateMove,
+        stickyIsSelected,
+        board.getOrigin()
+      );
       if (!shouldAnimateMove) {
         stickiesMovedByDragging = stickiesMovedByDragging.filter(
           (sid) => sid !== stickyId
@@ -178,6 +185,17 @@ export function mount(board, root, Observer) {
         dom.innerHTML = 'text<div class="color-preview"></div>';
         dom.firstChild.textContent = label;
         dom.lastChild.style.backgroundColor = currentColor;
+      },
+    },
+    {
+      itemLabel: "More space on the left",
+      className: "more-space-left",
+      itemClickHandler: () => {
+        const change = board.moreSpace("left");
+        render();
+        document.scrollingElement.scrollLeft +=
+          (change - change * domElement.boardScale) / 2 +
+          change * domElement.boardScale;
       },
     },
   ];
@@ -326,13 +344,16 @@ export function mount(board, root, Observer) {
     if (nextClickCreatesNewSticky) {
       nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
+      const origin = board.getOrigin();
       const location = {
         x:
           (event.clientX - rect.left - 50 * domElement.boardScale) /
-          domElement.boardScale,
+            domElement.boardScale +
+          origin.x,
         y:
           (event.clientY - rect.top - 50 * domElement.boardScale) /
-          domElement.boardScale,
+            domElement.boardScale +
+          origin.y,
       };
       const id = board.putSticky({ color: currentColor, location });
       selectedStickies.replaceSelection(id);
@@ -477,15 +498,21 @@ function fitContentInSticky(sticky, textarea) {
   }
 }
 
-function setStickyStyles(sticky, container, animateMove, stickyIsSelected) {
+function setStickyStyles(
+  sticky,
+  container,
+  animateMove,
+  stickyIsSelected,
+  origin
+) {
   const { sticky: stickyElement } = container;
   if (animateMove) {
     container.classList.add("animate-move");
   } else {
     container.classList.remove("animate-move");
   }
-  container.style.left = sticky.location.x + "px";
-  container.style.top = sticky.location.y + "px";
+  container.style.left = sticky.location.x - origin.x + "px";
+  container.style.top = sticky.location.y - origin.y + "px";
   if (stickyIsSelected) {
     container.classList.add("selected");
     container.style.backgroundColor = "";

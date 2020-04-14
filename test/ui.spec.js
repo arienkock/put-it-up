@@ -396,6 +396,14 @@ it("tab order based on positioning", async () => {
   });
   expect(selectedZIndex).toBe("1");
 });
+
+it.only("can get more space by growing board size", async () => {
+  await page.goto(pageWithBasicContentOnALocalBoard());
+  await page.click(".board-action-menu .more-space-left");
+  // test bounds/snapping
+  // test viewport adjust
+});
+
 function pageWithEmptyLocalBoard() {
   return `http://127.0.0.1:${
     httpServer.address().port
