@@ -45,7 +45,10 @@ export function Board(aStore) {
     switch (direction) {
       case "left":
         origin.x -= sizeIncrements.x;
-        return sizeIncrements.x;
+        store.updateBoard({
+          origin,
+          limit,
+        });
       default:
         break;
     }

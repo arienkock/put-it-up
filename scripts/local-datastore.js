@@ -3,6 +3,8 @@ export class LocalDatastore {
   idGen = 0;
   observers = [];
 
+  board = {};
+
   getSticky = (id) => {
     const sticky = this.stickies[id];
     if (!sticky) {
@@ -35,6 +37,11 @@ export class LocalDatastore {
   setLocation = (id, location) => {
     this.getSticky(id).location = location;
     this.notifyStickyChange(id);
+  };
+
+  updateBoard = (board) => {
+    Object.assign(this.board, board);
+    this.notifyBoardChange();
   };
 
   connect() {}

@@ -3,6 +3,6 @@ module.exports = {
     // dumpio: true,
     // headless: false,
     // devtools: true,
-    // slowMo: 10,
+    // slowMo: 20,
   },
 };

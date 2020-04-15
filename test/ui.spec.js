@@ -202,7 +202,7 @@ describe("Board UI", () => {
     expect(firstColor).not.toBe(secondColor);
   });
 
-  it("colors cycle backwars with Shift+c", async () => {
+  it("colors cycle backwards with Shift+c", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await press("n");
     await page.click(".board");
@@ -238,7 +238,10 @@ describe("Board UI", () => {
     await thingsSettleDown();
     await page.click(".sticky-1 .sticky");
     expect(await isStickySelected(1)).toBe(true);
-    await page.click(".board");
+    await thingsSettleDown();
+    const s2bb = await stickyBoundingBox(1);
+    await page.mouse.click(s2bb.x - 10, s2bb.y - 10);
+    // await jestPuppeteer.debug();
     expect(await isStickySelected(1)).toBe(false);
     await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
@@ -258,21 +261,21 @@ describe("Board UI", () => {
     await page.keyboard.press("ArrowDown");
     await thingsSettleDown(12);
     expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
-      { x: 200, y: 200 },
+      { x: 201, y: 201 },
       0
     );
     expect(await stickyBoundingBox(2)).toBeInTheVicinityOf(
-      { x: 300, y: 200 },
+      { x: 301, y: 201 },
       0
     );
     // TODO: FIX TIMING
     await page.waitFor(100);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
-      { x: 400, y: 225 },
+      { x: 401, y: 226 },
       0
     );
     expect(await stickyBoundingBox(4)).toBeInTheVicinityOf(
-      { x: 500, y: 225 },
+      { x: 501, y: 226 },
       0
     );
     await dragAndDrop(".sticky-3 .sticky", ".board", page, {
@@ -283,19 +286,19 @@ describe("Board UI", () => {
     });
     await thingsSettleDown(14);
     expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
-      { x: 200, y: 200 },
+      { x: 201, y: 201 },
       0
     );
     expect(await stickyBoundingBox(2)).toBeInTheVicinityOf(
-      { x: 300, y: 200 },
+      { x: 301, y: 201 },
       0
     );
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
-      { x: 700, y: 725 },
+      { x: 701, y: 726 },
       0
     );
     expect(await stickyBoundingBox(4)).toBeInTheVicinityOf(
-      { x: 800, y: 725 },
+      { x: 801, y: 726 },
       0
     );
   }, 9999999);
@@ -338,12 +341,12 @@ it("doesn't allow stickies out of bounds", async () => {
   await repeat(10, () => page.keyboard.press("ArrowLeft"));
   await repeat(10, () => page.keyboard.press("ArrowUp"));
   await thingsSettleDown();
-  expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 0, y: 0 }, 0);
+  expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 1, y: 1 }, 0);
   await repeat(60, () => page.keyboard.press("ArrowDown"));
   await repeat(95, () => page.keyboard.press("ArrowRight"));
   await thingsSettleDown();
   expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
-    { x: 2300, y: 1250 },
+    { x: 2301, y: 1251 },
     0
   );
 });
@@ -370,7 +373,7 @@ it("tab order based on positioning", async () => {
       (el) => el.className
     );
   });
-  console.log(classNames);
+  // console.log(classNames);
   expect(classNames).toEqual([
     "sticky-1 sticky-container animate-move",
     "sticky-2 sticky-container animate-move",
@@ -397,7 +400,7 @@ it("tab order based on positioning", async () => {
   expect(selectedZIndex).toBe("1");
 });
 
-it.only("can get more space by growing board size", async () => {
+it("can get more space by growing board size", async () => {
   await page.goto(pageWithBasicContentOnALocalBoard());
   await page.click(".board-action-menu .more-space-left");
   // test bounds/snapping

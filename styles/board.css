@@ -38,7 +38,7 @@ body {
   background-color: rgba(0, 0, 0, 0.025);
 }
 .sticky > .text-input {
-  font-family: inherit;
+  font: inherit;
   resize: none;
   border: none;
 }

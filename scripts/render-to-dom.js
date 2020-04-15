@@ -61,7 +61,7 @@ Modules:
 const STICKY_TYPE = "application/sticky";
 const DEFAULT_STICKY_COLOR = "khaki";
 const zoomScale = [0.3, 0.6, 1];
-const colorPalette = [
+export const colorPalette = [
   "khaki",
   "#F8C471",
   "#AED6F1",
@@ -69,6 +69,7 @@ const colorPalette = [
   "#F1948A",
   "#C39BD3",
 ];
+Object.freeze(colorPalette);
 
 export function mount(board, root, Observer) {
   root.innerHTML =
@@ -113,7 +114,6 @@ export function mount(board, root, Observer) {
       }
       // ordering
       const elementsOnBoard = [...domElement.children];
-      const removePx = (s) => +s.substring(0, s.length - 2);
       const activeElement = document.activeElement;
       let shouldRefocus = false;
       if (elementsOnBoard.some((el) => el.contains(activeElement))) {
@@ -140,11 +140,27 @@ export function mount(board, root, Observer) {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
     const size = board.getBoardSize();
+    const sizeBefore = {
+      width: removePx(boardContainer.style.width),
+      height: removePx(boardContainer.style.height),
+    };
     domElement.style.width = size.width + "px";
     domElement.style.height = size.height + "px";
     boardContainer.style.width = size.width + "px";
     boardContainer.style.height = size.height + "px";
     domElement.style.transform = `scale3d(${domElement.boardScale},${domElement.boardScale},1)`;
+    if (sizeBefore.width) {
+      const xChange = size.width - sizeBefore.width;
+      document.scrollingElement.scrollLeft +=
+        (xChange - xChange * domElement.boardScale) / 2 +
+        xChange * domElement.boardScale;
+    }
+    if (sizeBefore.height) {
+      const yChange = size.height - sizeBefore.height;
+      document.scrollingElement.scrollLeft +=
+        (yChange - yChange * domElement.boardScale) / 2 +
+        yChange * domElement.boardScale;
+    }
     if (domElement.boardScale < 0.5) {
       domElement.classList.add("sticky-text-hidden");
     } else {
@@ -191,11 +207,7 @@ export function mount(board, root, Observer) {
       itemLabel: "More space on the left",
       className: "more-space-left",
       itemClickHandler: () => {
-        const change = board.moreSpace("left");
-        render();
-        document.scrollingElement.scrollLeft +=
-          (change - change * domElement.boardScale) / 2 +
-          change * domElement.boardScale;
+        board.moreSpace("left");
       },
     },
   ];
@@ -576,4 +588,8 @@ class Selection {
   size() {
     return Object.keys(this.data).length;
   }
+}
+
+function removePx(s) {
+  return +s.substring(0, s.length - 2);
 }
