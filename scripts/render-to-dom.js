@@ -137,13 +137,16 @@ export function mount(board, root, Observer) {
     }
   }
   function renderBoard() {
+    if (!board.isReadyForUse()) {
+      return;
+    }
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
-    const size = board.getBoardSize();
     const sizeBefore = {
       width: removePx(boardContainer.style.width),
       height: removePx(boardContainer.style.height),
     };
+    const size = board.getBoardSize();
     domElement.style.width = size.width + "px";
     domElement.style.height = size.height + "px";
     boardContainer.style.width = size.width + "px";

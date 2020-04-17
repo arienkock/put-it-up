@@ -1,11 +1,21 @@
+const DEFAULT_BOARD = {
+  origin: { x: 0, y: 0 },
+  limit: { x: 2400, y: 1350 },
+};
+
 export function Board(aStore) {
   let store = aStore;
   let gridSize = 25;
   const sizeIncrements = { x: 1200, y: 1350 };
-  const origin = { x: 0, y: 0 };
-  const limit = { x: 2400, y: 1350 };
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
+
+  const getBoardInternal = () => {
+    let { origin, limit } = store.getBoard(DEFAULT_BOARD);
+    return { origin, limit };
+  };
+
+  this.isReadyForUse = () => store.isReadyForUse();
 
   this.getSticky = (id) => store.getSticky(id);
 
@@ -18,6 +28,7 @@ export function Board(aStore) {
   };
 
   this.putSticky = (sticky) => {
+    const { origin, limit } = getBoardInternal();
     sticky.text = sticky.text || "";
     sticky.text = removeNewlines(sticky.text);
     sticky.location = snapLocation(
@@ -42,6 +53,7 @@ export function Board(aStore) {
   };
 
   this.moreSpace = (direction) => {
+    const { origin, limit } = getBoardInternal();
     switch (direction) {
       case "left":
         origin.x -= sizeIncrements.x;
@@ -63,6 +75,7 @@ export function Board(aStore) {
   };
 
   this.moveSticky = (id, newLocation) => {
+    const { origin, limit } = getBoardInternal();
     newLocation = snapLocation(
       newLocation || { x: 0, y: 0 },
       gridSize,
@@ -80,11 +93,18 @@ export function Board(aStore) {
 
   this.getStickyBaseSize = () => 100;
   this.getGridUnit = () => gridSize;
-  this.getBoardSize = () => ({
-    width: limit.x - origin.x,
-    height: limit.y - origin.y,
-  });
-  this.getOrigin = () => ({ x: origin.x, y: origin.y });
+  this.getBoardSize = () => {
+    const { origin, limit } = getBoardInternal();
+    return {
+      width: limit.x - origin.x,
+      height: limit.y - origin.y,
+    };
+  };
+
+  this.getOrigin = () => {
+    const { origin } = getBoardInternal();
+    return { x: origin.x, y: origin.y };
+  };
 
   this.addObserver = store.addObserver;
 }

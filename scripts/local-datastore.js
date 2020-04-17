@@ -1,9 +1,15 @@
 export class LocalDatastore {
   stickies = {};
+  board = undefined;
   idGen = 0;
   observers = [];
 
-  board = {};
+  isReadyForUse = () => true;
+
+  getBoard = (defaults) => {
+    this.board = this.board || defaults;
+    return this.board;
+  };
 
   getSticky = (id) => {
     const sticky = this.stickies[id];
