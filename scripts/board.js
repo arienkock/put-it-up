@@ -6,7 +6,7 @@ const DEFAULT_BOARD = {
 export function Board(aStore) {
   let store = aStore;
   let gridSize = 25;
-  const sizeIncrements = { x: 1200, y: 1350 };
+  const sizeIncrements = { x: 100, y: 100 };
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
@@ -55,8 +55,26 @@ export function Board(aStore) {
   this.moreSpace = (direction) => {
     const { origin, limit } = getBoardInternal();
     switch (direction) {
+      case "top":
+        origin.y -= sizeIncrements.y;
+        store.updateBoard({
+          origin,
+          limit,
+        });
+      case "bottom":
+        limit.y += sizeIncrements.y;
+        store.updateBoard({
+          origin,
+          limit,
+        });
       case "left":
         origin.x -= sizeIncrements.x;
+        store.updateBoard({
+          origin,
+          limit,
+        });
+      case "right":
+        limit.x += sizeIncrements.x;
         store.updateBoard({
           origin,
           limit,

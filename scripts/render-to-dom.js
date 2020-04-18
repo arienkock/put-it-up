@@ -1,14 +1,20 @@
-// TODO: Add buttons to the edges of board so more space can be added
-// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
-// TODO: Select by dragging box area around items
+// TODO: Add buttons to shrink board
+// TODO: Make "board size" buttons more usable
+// TODO: When zoomed stickies at the top are hidden by the menu. Fix it.
 // TODO: Add help texts/instructions
+// TODO: Select by dragging box area around items
+// TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: Stick arbitrary images on the board and resize/reorient them
 // TODO: Arrows connecting stickies
+// TODO: Add security rules to Firestore
 // TODO: Export/import the board data
 // TOOD: Store board in web storage when using LocalDatastore
 // TODO: Configure Firebase config via UI and remember it in web storage
 // TODO: When zooming the approximate area of focus of the board remains in focus after the zoom
 // TODO: Web RTC
+// TODO: Moving a selection with arrows should move as a unit when hitting baord bounds
+// TODO: Moving with arrows the sticky should remain on screen (follow it by scrolling)
+// TODO: Fit text content by considering the width of the widest word
 
 /*
 This is the UI component.
@@ -142,28 +148,12 @@ export function mount(board, root, Observer) {
     }
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
-    const sizeBefore = {
-      width: removePx(boardContainer.style.width),
-      height: removePx(boardContainer.style.height),
-    };
     const size = board.getBoardSize();
     domElement.style.width = size.width + "px";
     domElement.style.height = size.height + "px";
-    boardContainer.style.width = size.width + "px";
-    boardContainer.style.height = size.height + "px";
+    boardContainer.style.width = size.width * domElement.boardScale + "px";
+    boardContainer.style.height = size.height * domElement.boardScale + "px";
     domElement.style.transform = `scale3d(${domElement.boardScale},${domElement.boardScale},1)`;
-    if (sizeBefore.width) {
-      const xChange = size.width - sizeBefore.width;
-      document.scrollingElement.scrollLeft +=
-        (xChange - xChange * domElement.boardScale) / 2 +
-        xChange * domElement.boardScale;
-    }
-    if (sizeBefore.height) {
-      const yChange = size.height - sizeBefore.height;
-      document.scrollingElement.scrollLeft +=
-        (yChange - yChange * domElement.boardScale) / 2 +
-        yChange * domElement.boardScale;
-    }
     if (domElement.boardScale < 0.5) {
       domElement.classList.add("sticky-text-hidden");
     } else {
@@ -207,10 +197,31 @@ export function mount(board, root, Observer) {
       },
     },
     {
+      itemLabel: "More space on the top",
+      className: "more-space-top",
+      itemClickHandler: () => {
+        board.moreSpace("top");
+      },
+    },
+    {
+      itemLabel: "More space on the bottom",
+      className: "more-space-bottom",
+      itemClickHandler: () => {
+        board.moreSpace("bottom");
+      },
+    },
+    {
       itemLabel: "More space on the left",
       className: "more-space-left",
       itemClickHandler: () => {
         board.moreSpace("left");
+      },
+    },
+    {
+      itemLabel: "More space on the right",
+      className: "more-space-right",
+      itemClickHandler: () => {
+        board.moreSpace("right");
       },
     },
   ];
@@ -537,8 +548,6 @@ function setStickyStyles(
   const size = 100 + "px";
   container.style.width = size;
   container.style.height = size;
-  stickyElement.style.padding = 10 + "px";
-  container.style.padding = 5 + "px";
   stickyElement.style.backgroundColor = sticky.color || DEFAULT_STICKY_COLOR;
 }
 

@@ -18,33 +18,38 @@ body {
   color: #444;
   overflow-y: auto;
   width: 100%;
+  padding: 10px 5px 0;
 }
 .sticky-container {
   box-sizing: border-box;
   position: absolute;
   cursor: grab;
   display: flex;
+  padding: 5px;
 }
 .sticky-container.selected {
   background-color: rgba(70, 70, 216, 0.5);
 }
 .sticky-container.animate-move {
-  transition: left 100ms, top 100ms;
+  /* transition: left 100ms, top 100ms; */
 }
 .sticky > .text {
-  padding: 5px;
+  padding: 0;
   cursor: text;
   text-align: center;
-  background-color: rgba(0, 0, 0, 0.025);
+  background-color: rgba(0, 0, 0, 0.035);
 }
 .sticky > .text-input {
   font: inherit;
   resize: none;
   border: none;
+  /* overflow-wrap: normal; */
+  hyphens: auto;
 }
 .board {
   background-color: #f9f9f9;
-  transition: transform 400ms;
+  /* transition: transform 400ms; */
+  transform-origin: 0 0;
   border: 1px solid #777777;
 }
 .sticky-text-hidden .sticky > .text {

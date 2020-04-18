@@ -3,7 +3,7 @@ export class FirestoreStore {
   board = undefined;
   connectCalled = false;
   collectionName = "board-events";
-  boardName = "my-board";
+  boardName = "my-board2";
   observers = [];
   readyForUse = false;
 
