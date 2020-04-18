@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="../../styles/board.css" />
   </head>
   <body>
+    <div class="app"></div>
     <script type="module">
       import { mount, colorPalette } from "../../scripts/render-to-dom.js";
       import { Board } from "../../scripts/board.js";
@@ -15,7 +16,11 @@
 
       const store = new LocalDatastore();
       const board = new Board(store);
-      const { observer } = mount(board, document.body, BufferedObserver);
+      const { observer } = mount(
+        board,
+        document.querySelector(".app"),
+        BufferedObserver
+      );
       store.connect();
       window.board = board;
       board.putSticky({

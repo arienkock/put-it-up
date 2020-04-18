@@ -401,6 +401,7 @@ describe("Board UI", () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
     await page.click(".board-action-menu .board-size");
     await page.click(".grow-arrows .left");
+    await page.click(".board-action-menu .board-size");
     // test bounds/snapping
     await setSelected(1);
     await repeat(15, () => page.keyboard.press("ArrowLeft"));
