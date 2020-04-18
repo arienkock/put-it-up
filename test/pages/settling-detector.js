@@ -15,7 +15,7 @@ export function installSettlingDetector(observer) {
     expectedNumErrors = 0
   ) =>
     new Promise((resolve) => {
-      setTimeout(() => checkStatus(), 50);
+      requestAnimationFrame(() => requestAnimationFrame(() => checkStatus()));
       function checkStatus() {
         if (errors.length > expectedNumErrors) {
           resolve(errors[errors.length - 1] + "");

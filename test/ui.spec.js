@@ -223,7 +223,6 @@ describe("Board UI", () => {
     const stickyBox = await (await page.waitFor(".sticky")).boundingBox();
     await press("o");
     await thingsSettleDown();
-    await page.waitFor(100);
     const boardBoxAfter = await (await page.waitFor(".board")).boundingBox();
     const stickyBoxAfter = await (await page.waitFor(".sticky")).boundingBox();
     // TIMING
@@ -245,9 +244,9 @@ describe("Board UI", () => {
     expect(await isStickySelected(1)).toBe(false);
     await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
-    await page.waitFor(50);
+    await thingsSettleDown(7);
     await page.click(".sticky-3 .sticky");
-    await page.waitFor(50);
+    await thingsSettleDown(8);
     await page.click(".sticky-4 .sticky");
     expect(await isStickySelected(1)).toBe(false);
     expect(await isStickySelected(2)).toBe(true);
@@ -268,8 +267,7 @@ describe("Board UI", () => {
       { x: 301, y: 201 },
       0
     );
-    // TODO: FIX TIMING
-    await page.waitFor(100);
+    await thingsSettleDown(12);
     expect(await stickyBoundingBox(3)).toBeInTheVicinityOf(
       { x: 401, y: 226 },
       0
@@ -402,7 +400,6 @@ it("tab order based on positioning", async () => {
 
 it("can get more space by growing board size", async () => {
   await page.goto(pageWithBasicContentOnALocalBoard());
-  const stickyBefore = await stickyBoundingBox(1);
   await page.click(".board-action-menu .more-space-left");
   // test bounds/snapping
   await setSelected(1);

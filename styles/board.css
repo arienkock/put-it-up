@@ -41,6 +41,7 @@ body {
 }
 .sticky > .text-input {
   font: inherit;
+  font-size: 1.5rem;
   resize: none;
   border: none;
   /* overflow-wrap: normal; */
