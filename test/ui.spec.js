@@ -400,20 +400,17 @@ it("tab order based on positioning", async () => {
   expect(selectedZIndex).toBe("1");
 });
 
-it.only("can get more space by growing board size", async () => {
+it("can get more space by growing board size", async () => {
   await page.goto(pageWithBasicContentOnALocalBoard());
   const stickyBefore = await stickyBoundingBox(1);
   await page.click(".board-action-menu .more-space-left");
-  // test viewport adjust
-  const stickyAfter = await stickyBoundingBox(1);
-  expect(stickyAfter).toBeInTheVicinityOf(stickyBefore, 0);
   // test bounds/snapping
   await setSelected(1);
-  await repeat(60, () => page.keyboard.press("ArrowLeft"));
+  await repeat(15, () => page.keyboard.press("ArrowLeft"));
   const stickyAfterMove = await page.evaluate(
     () => board.getSticky(1).location
   );
-  expect(stickyAfterMove).toBeInTheVicinityOf({ x: -1200, y: 200 }, 0);
+  expect(stickyAfterMove).toBeInTheVicinityOf({ x: -100, y: 200 }, 0);
 });
 
 function pageWithEmptyLocalBoard() {
