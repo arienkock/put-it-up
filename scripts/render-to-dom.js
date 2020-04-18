@@ -1,5 +1,4 @@
-// TODO: Add buttons to shrink board
-// TODO: Make "board size" buttons more usable
+// TODO: Put zoom button in menu
 // TODO: When zoomed stickies at the top are hidden by the menu. Fix it.
 // TODO: Add help texts/instructions
 // TODO: Select by dragging box area around items
@@ -149,6 +148,8 @@ export function mount(board, root, Observer) {
     domElement.boardScale =
       domElement.boardScale || zoomScale[zoomScale.length - 1];
     const size = board.getBoardSize();
+    root.style.width = size.width * domElement.boardScale + "px";
+    root.style.height = size.height * domElement.boardScale + "px";
     domElement.style.width = size.width + "px";
     domElement.style.height = size.height + "px";
     boardContainer.style.width = size.width * domElement.boardScale + "px";
@@ -187,13 +188,25 @@ export function mount(board, root, Observer) {
     {
       itemLabel: "Color",
       className: "change-color",
-      itemClickHandler: () => {
-        changeColor();
+      itemClickHandler: (event) => {
+        changeColor(event.shiftKey);
       },
       customLabel: (dom, label) => {
         dom.innerHTML = 'text<div class="color-preview"></div>';
         dom.firstChild.textContent = label;
         dom.lastChild.style.backgroundColor = currentColor;
+      },
+    },
+    {
+      itemLabel: "Zoom",
+      className: "change-zoom",
+      itemClickHandler: (event) => {
+        changeZoomLevel(event.shiftKey);
+      },
+      customLabel: (dom, label) => {
+        dom.textContent = `${label} (${(domElement.boardScale * 100).toFixed(
+          0
+        )}%)`;
       },
     },
     {
@@ -248,7 +261,7 @@ export function mount(board, root, Observer) {
       menuItems.forEach((item) => {
         menuElement.appendChild(renderMenuButton(item));
       });
-      boardContainer.appendChild(menuElement);
+      root.appendChild(menuElement);
       function renderMenuButton(item) {
         const itemElement = document.createElement("button");
         item.dom = itemElement;
@@ -308,6 +321,13 @@ export function mount(board, root, Observer) {
       board.moveSticky(sid, newLocation);
     });
   }
+  function changeZoomLevel(reverse) {
+    let index =
+      zoomScale.findIndex((v) => v === domElement.boardScale) +
+      (reverse ? -1 : 1);
+    domElement.boardScale = zoomScale[index % zoomScale.length];
+    render(board, domElement);
+  }
   function changeColor(reverse) {
     if (selectedStickies.hasItems()) {
       if (multipleSelectedHaveSameColor() || singleSelectedHasCurrentColor()) {
@@ -347,9 +367,9 @@ export function mount(board, root, Observer) {
   let nextClickCreatesNewSticky = false;
   document.body.onkeydown = (event) => {
     if (event.key === "o") {
-      let index = zoomScale.findIndex((v) => v === domElement.boardScale) + 1;
-      domElement.boardScale = zoomScale[index % zoomScale.length];
-      render(board, domElement);
+      changeZoomLevel();
+    } else if (event.key === "O") {
+      changeZoomLevel(true);
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
       renderBoard();
