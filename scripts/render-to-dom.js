@@ -204,9 +204,13 @@ export function mount(board, root, Observer) {
         changeZoomLevel(event.shiftKey);
       },
       customLabel: (dom, label) => {
-        dom.textContent = `${label} (${(domElement.boardScale * 100).toFixed(
-          0
-        )}%)`;
+        if (!domElement.boardScale) {
+          dom.textContent = label;
+        } else {
+          dom.textContent = `${label} (${(domElement.boardScale * 100).toFixed(
+            0
+          )}%)`;
+        }
       },
     },
     {
@@ -239,7 +243,7 @@ export function mount(board, root, Observer) {
           document.body.addEventListener("click", (event) => {
             if (
               event !== activatingEvent &&
-              !isChildOf(event.target, ".sizing-controls")
+              !isChildOf(event.target, "sizing-controls")
             ) {
               sizingControls.remove();
             }
@@ -261,7 +265,7 @@ export function mount(board, root, Observer) {
       menuItems.forEach((item) => {
         menuElement.appendChild(renderMenuButton(item));
       });
-      root.appendChild(menuElement);
+      root.insertAdjacentElement("afterbegin", menuElement);
       function renderMenuButton(item) {
         const itemElement = document.createElement("button");
         item.dom = itemElement;
