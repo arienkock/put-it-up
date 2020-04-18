@@ -185,7 +185,7 @@ export function mount(board, root, Observer) {
       },
     },
     {
-      itemLabel: "Change color",
+      itemLabel: "Color",
       className: "change-color",
       itemClickHandler: () => {
         changeColor();
@@ -197,31 +197,47 @@ export function mount(board, root, Observer) {
       },
     },
     {
-      itemLabel: "More space on the top",
-      className: "more-space-top",
-      itemClickHandler: () => {
-        board.moreSpace("top");
-      },
-    },
-    {
-      itemLabel: "More space on the bottom",
-      className: "more-space-bottom",
-      itemClickHandler: () => {
-        board.moreSpace("bottom");
-      },
-    },
-    {
-      itemLabel: "More space on the left",
-      className: "more-space-left",
-      itemClickHandler: () => {
-        board.moreSpace("left");
-      },
-    },
-    {
-      itemLabel: "More space on the right",
-      className: "more-space-right",
-      itemClickHandler: () => {
-        board.moreSpace("right");
+      itemLabel: "Board size",
+      className: "board-size",
+      itemClickHandler: (activatingEvent) => {
+        const container = document.createElement("div");
+        if (!document.querySelector(".sizing-controls")) {
+          container.innerHTML = `<div class="sizing-controls">
+            <label for="Grow">Grow</label>
+            <input type="radio" id="Grow" name="size-change-direction" value="Grow" checked="checked">
+            &nbsp;&nbsp;
+            <label for="Shrink">Shrink</label>
+            <input type="radio" id="Shrink" name="size-change-direction" value="Shrink">
+            <div class="grow-arrows">
+              <button class="top">${arrowHTML()}</button>
+              <button class="right">${arrowHTML()}</button>
+              <button class="bottom">${arrowHTML()}</button>
+              <button class="left">${arrowHTML()}</button>
+            </div>
+          </div>`;
+          const sizingControls = container.firstElementChild;
+          sizingControls.addEventListener("click", (event) => {
+            const isGrow = sizingControls.querySelector("#Grow").checked;
+            const side = ["top", "right", "bottom", "left"].find((side) =>
+              isChildOf(event.target, side)
+            );
+            board.changeSize(isGrow, side);
+          });
+          document.body.addEventListener("click", (event) => {
+            if (
+              event !== activatingEvent &&
+              !isChildOf(event.target, ".sizing-controls")
+            ) {
+              sizingControls.remove();
+            }
+          });
+          document.body.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+              sizingControls.remove();
+            }
+          });
+          root.appendChild(sizingControls);
+        }
       },
     },
   ];
@@ -229,20 +245,25 @@ export function mount(board, root, Observer) {
     if (!menuElement) {
       menuElement = document.createElement("div");
       menuElement.classList.add("board-action-menu");
-      menuItems.forEach(({ itemClickHandler, className }, i) => {
-        const itemElement = document.createElement("button");
-        menuItems[i].dom = itemElement;
-        itemElement.onclick = itemClickHandler;
-        itemElement.classList.add(className);
-        menuElement.appendChild(itemElement);
+      menuItems.forEach((item) => {
+        menuElement.appendChild(renderMenuButton(item));
       });
       boardContainer.appendChild(menuElement);
+      function renderMenuButton(item) {
+        const itemElement = document.createElement("button");
+        item.dom = itemElement;
+        itemElement.onclick = item.itemClickHandler;
+        itemElement.classList.add(item.className);
+        return itemElement;
+      }
     }
     menuItems.forEach(({ itemLabel, customLabel, dom }) => {
-      if (customLabel) {
-        customLabel(dom, itemLabel);
-      } else {
-        dom.textContent = itemLabel;
+      if (itemLabel) {
+        if (customLabel) {
+          customLabel(dom, itemLabel);
+        } else {
+          dom.textContent = itemLabel;
+        }
       }
     });
   }
@@ -604,4 +625,19 @@ class Selection {
 
 function removePx(s) {
   return +s.substring(0, s.length - 2);
+}
+
+function arrowHTML() {
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="Layer_1" x="0px" y="0px" width="25px" height="25px" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve">
+  <path class="svg-arrow" fill="#010101" d="M128,256L384,0v128L256,256l128,128v128L128,256z"/>
+</svg>
+  `;
+}
+
+function isChildOf(element, cn) {
+  if (element.classList && element.classList.contains(cn)) {
+    return true;
+  }
+  return element.parentNode && isChildOf(element.parentNode, cn);
 }

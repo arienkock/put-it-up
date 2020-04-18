@@ -299,115 +299,116 @@ describe("Board UI", () => {
       { x: 801, y: 726 },
       0
     );
-  }, 9999999);
-});
+  });
 
-it("has a menu item to change colors", async () => {
-  await page.goto(pageWithEmptyLocalBoard());
-  await press("n");
-  const boardBox = await (await page.waitFor(".board")).boundingBox();
-  await page.mouse.click(boardBox.x + 50, boardBox.y + 50);
-  let firstColor = await getComputedColor(".sticky-1 .sticky");
-  await setSelected(1, false);
-  await page.click(".board-action-menu .change-color");
-  await thingsSettleDown();
-  await press("n");
-  await page.mouse.click(boardBox.x + 150, boardBox.y + 50);
-  let secondColor = await getComputedColor(".sticky-2 .sticky");
-  expect(firstColor).not.toBe(secondColor);
-  await clickStickyOutsideOfText(1);
-  expect(await isStickySelected(1)).toBe(true);
-  expect(await isStickySelected(2)).toBe(false);
-  await page.click(".board-action-menu .change-color");
-  await thingsSettleDown();
-  firstColor = await getComputedColor(".sticky-1 .sticky");
-  expect(firstColor).toBe(secondColor);
-  await setSelected(2, true);
-  let colorBeforeSelectionColorChange = firstColor;
-  await page.click(".board-action-menu .change-color");
-  await thingsSettleDown();
-  firstColor = await getComputedColor(".sticky-1 .sticky");
-  secondColor = await getComputedColor(".sticky-2 .sticky");
-  expect(firstColor).not.toBe(colorBeforeSelectionColorChange);
-  expect(secondColor).not.toBe(colorBeforeSelectionColorChange);
-  expect(firstColor).toBe(secondColor);
-});
+  it("has a menu item to change colors", async () => {
+    await page.goto(pageWithEmptyLocalBoard());
+    await press("n");
+    const boardBox = await (await page.waitFor(".board")).boundingBox();
+    await page.mouse.click(boardBox.x + 50, boardBox.y + 50);
+    let firstColor = await getComputedColor(".sticky-1 .sticky");
+    await setSelected(1, false);
+    await page.click(".board-action-menu .change-color");
+    await thingsSettleDown();
+    await press("n");
+    await page.mouse.click(boardBox.x + 150, boardBox.y + 50);
+    let secondColor = await getComputedColor(".sticky-2 .sticky");
+    expect(firstColor).not.toBe(secondColor);
+    await clickStickyOutsideOfText(1);
+    expect(await isStickySelected(1)).toBe(true);
+    expect(await isStickySelected(2)).toBe(false);
+    await page.click(".board-action-menu .change-color");
+    await thingsSettleDown();
+    firstColor = await getComputedColor(".sticky-1 .sticky");
+    expect(firstColor).toBe(secondColor);
+    await setSelected(2, true);
+    let colorBeforeSelectionColorChange = firstColor;
+    await page.click(".board-action-menu .change-color");
+    await thingsSettleDown();
+    firstColor = await getComputedColor(".sticky-1 .sticky");
+    secondColor = await getComputedColor(".sticky-2 .sticky");
+    expect(firstColor).not.toBe(colorBeforeSelectionColorChange);
+    expect(secondColor).not.toBe(colorBeforeSelectionColorChange);
+    expect(firstColor).toBe(secondColor);
+  });
 
-it("doesn't allow stickies out of bounds", async () => {
-  await page.goto(pageWithBasicContentOnALocalBoard());
-  await clickStickyOutsideOfText(1);
-  await repeat(10, () => page.keyboard.press("ArrowLeft"));
-  await repeat(10, () => page.keyboard.press("ArrowUp"));
-  await thingsSettleDown();
-  expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 1, y: 1 }, 0);
-  await repeat(60, () => page.keyboard.press("ArrowDown"));
-  await repeat(95, () => page.keyboard.press("ArrowRight"));
-  await thingsSettleDown();
-  expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
-    { x: 2301, y: 1251 },
-    0
-  );
-});
-
-it("tab order based on positioning", async () => {
-  await page.goto(pageWithEmptyLocalBoard());
-  await scrollBoardIntoView();
-  for (let y = 0; y < 3; y++) {
-    for (let x = 1; x < 4; x++) {
-      await press("n");
-      await page.mouse.click(x * 50, 150 + y * 50);
-      await thingsSettleDown();
-    }
-  }
-  for (let y = 0; y < 3; y++) {
-    for (let x = 1; x < 4; x++) {
-      await press("n");
-      await page.mouse.click((4 - x) * 50 + 300, 150 + (3 - y) * 50);
-      await thingsSettleDown();
-    }
-  }
-  const classNames = await page.evaluate(() => {
-    return [...document.querySelectorAll(".board .sticky-container")].map(
-      (el) => el.className
+  it("doesn't allow stickies out of bounds", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await clickStickyOutsideOfText(1);
+    await repeat(10, () => page.keyboard.press("ArrowLeft"));
+    await repeat(10, () => page.keyboard.press("ArrowUp"));
+    await thingsSettleDown();
+    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 1, y: 1 }, 0);
+    await repeat(60, () => page.keyboard.press("ArrowDown"));
+    await repeat(95, () => page.keyboard.press("ArrowRight"));
+    await thingsSettleDown();
+    expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
+      { x: 2301, y: 1251 },
+      0
     );
   });
-  // console.log(classNames);
-  expect(classNames).toEqual([
-    "sticky-1 sticky-container animate-move",
-    "sticky-2 sticky-container animate-move",
-    "sticky-3 sticky-container animate-move",
-    "sticky-4 sticky-container animate-move",
-    "sticky-5 sticky-container animate-move",
-    "sticky-6 sticky-container animate-move",
-    "sticky-18 sticky-container animate-move selected",
-    "sticky-17 sticky-container animate-move",
-    "sticky-16 sticky-container animate-move",
-    "sticky-7 sticky-container animate-move",
-    "sticky-8 sticky-container animate-move",
-    "sticky-9 sticky-container animate-move",
-    "sticky-15 sticky-container animate-move",
-    "sticky-14 sticky-container animate-move",
-    "sticky-13 sticky-container animate-move",
-    "sticky-12 sticky-container animate-move",
-    "sticky-11 sticky-container animate-move",
-    "sticky-10 sticky-container animate-move",
-  ]);
-  const selectedZIndex = await page.evaluate(() => {
-    return document.querySelector(".sticky-container.selected").style.zIndex;
-  });
-  expect(selectedZIndex).toBe("1");
-});
 
-it("can get more space by growing board size", async () => {
-  await page.goto(pageWithBasicContentOnALocalBoard());
-  await page.click(".board-action-menu .more-space-left");
-  // test bounds/snapping
-  await setSelected(1);
-  await repeat(15, () => page.keyboard.press("ArrowLeft"));
-  const stickyAfterMove = await page.evaluate(
-    () => board.getSticky(1).location
-  );
-  expect(stickyAfterMove).toBeInTheVicinityOf({ x: -100, y: 200 }, 0);
+  it("tab order based on positioning", async () => {
+    await page.goto(pageWithEmptyLocalBoard());
+    await scrollBoardIntoView();
+    for (let y = 0; y < 3; y++) {
+      for (let x = 1; x < 4; x++) {
+        await press("n");
+        await page.mouse.click(x * 50, 150 + y * 50);
+        await thingsSettleDown();
+      }
+    }
+    for (let y = 0; y < 3; y++) {
+      for (let x = 1; x < 4; x++) {
+        await press("n");
+        await page.mouse.click((4 - x) * 50 + 300, 150 + (3 - y) * 50);
+        await thingsSettleDown();
+      }
+    }
+    const classNames = await page.evaluate(() => {
+      return [...document.querySelectorAll(".board .sticky-container")].map(
+        (el) => el.className
+      );
+    });
+    // console.log(classNames);
+    expect(classNames).toEqual([
+      "sticky-1 sticky-container animate-move",
+      "sticky-2 sticky-container animate-move",
+      "sticky-3 sticky-container animate-move",
+      "sticky-4 sticky-container animate-move",
+      "sticky-5 sticky-container animate-move",
+      "sticky-6 sticky-container animate-move",
+      "sticky-18 sticky-container animate-move selected",
+      "sticky-17 sticky-container animate-move",
+      "sticky-16 sticky-container animate-move",
+      "sticky-7 sticky-container animate-move",
+      "sticky-8 sticky-container animate-move",
+      "sticky-9 sticky-container animate-move",
+      "sticky-15 sticky-container animate-move",
+      "sticky-14 sticky-container animate-move",
+      "sticky-13 sticky-container animate-move",
+      "sticky-12 sticky-container animate-move",
+      "sticky-11 sticky-container animate-move",
+      "sticky-10 sticky-container animate-move",
+    ]);
+    const selectedZIndex = await page.evaluate(() => {
+      return document.querySelector(".sticky-container.selected").style.zIndex;
+    });
+    expect(selectedZIndex).toBe("1");
+  });
+
+  it("can get more space by growing board size", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.click(".board-action-menu .board-size");
+    await page.click(".grow-arrows .left");
+    // test bounds/snapping
+    await setSelected(1);
+    await repeat(15, () => page.keyboard.press("ArrowLeft"));
+    const stickyAfterMove = await page.evaluate(
+      () => board.getSticky(1).location
+    );
+    expect(stickyAfterMove).toBeInTheVicinityOf({ x: -100, y: 200 }, 0);
+  });
 });
 
 function pageWithEmptyLocalBoard() {

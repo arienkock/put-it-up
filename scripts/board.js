@@ -52,29 +52,33 @@ export function Board(aStore) {
     return text;
   };
 
-  this.moreSpace = (direction) => {
+  this.changeSize = (isGrow, side) => {
     const { origin, limit } = getBoardInternal();
-    switch (direction) {
+    const factor = isGrow ? 1 : -1;
+    switch (side) {
       case "top":
-        origin.y -= sizeIncrements.y;
+        origin.y += sizeIncrements.y * -factor;
         store.updateBoard({
           origin,
           limit,
         });
+        break;
       case "bottom":
-        limit.y += sizeIncrements.y;
+        limit.y += sizeIncrements.y * factor;
         store.updateBoard({
           origin,
           limit,
         });
+        break;
       case "left":
-        origin.x -= sizeIncrements.x;
+        origin.x += sizeIncrements.x * -factor;
         store.updateBoard({
           origin,
           limit,
         });
+        break;
       case "right":
-        limit.x += sizeIncrements.x;
+        limit.x += sizeIncrements.x * factor;
         store.updateBoard({
           origin,
           limit,
