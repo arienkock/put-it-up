@@ -209,8 +209,10 @@ describe("Board UI", () => {
     const firstColor = await getComputedColor(".sticky-1 .sticky");
     await press("c");
     await press("c");
+    await page.keyboard.down("Shift");
     await press("C");
     await press("C");
+    await page.keyboard.up("Shift");
     await press("n");
     await page.click(".board");
     const secondColor = await getComputedColor(".sticky-2 .sticky");
@@ -219,25 +221,59 @@ describe("Board UI", () => {
 
   it("cycles through zoom levels with the o-key", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
-    const boardBox = await (await page.waitFor(".board")).boundingBox();
-    const stickyBox = await (await page.waitFor(".sticky")).boundingBox();
-    await press("o");
-    await thingsSettleDown();
-    const boardBoxAfter = await (await page.waitFor(".board")).boundingBox();
-    const stickyBoxAfter = await (await page.waitFor(".sticky")).boundingBox();
-    // TIMING
-    expect(boardBoxAfter.width).toBeLessThan(boardBox.width);
-    expect(boardBoxAfter.height).toBeLessThan(boardBox.height);
-    expect(stickyBoxAfter.width).toBeLessThan(stickyBox.width);
-    expect(stickyBoxAfter.height).toBeLessThan(stickyBox.height);
+    await cycleZoom(
+      () => press("o"),
+      async () => {
+        await page.keyboard.down("Shift");
+        await press("O");
+        await page.keyboard.up("Shift");
+      }
+    );
+    await cycleZoom(
+      () => page.click(".change-zoom"),
+      async () => {
+        await page.keyboard.down("Shift");
+        await page.click(".change-zoom");
+        await page.keyboard.up("Shift");
+      }
+    );
   });
+
+  async function cycleZoom(zoomAction, reverseZoomAction) {
+    for (let i = 0; i < 2; i++) {
+      const boardBox = await (await page.waitFor(".board")).boundingBox();
+      const stickyBox = await (await page.waitFor(".sticky")).boundingBox();
+      await reverseZoomAction();
+      await thingsSettleDown();
+      const boardBoxAfter = await (await page.waitFor(".board")).boundingBox();
+      const stickyBoxAfter = await (
+        await page.waitFor(".sticky")
+      ).boundingBox();
+      expect(boardBoxAfter.width).toBeLessThan(boardBox.width);
+      expect(boardBoxAfter.height).toBeLessThan(boardBox.height);
+      expect(stickyBoxAfter.width).toBeLessThan(stickyBox.width);
+      expect(stickyBoxAfter.height).toBeLessThan(stickyBox.height);
+    }
+    for (let i = 0; i < 2; i++) {
+      const boardBox = await (await page.waitFor(".board")).boundingBox();
+      const stickyBox = await (await page.waitFor(".sticky")).boundingBox();
+      await zoomAction();
+      await thingsSettleDown();
+      const boardBoxAfter = await (await page.waitFor(".board")).boundingBox();
+      const stickyBoxAfter = await (
+        await page.waitFor(".sticky")
+      ).boundingBox();
+      expect(boardBoxAfter.width).toBeGreaterThan(boardBox.width);
+      expect(boardBoxAfter.height).toBeGreaterThan(boardBox.height);
+      expect(stickyBoxAfter.width).toBeGreaterThan(stickyBox.width);
+      expect(stickyBoxAfter.height).toBeGreaterThan(stickyBox.height);
+    }
+  }
 
   it("manages selection with shift clicks and selections can be moved together", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
-    await thingsSettleDown();
     await page.click(".sticky-1 .sticky");
     expect(await isStickySelected(1)).toBe(true);
-    await thingsSettleDown();
     const s2bb = await stickyBoundingBox(1);
     await page.mouse.click(s2bb.x - 10, s2bb.y - 10);
     // await jestPuppeteer.debug();
@@ -315,6 +351,7 @@ describe("Board UI", () => {
     let secondColor = await getComputedColor(".sticky-2 .sticky");
     expect(firstColor).not.toBe(secondColor);
     await clickStickyOutsideOfText(1);
+    await thingsSettleDown(7);
     expect(await isStickySelected(1)).toBe(true);
     expect(await isStickySelected(2)).toBe(false);
     await page.click(".board-action-menu .change-color");
@@ -399,16 +436,38 @@ describe("Board UI", () => {
 
   it("can get more space by growing board size", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
-    await page.click(".board-action-menu .board-size");
-    await page.click(".grow-arrows .left");
-    await page.click(".board-action-menu .board-size");
-    // test bounds/snapping
-    await setSelected(1);
-    await repeat(15, () => page.keyboard.press("ArrowLeft"));
-    const stickyAfterMove = await page.evaluate(
-      () => board.getSticky(1).location
-    );
-    expect(stickyAfterMove).toBeInTheVicinityOf({ x: -100, y: 200 }, 0);
+    const cases = [
+      [".left", "ArrowLeft", { x: -100, y: 200 }],
+      [".top", "ArrowUp", { x: 300, y: -100 }],
+      [".right", "ArrowRight", { x: 2400, y: 200 }],
+      [".bottom", "ArrowDown", { x: 500, y: 1350 }],
+    ];
+    for (let i = 0; i < cases.length; i++) {
+      const [className, arrow, finalLocation] = cases[i];
+      await page.click(".board-action-menu .board-size");
+      await page.click(".grow-arrows " + className);
+      await page.click(".board-action-menu .board-size");
+      const id = i + 1;
+      await setSelected(id, true);
+      let current = await page.evaluate(
+        (id) => board.getSticky(id).location,
+        id
+      );
+      let previous;
+      let iterations = 0;
+      const tooMany = 200;
+      do {
+        iterations++;
+        await page.keyboard.press(arrow);
+        previous = current;
+        current = await page.evaluate((id) => board.getSticky(id).location, id);
+      } while (
+        !(current.x === previous.x && current.y === previous.y) ||
+        iterations > tooMany
+      );
+      expect(current).toBeInTheVicinityOf(finalLocation, 0);
+      await setSelected(id, false);
+    }
   });
 });
 

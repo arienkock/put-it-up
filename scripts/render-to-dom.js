@@ -1,4 +1,5 @@
-// TODO: Write tests for: Zoom level menu item, all growth and shrink directions, tabbing through inputs
+// TODO: Move stickies when board shrinks too small for them
+// TODO: Write tests for: all growth and shrink directions, tabbing through inputs
 // TODO: When tabbing through textareas, adjust selection if the blurred sticky was the only one selected, or there was no selection.
 // TODO: Add help texts/instructions
 // TODO: Select by dragging box area around items
@@ -17,27 +18,6 @@
 // TODO: Fit text content by considering the width of the widest word
 
 /*
-This is the UI component.
-
-Features:
- - Add a sticky to the board by clicking and it appears at the location clicked
- - Move a sticky via drag and drop
- - Move a sticky with arrow keys
- - Change the text of a sticky
- - Text will be fitted to the sticky
- - Cycle through the palette of colors (c-key) that determine the color of the next sticky to be created
- - Cycle through zoom levels of the board (o-key)
- - Multiple stickies can be selected by shift+clicking which is shown by surrounding the sticky with a certain color
-    - Each shift+click toggles the selected state
-    - When there is a selection, moving stickies (arrow keys and drag-'n-drop) affects the whole selection
-    - Clicking on the board (outside a sticky), without holding shift, clears the selection
- - When a sticky is moved by any means other than drag-n-drop (external update, arrow keys) the move is animated
- - The size the document is bound to the size of the board when zooming
- - When the zoom level is lower than 50% the text is hidden, so dragging is easier
- - Clicking on a sticky selects it
- - When pressing enter/return while typing inside a sticky, the focus is removed from the input field
- - A sticky is moved to the top/front when it is clicked, moved, or otherwise updated
- - The observer is buffered, sticky renders/updates happen during an animation frame, and only as long as there is time left to animate smoothly
 
 Difficult decisions:
  - how and when selection happens
@@ -62,6 +42,7 @@ Modules:
  - movement
  - text input
  - geometry
+ - sticky interactions
 */
 
 const STICKY_TYPE = "application/sticky";
@@ -371,10 +352,8 @@ export function mount(board, root, Observer) {
   }
   let nextClickCreatesNewSticky = false;
   document.body.onkeydown = (event) => {
-    if (event.key === "o") {
-      changeZoomLevel();
-    } else if (event.key === "O") {
-      changeZoomLevel(true);
+    if (event.key === "o" || event.key === "O") {
+      changeZoomLevel(event.shiftKey);
     } else if (event.key === "n") {
       nextClickCreatesNewSticky = true;
       renderBoard();
@@ -383,10 +362,8 @@ export function mount(board, root, Observer) {
         nextClickCreatesNewSticky = false;
         renderBoard();
       }
-    } else if (event.key === "c") {
-      changeColor();
-    } else if (event.key === "C") {
-      changeColor(true);
+    } else if (event.key === "c" || event.key === "C") {
+      changeColor(event.shiftKey);
     } else if (event.key === "Delete") {
       selectedStickies.forEach((id) => {
         board.deleteSticky(id);
