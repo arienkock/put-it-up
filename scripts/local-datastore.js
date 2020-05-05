@@ -8,7 +8,7 @@ export class LocalDatastore {
 
   getBoard = (defaults) => {
     this.board = this.board || defaults;
-    return this.board;
+    return clone(this.board);
   };
 
   getSticky = (id) => {

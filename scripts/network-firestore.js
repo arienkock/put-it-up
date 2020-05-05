@@ -44,7 +44,7 @@ export class FirestoreStore {
       this.board = defaults;
       this.docRef.set(this.board);
     }
-    return this.board;
+    return clone(this.board);
   };
 
   getSticky = (id) => {

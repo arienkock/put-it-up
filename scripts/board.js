@@ -58,34 +58,23 @@ export function Board(aStore) {
     switch (side) {
       case "top":
         origin.y += sizeIncrements.y * -factor;
-        store.updateBoard({
-          origin,
-          limit,
-        });
         break;
       case "bottom":
         limit.y += sizeIncrements.y * factor;
-        store.updateBoard({
-          origin,
-          limit,
-        });
         break;
       case "left":
         origin.x += sizeIncrements.x * -factor;
-        store.updateBoard({
-          origin,
-          limit,
-        });
         break;
       case "right":
         limit.x += sizeIncrements.x * factor;
-        store.updateBoard({
-          origin,
-          limit,
-        });
       default:
         break;
     }
+    this.moveInBounds({ origin, limit });
+    store.updateBoard({
+      origin,
+      limit,
+    });
   };
 
   this.updateColor = (id, color) => {
@@ -129,6 +118,18 @@ export function Board(aStore) {
   };
 
   this.addObserver = store.addObserver;
+
+  this.moveInBounds = ({ origin, limit }) => {
+    Object.entries(store.stickies).forEach(([id, sticky]) => {
+      const oldLocation = sticky.location;
+      const newLocation = snapLocation(oldLocation, gridSize, origin, limit);
+      let outOfBounds =
+        oldLocation.x != newLocation.x || oldLocation.y != newLocation.y;
+      if (outOfBounds) {
+        store.setLocation(id, newLocation);
+      }
+    });
+  };
 }
 
 function snapDimension(x, gridSize) {

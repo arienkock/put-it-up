@@ -71,11 +71,13 @@ describe("Board UI", () => {
     await deleteAction();
     await thingsSettleDown();
     expect(await (await page.$$(".sticky")).length).toBe(4);
-    clickStickyOutsideOfText(1);
-    page.keyboard.down("Shift");
+    await clickStickyOutsideOfText(1);
+    // await jestPuppeteer.debug();
+    await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
     await deleteAction();
     await thingsSettleDown();
+    await page.keyboard.up("Shift");
     expect(await (await page.$$(".sticky-1, .sticky-2")).length).toBe(0);
     expect(await (await page.$$(".sticky")).length).toBe(2);
   }
@@ -371,6 +373,7 @@ describe("Board UI", () => {
 
   it("doesn't allow stickies out of bounds", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitFor(".sticky");
     await clickStickyOutsideOfText(1);
     await repeat(10, () => page.keyboard.press("ArrowLeft"));
     await repeat(10, () => page.keyboard.press("ArrowUp"));
@@ -468,6 +471,27 @@ describe("Board UI", () => {
       expect(current).toBeInTheVicinityOf(finalLocation, 0);
       await setSelected(id, false);
     }
+    await page.click(".board-action-menu .board-size");
+    await page.click("#Shrink");
+    await page.click(".grow-arrows .top");
+    await page.click(".grow-arrows .right");
+    await page.click(".grow-arrows .bottom");
+    await page.click(".grow-arrows .left");
+    await page.click(".board-action-menu .board-size");
+    // await jestPuppeteer.debug();
+    const newExpectedLocations = [
+      [1, { x: 0, y: 200 }],
+      [2, { x: 300, y: 0 }],
+      [3, { x: 2300, y: 200 }],
+      [4, { x: 500, y: 1250 }],
+    ];
+    for (let i = 0; i < newExpectedLocations.length; i++) {
+      let location = await page.evaluate(
+        (id) => board.getSticky(id).location,
+        newExpectedLocations[i][0]
+      );
+      expect(location).toBeInTheVicinityOf(newExpectedLocations[i][1], 0);
+    }
   });
 });
 
@@ -516,10 +540,11 @@ async function setSelected(id, selected) {
 }
 
 async function clickStickyOutsideOfText(id) {
-  const stickyBox = await (
-    await page.waitFor(`.sticky-${id} .sticky`)
-  ).boundingBox();
-  return page.mouse.click(stickyBox.x + stickyBox.width / 2, stickyBox.y + 2);
+  await page.hover(`.sticky-${id} .sticky`);
+  const sticky = await page.waitFor(`.sticky-${id} .sticky`);
+  await thingsSettleDown();
+  const stickyBox = await sticky.boundingBox();
+  return page.mouse.click(stickyBox.x + stickyBox.width / 2, stickyBox.y + 5);
 }
 async function clickToCreateSticky(clickLocation) {
   await page.mouse.click(clickLocation.x, clickLocation.y);
