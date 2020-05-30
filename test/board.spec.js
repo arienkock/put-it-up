@@ -1,4 +1,4 @@
-import { Board } from "../scripts/board.js";
+import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/local-datastore.js";
 
 it("snapping", () => {

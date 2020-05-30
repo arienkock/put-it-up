@@ -25,8 +25,8 @@
     </script>
     <script type="module">
       import { mount } from "./scripts/ui/render-to-dom.js";
-      import { Board } from "./scripts/board.js";
-      import { BufferedObserver } from "./scripts/buffered-observer.js";
+      import { Board } from "./scripts/board/board.js";
+      import { BufferedObserver } from "./scripts/ui/buffered-observer.js";
       import { FirestoreStore } from "./scripts/network/network-firestore.js";
 
       const store = new FirestoreStore();

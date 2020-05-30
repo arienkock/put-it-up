@@ -1,4 +1,4 @@
-import { BufferedObserver } from "../../scripts/buffered-observer.js";
+import { BufferedObserver } from "../../scripts/ui/buffered-observer.js";
 
 // wait for onerror, the animation task list to be empty, in case network-datastore: all local events have been passed to observers
 export function installSettlingDetector(observer) {

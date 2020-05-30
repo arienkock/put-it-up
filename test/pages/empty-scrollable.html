@@ -17,9 +17,9 @@
     ></div>
     <script type="module">
       import { mount } from "../../scripts/render-to-dom.js";
-      import { Board } from "../../scripts/board.js";
+      import { Board } from "../../scripts/board/board.js";
       import { LocalDatastore } from "../../scripts/local-datastore.js";
-      import { BufferedObserver } from "../../scripts/buffered-observer.js";
+      import { BufferedObserver } from "../../scripts/ui/buffered-observer.js";
       import { installSettlingDetector } from "./settling-detector.js";
 
       const store = new LocalDatastore();
