@@ -24,10 +24,10 @@
       firebase.initializeApp(firebaseConfig);
     </script>
     <script type="module">
-      import { mount } from "./scripts/render-to-dom.js";
+      import { mount } from "./scripts/ui/render-to-dom.js";
       import { Board } from "./scripts/board.js";
       import { BufferedObserver } from "./scripts/buffered-observer.js";
-      import { FirestoreStore } from "./scripts/network-firestore.js";
+      import { FirestoreStore } from "./scripts/network/network-firestore.js";
 
       const store = new FirestoreStore();
       const board = new Board(store);
