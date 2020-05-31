@@ -1,0 +1,29 @@
+{
+  "name": "put-it-up",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arienkock/put-it-up.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/arienkock/put-it-up/issues"
+  },
+  "homepage": "https://github.com/arienkock/put-it-up#readme",
+  "devDependencies": {
+    "@babel/core": "^7.10.2",
+    "@babel/plugin-transform-react-jsx": "^7.10.1",
+    "@babel/preset-env": "^7.10.2",
+    "@stryker-mutator/core": "^3.2.4",
+    "@stryker-mutator/javascript-mutator": "^3.2.4",
+    "@stryker-mutator/jest-runner": "^3.2.4",
+    "babel-jest": "^26.0.1",
+    "jest": "^26.0.1"
+  }
+}
