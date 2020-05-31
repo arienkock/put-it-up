@@ -1,7 +1,11 @@
 export class Board {
-  constructor() {
+  constructor(name) {
     this.items = {};
     this.idGen = 0;
+    this.name = name;
+  }
+  getName() {
+    return this.name;
   }
   getItems() {
     return this.items;

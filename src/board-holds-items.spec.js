@@ -2,8 +2,9 @@ import { Board } from "./board.js";
 const ITEM_TEST_COUNT = 100;
 
 test("a new board has zero stickies", () => {
-  const board = new Board();
+  const board = new Board("Test Board");
   expect(board.getItems()).toEqual({});
+  expect(board.getName()).toEqual("Test Board");
 });
 
 test("a board can hold items", () => {
@@ -12,8 +13,8 @@ test("a board can hold items", () => {
     const boundingRectangle = {
       left: 0 + i * 100,
       top: 0 + i * 100,
-      right: 100,
-      bottom: 100,
+      right: 100 + i * 100,
+      bottom: 100 + i * 100,
     };
     const item = new TestItem();
     const id = board.hold(item, boundingRectangle);
@@ -40,10 +41,10 @@ test("items can be moved", () => {
   const item = new TestItem();
   const id = board.hold(item, firstBoundingRectangle);
   const newPosition = {
-    left: 0,
-    top: 0,
-    right: 100,
-    bottom: 100,
+    left: 100,
+    top: 100,
+    right: 200,
+    bottom: 200,
   };
   board.moveItem(id, newPosition);
   expect(board.getItem(id).boundingRectangle).toEqual(newPosition);
