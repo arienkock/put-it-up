@@ -24,11 +24,6 @@
     "@stryker-mutator/javascript-mutator": "^3.2.4",
     "@stryker-mutator/jest-runner": "^3.2.4",
     "babel-jest": "^26.0.1",
-    "firebase-tools": "^8.4.1",
-    "@firebase/testing": "^0.15.0",
     "jest": "^26.0.1"
-  },
-  "dependencies": {
-    "firebase": "^7.14.6"
   }
 }
