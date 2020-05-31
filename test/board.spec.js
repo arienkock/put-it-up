@@ -1,5 +1,5 @@
 import { Board } from "../scripts/board/board.js";
-import { LocalDatastore } from "../scripts/local-datastore.js";
+import { LocalDatastore } from "../scripts/board/local-datastore.js";
 
 it("snapping", () => {
   const b = new Board(new LocalDatastore());
