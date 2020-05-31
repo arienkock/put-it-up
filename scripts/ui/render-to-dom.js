@@ -34,6 +34,7 @@ Difficult decisions:
  - What can be put on the board, general images, arrows?
  - ordering sorting/layers of items
 
+
 Modules:
  - selection/grouping
  - rendering, batching of changes coming from different sources
@@ -43,6 +44,14 @@ Modules:
  - text input
  - geometry
  - sticky interactions
+
+Future changes:
+ - Arrows. Board element shouldn't know what is being drawn. The items on the board know how to draw themselves.
+   When an item moves an arrow needs to be redrawn. So, something like react where it depends on a prop.
+   Can decide whether it needs to be redrawn. How does an arrow/sticky get stored and communicated.
+ - Sending cursor info to peers. Comm channel shouldn't know about what is being sent. Support arbitrary data.
+ - Infinite board. Board size can be set arbitrarily.
+ - Commands. Each menu item is a command. Each command has a keyboard shortcut.
 */
 
 const STICKY_TYPE = "application/sticky";
