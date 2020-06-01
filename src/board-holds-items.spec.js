@@ -1,10 +1,11 @@
 import { Board } from "./board.js";
 const ITEM_TEST_COUNT = 100;
 
-test("a new board has zero stickies", () => {
+test("a new board has zero stickies and no name", () => {
   const board = new Board("Test Board");
   expect(board.getItems()).toEqual({});
   expect(board.getBoardId()).toEqual("Test Board");
+  expect(board.name).toEqual("");
 });
 
 test("a board can hold items", () => {

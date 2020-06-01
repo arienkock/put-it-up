@@ -9,11 +9,10 @@ export class Board {
   }
   connect() {
     if (this.db) {
-      const boardRef = this.db.collection(this.boardId).doc(this.boardId);
+      const boardRef = this.db.collection("boards").doc(this.boardId);
       boardRef.onSnapshot((doc) => this.handleBoardSnapshot(doc));
-      boardRef
-        .collection("items")
-        .onSnapshot((items) => this.handleItemsSnapshot(items));
+      const itemsRef = boardRef.collection("items");
+      itemsRef.onSnapshot((items) => this.handleItemsSnapshot(items));
     }
   }
   getBoardId() {
@@ -23,8 +22,20 @@ export class Board {
     return this.items;
   }
   hold(item, boundingRectangle) {
-    const id = ++this.idGen;
-    this.items[id] = { item, boundingRectangle };
+    const data = { item, boundingRectangle };
+    let id;
+    if (this.db) {
+      const docRef = this.db
+        .collection("boards")
+        .doc(this.boardId)
+        .collection("items")
+        .doc();
+      docRef.set(data, { merge: true });
+      id = docRef.id;
+    } else {
+      id = ++this.idGen;
+    }
+    this.items[id] = data;
     return id;
   }
   getItem(id) {

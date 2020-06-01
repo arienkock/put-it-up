@@ -28,7 +28,7 @@ test("New board listens for board and item snapshots", () => {
     collection: mockRootCollection,
   };
   const board = new Board("some name", mockDb);
-  expect(mockRootCollection).toHaveBeenCalled();
+  expect(mockRootCollection).toHaveBeenCalledWith("boards");
   expect(mockDoc).toHaveBeenCalled();
   expect(mockOnSnapshot).toHaveBeenCalled();
   const mockDocSnapshot = {
@@ -79,4 +79,28 @@ test("New board listens for board and item snapshots", () => {
   subNextFn(mockSubSnapshot);
   expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
   expect(board.getItem("12efasd")).toBe(undefined);
+});
+
+test("Changes propagate to DB", () => {
+  const mockSubItemRef = {
+    set: jest.fn(),
+  };
+  const mockSubCollection = {
+    onSnapshot: () => undefined,
+    doc: jest.fn().mockReturnValue(mockSubItemRef),
+  };
+  const mockDocRef = {
+    onSnapshot: () => undefined,
+    collection: jest.fn().mockReturnValue(mockSubCollection),
+  };
+  const mockDoc = {
+    doc: jest.fn().mockReturnValue(mockDocRef),
+  };
+  const mockDb = {
+    collection: jest.fn().mockReturnValue(mockDoc),
+  };
+  const board = new Board("Some ID", mockDb);
+  board.hold({ some: "prop" }, { left: 0, top: 0, right: 100, bottom: 100 });
+  expect(mockSubCollection.doc).toHaveBeenCalled();
+  expect(mockSubItemRef.set).toHaveBeenCalled();
 });
