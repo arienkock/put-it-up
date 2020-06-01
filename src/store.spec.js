@@ -1,121 +1,82 @@
-import { Store } from "./store";
+import { Board } from "./board";
 
-test("store subscribe returns newly created docs with ID", (done) => {
-  const fakeDb = createFakeDb();
-  const store = new Store(fakeDb);
-  const docPath = ["collection-name", "KMRNSDGXCV"];
-  const docToCreate = {
-    name: "Some property",
+test("New board listens for board and item snapshots", () => {
+  let nextFn, errorFn;
+  const mockOnSnapshot = jest.fn((n, e) => {
+    nextFn = n;
+    errorFn = e;
+  });
+  let subNextFn, subErrorFn;
+  const mockSubOnSnapshot = jest.fn((n, e) => {
+    subNextFn = n;
+    subErrorFn = e;
+  });
+  const mockSubCollectionRef = {
+    onSnapshot: mockSubOnSnapshot,
   };
-  const unsubscribe = store.subscribe(
-    docPath,
-    (receivedDoc) => {
-      expect(receivedDoc).toEqual({ KMRNSDGXCV: docToCreate });
-      unsubscribe();
-      done();
+  const mockSubCollection = jest.fn().mockReturnValue(mockSubCollectionRef);
+  const mockDocReference = {
+    onSnapshot: mockOnSnapshot,
+    collection: mockSubCollection,
+  };
+  const mockDoc = jest.fn(() => mockDocReference);
+  const mockCollectionRef = {
+    doc: mockDoc,
+  };
+  const mockRootCollection = jest.fn().mockReturnValue(mockCollectionRef);
+  const mockDb = {
+    collection: mockRootCollection,
+  };
+  const board = new Board("some name", mockDb);
+  expect(mockRootCollection).toHaveBeenCalled();
+  expect(mockDoc).toHaveBeenCalled();
+  expect(mockOnSnapshot).toHaveBeenCalled();
+  const mockDocSnapshot = {
+    id: "8uyhjki",
+    data: () => ({
+      name: "A board name",
+    }),
+  };
+  nextFn(mockDocSnapshot);
+  expect(board.name).toEqual("A board name");
+  // Add item
+  const mockSubSnapshot = {};
+  mockSubSnapshot.docChanges = jest.fn().mockReturnValue([
+    {
+      type: "added",
+      doc: {
+        id: "12efasd",
+        data: () => ({ some: "prop" }),
+      },
     },
-    done
-  );
-  store.create(docPath, docToCreate);
-});
-
-test("store subscribe returns newly created docs", (done) => {
-  const fakeDb = createFakeDb();
-  const store = new Store(fakeDb);
-  const docPath = ["collection-name"];
-  const docToCreate = {
-    name: "Some property",
-  };
-  const unsubscribe = store.subscribe(
-    docPath,
-    (receivedDoc) => {
-      expect(Object.entries(receivedDoc)).toEqual(
-        expect.arrayContaining([expect.arrayContaining([docToCreate])])
-      );
-      unsubscribe();
-      done();
+  ]);
+  subNextFn(mockSubSnapshot);
+  expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
+  expect(board.getItem("12efasd")).toEqual({ some: "prop" });
+  // Modify item
+  mockSubSnapshot.docChanges = jest.fn().mockReturnValue([
+    {
+      type: "modified",
+      doc: {
+        id: "12efasd",
+        data: () => ({ second: "foo" }),
+      },
     },
-    done
-  );
-  store.create(docPath, docToCreate);
-});
-
-test("store subscribe returns newly created docs in subcollection, but not in parent", (done) => {
-  const fakeDb = createFakeDb();
-  const store = new Store(fakeDb);
-  const docPath = ["collection-name", "$RFGYT%$ED", "sub-collection"];
-  const docToCreate = {
-    name: "Some property",
-  };
-  const callbackWeDoNotExpect = jest.fn();
-  const unsub1 = store.subscribe(
-    ["collection-name"],
-    callbackWeDoNotExpect,
-    done
-  );
-  const unsub2 = store.subscribe(
-    ["collection-name", "$RFGYT%$ED"],
-    callbackWeDoNotExpect,
-    done
-  );
-  const unsub3 = store.subscribe(
-    docPath,
-    (receivedDoc) => {
-      expect(Object.entries(receivedDoc)).toEqual(
-        expect.arrayContaining([expect.arrayContaining([docToCreate])])
-      );
-      expect(callbackWeDoNotExpect).not.toHaveBeenCalled();
-      unsub1();
-      unsub2();
-      unsub3();
-      done();
+  ]);
+  subNextFn(mockSubSnapshot);
+  expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
+  expect(board.getItem("12efasd")).toEqual({ second: "foo" });
+  // Modify item
+  mockSubSnapshot.docChanges = jest.fn().mockReturnValue([
+    {
+      type: "removed",
+      doc: {
+        id: "12efasd",
+        data: () => ({ second: "foo" }),
+      },
     },
-    done
-  );
-  store.create(docPath, docToCreate);
+  ]);
+  subNextFn(mockSubSnapshot);
+  expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
+  expect(board.getItem("12efasd")).toBe(undefined);
 });
-
-function createFakeDb() {
-  let idGen = 0;
-  const fakeDb = {
-    collection: getFakeCollection,
-  };
-  const fakeCollections = {};
-  function getFakeCollection(collectionName) {
-    return (
-      fakeCollections[collectionName] ||
-      (fakeCollections[collectionName] = {
-        _callbacks: [],
-        onSnapshot: function (next, err) {
-          this._callbacks.push(next);
-          return () => {
-            this._callbacks = this._callbacks.filter((curCb) => curCb !== next);
-          };
-        },
-        doc: getFakeDocRef,
-        add: (data) => Promise.resolve({ id: ++idGen }),
-      })
-    );
-  }
-  const fakeDocRefs = {};
-  function getFakeDocRef(id) {
-    return (
-      fakeDocRefs[id] ||
-      (fakeDocRefs[id] = {
-        _callbacks: [],
-        onSnapshot: function (next, err) {
-          this._callbacks.push(next);
-          return () => {
-            this._callbacks = this._callbacks.filter((curCb) => curCb !== next);
-          };
-        },
-        set: function (data) {
-          this._callbacks.forEach((cb) => cb({ id: id, data: () => data }));
-          return Promise.resolve({ id });
-        },
-        collection: getFakeCollection,
-      })
-    );
-  }
-  return fakeDb;
-}
