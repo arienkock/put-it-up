@@ -19,7 +19,7 @@ test("a board can hold items", () => {
     };
     const item = new TestItem();
     const id = board.hold(item, boundingRectangle);
-    expect(id).toBeTruthy();
+    expect(id).toBe(i + 1);
     const subsetExpected = expect.objectContaining({ item, boundingRectangle });
     expect(Object.entries(board.getItems()).length).toBe(i + 1);
     expect(board.getItems()).toEqual(

@@ -30,7 +30,7 @@ export class Board {
         .doc(this.boardId)
         .collection("items")
         .doc();
-      docRef.set(data, { merge: true });
+      docRef.set(data);
       id = docRef.id;
     } else {
       id = ++this.idGen;
@@ -53,7 +53,7 @@ export class Board {
     itemsSnapshot.docChanges().forEach((change) => {
       if (change.type === "added" || change.type === "modified") {
         this.items[change.doc.id] = change.doc.data();
-      } else if (change.type === "removed") {
+      } else {
         delete this.items[change.doc.id];
       }
     });

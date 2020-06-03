@@ -9,13 +9,5 @@ module.exports = {
       },
     ],
   ],
-  plugins: [
-    [
-      "@babel/plugin-transform-react-jsx",
-      {
-        runtime: "automatic", // defaults to classic
-        importSource: "custom-jsx-library", // defaults to react
-      },
-    ],
-  ],
+  plugins: [],
 };

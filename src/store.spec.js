@@ -30,6 +30,7 @@ test("New board listens for board and item snapshots", () => {
   const board = new Board("some name", mockDb);
   expect(mockRootCollection).toHaveBeenCalledWith("boards");
   expect(mockDoc).toHaveBeenCalled();
+  expect(mockSubCollection).toHaveBeenCalledWith("items");
   expect(mockOnSnapshot).toHaveBeenCalled();
   const mockDocSnapshot = {
     id: "8uyhjki",
@@ -101,6 +102,8 @@ test("Changes propagate to DB", () => {
   };
   const board = new Board("Some ID", mockDb);
   board.hold({ some: "prop" }, { left: 0, top: 0, right: 100, bottom: 100 });
+  expect(mockDb.collection).toHaveBeenLastCalledWith("boards");
+  expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
   expect(mockSubCollection.doc).toHaveBeenCalled();
   expect(mockSubItemRef.set).toHaveBeenCalled();
 });
