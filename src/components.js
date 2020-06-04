@@ -1,14 +1,23 @@
-export class BoardComponent {
-  constructor(board) {
-    this.board = board;
-  }
-  render(h) {
-    return h("div", { className: "board" });
-  }
-}
+export const createBoardComponent = (board) =>
+  function BoardComponent(h, rerender) {
+    board.addListener(rerender, rerender);
+    return {
+      render(props) {
+        return h("div", { className: "board" }, this.renderItems());
+      },
+      renderItems() {
+        const entries = Object.entries(board.getItems());
+        return entries.map(([id, item]) =>
+          h(itemContainerComponent, { key: id, item })
+        );
+      },
+    };
+  };
 
-export class ItemContainerComponent {
-  render(h) {
-    return h("div", { className: "item-container" });
-  }
+export function itemContainerComponent(h, rerender) {
+  return {
+    render(props) {
+      return h("div", { className: "item-container" });
+    },
+  };
 }

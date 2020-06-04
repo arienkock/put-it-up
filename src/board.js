@@ -3,6 +3,8 @@ export class Board {
     this.name = "";
     this.items = {};
     this.boardId = boardId;
+    this.boardListeners = [];
+    this.itemListeners = [];
     this.idGen = 0;
     this.db = db;
     this.connect();
@@ -36,6 +38,7 @@ export class Board {
       id = ++this.idGen;
     }
     this.items[id] = data;
+    this.itemListeners.forEach((fn) => fn(data));
     return id;
   }
   getItem(id) {
@@ -44,7 +47,10 @@ export class Board {
   moveItem(id, boundingRectangle) {
     this.items[id].boundingRectangle = boundingRectangle;
   }
-  addListeners(boardListener, itemListener) {}
+  addListener(boardListener, itemListener) {
+    this.boardListeners.push(boardListener);
+    this.itemListeners.push(itemListener);
+  }
   handleBoardSnapshot(boardSnapshot) {
     const boardData = boardSnapshot.data();
     this.name = boardData.name;
@@ -52,9 +58,12 @@ export class Board {
   handleItemsSnapshot(itemsSnapshot) {
     itemsSnapshot.docChanges().forEach((change) => {
       if (change.type === "added" || change.type === "modified") {
-        this.items[change.doc.id] = change.doc.data();
+        const data = change.doc.data();
+        this.items[change.doc.id] = data;
+        this.itemListeners.forEach((fn) => fn(data));
       } else {
         delete this.items[change.doc.id];
+        this.itemListeners.forEach((fn) => fn(undefined));
       }
     });
   }
