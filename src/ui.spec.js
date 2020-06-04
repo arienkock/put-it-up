@@ -39,3 +39,25 @@ test("board with items contains same number of ItemContainers", () => {
   board.hold({}, { left: 0, top: 0, right: 100, bottom: 100 });
   check();
 });
+
+test("all item containers have a unique key prop", () => {
+  const board = new Board("uyhjkiuyg");
+  const boardComponent = createBoardComponent(board);
+  board.hold({}, { left: 0, top: 0, right: 100, bottom: 100 });
+  board.hold({}, { left: 0, top: 0, right: 100, bottom: 100 });
+  const h = (tag, props, children) => [tag, props, children];
+  const comp = boardComponent(h, () => null);
+  console.log(JSON.stringify(comp.render()));
+  function checkChildren([tag, props, children]) {
+    if (children) {
+      if (children instanceof Array) {
+        const keys = children.map(([_tag, { key }, _children]) => key);
+        expect(new Set(keys).size === keys.length).toBe(true);
+        children.forEach(checkChildren);
+      } else {
+        checkChildren(children);
+      }
+    }
+  }
+  checkChildren(comp.render());
+});
