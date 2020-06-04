@@ -1,5 +1,6 @@
 import { Board } from "./board.js";
 const ITEM_TEST_COUNT = 100;
+class TestItem {}
 
 test("a new board has zero stickies and no name", () => {
   const board = new Board("Test Board");
@@ -31,6 +32,18 @@ test("a board can hold items", () => {
   }
 });
 
+test("items can be removed", () => {
+  const board = new Board();
+  const item = new TestItem();
+  const id = board.hold(item, {
+    left: 0,
+    top: 0,
+    right: 100,
+    bottom: 100,
+  });
+  board.removeItem(id);
+  expect(board.getItem(id)).toBe(undefined);
+});
 test("items can be moved", () => {
   const board = new Board();
   const firstBoundingRectangle = {
@@ -50,5 +63,3 @@ test("items can be moved", () => {
   board.moveItem(id, newPosition);
   expect(board.getItem(id).boundingRectangle).toEqual(newPosition);
 });
-
-class TestItem {}

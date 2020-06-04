@@ -85,6 +85,7 @@ test("New board listens for board and item snapshots", () => {
 test("Changes propagate to DB", () => {
   const mockSubItemRef = {
     set: jest.fn(),
+    delete: jest.fn(),
   };
   const mockSubCollection = {
     onSnapshot: () => undefined,
@@ -101,9 +102,17 @@ test("Changes propagate to DB", () => {
     collection: jest.fn().mockReturnValue(mockDoc),
   };
   const board = new Board("Some ID", mockDb);
-  board.hold({ some: "prop" }, { left: 0, top: 0, right: 100, bottom: 100 });
+  const id = board.hold(
+    { some: "prop" },
+    { left: 0, top: 0, right: 100, bottom: 100 }
+  );
   expect(mockDb.collection).toHaveBeenLastCalledWith("boards");
   expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
   expect(mockSubCollection.doc).toHaveBeenCalled();
   expect(mockSubItemRef.set).toHaveBeenCalled();
+  board.removeItem(id);
+  expect(mockDb.collection).toHaveBeenLastCalledWith("boards");
+  expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
+  expect(mockSubCollection.doc).toHaveBeenCalledWith(id);
+  expect(mockSubItemRef.delete).toHaveBeenCalled();
 });

@@ -44,6 +44,17 @@ export class Board {
   getItem(id) {
     return this.items[id];
   }
+  removeItem(id) {
+    if (this.db) {
+      this.db
+        .collection("boards")
+        .doc(this.boardId)
+        .collection("items")
+        .doc(id)
+        .delete();
+    }
+    delete this.items[id];
+  }
   moveItem(id, boundingRectangle) {
     this.items[id].boundingRectangle = boundingRectangle;
   }
