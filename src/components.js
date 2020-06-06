@@ -1,5 +1,5 @@
 export const createBoardComponent = (board) =>
-  function BoardComponent(h, rerender) {
+  function boardComponent(h, rerender) {
     board.addListener(rerender, rerender);
     return {
       render(props) {

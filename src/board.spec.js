@@ -9,6 +9,23 @@ test("a new board has zero stickies and no name", () => {
   expect(board.name).toEqual("");
 });
 
+test("an empty board has zero height and width", () => {
+  const board = new Board("Test Board");
+  expect(board.getSize()).toEqual({ left: 0, top: 0, right: 0, bottom: 0 });
+});
+
+test("a board has dimensions that span the items", () => {
+  const board = new Board("Test Board");
+  board.hold({}, { left: -100, top: -200, right: -50, bottom: -150 });
+  board.hold({}, { left: 150, top: 50, right: 200, bottom: 100 });
+  expect(board.getSize()).toEqual({
+    left: -100,
+    top: -200,
+    right: 200,
+    bottom: 100,
+  });
+});
+
 test("a board can hold items", () => {
   const board = new Board();
   for (let i = 0; i < ITEM_TEST_COUNT; i++) {

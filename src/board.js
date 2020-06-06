@@ -59,6 +59,24 @@ export class Board {
   moveItem(id, boundingRectangle) {
     this.items[id].boundingRectangle = boundingRectangle;
   }
+  getSize() {
+    let maxBottom = 0,
+      minTop = 0,
+      maxRight = 0,
+      minLeft = 0;
+    Object.values(this.items).forEach((item) => {
+      maxBottom = Math.max(maxBottom, item.boundingRectangle.bottom);
+      maxRight = Math.max(maxRight, item.boundingRectangle.right);
+      minTop = Math.min(minTop, item.boundingRectangle.top);
+      minLeft = Math.min(minLeft, item.boundingRectangle.left);
+    });
+    return {
+      left: minLeft,
+      top: minTop,
+      right: maxRight,
+      bottom: maxBottom
+    };
+  }
   addListener(boardListener, itemListener) {
     this.boardListeners.push(boardListener);
     this.itemListeners.push(itemListener);
