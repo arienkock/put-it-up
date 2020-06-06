@@ -28,6 +28,9 @@ test("New board listens for board and item snapshots", () => {
     collection: mockRootCollection,
   };
   const board = new Board("some name", mockDb);
+  const boardListener = jest.fn();
+  const itemListener = jest.fn();
+  board.addListener(boardListener, itemListener);
   expect(mockRootCollection).toHaveBeenCalledWith("boards");
   expect(mockDoc).toHaveBeenCalled();
   expect(mockSubCollection).toHaveBeenCalledWith("items");
@@ -66,6 +69,7 @@ test("New board listens for board and item snapshots", () => {
   ]);
   subNextFn(mockSubSnapshot);
   expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
+  expect(itemListener).toHaveBeenLastCalledWith({ second: "foo" });
   expect(board.getItem("12efasd")).toEqual({ second: "foo" });
   // Modify item
   mockSubSnapshot.docChanges = jest.fn().mockReturnValue([
@@ -79,6 +83,7 @@ test("New board listens for board and item snapshots", () => {
   ]);
   subNextFn(mockSubSnapshot);
   expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
+  expect(itemListener).toHaveBeenLastCalledWith(undefined);
   expect(board.getItem("12efasd")).toBe(undefined);
 });
 
@@ -102,6 +107,9 @@ test("Changes propagate to DB", () => {
     collection: jest.fn().mockReturnValue(mockDoc),
   };
   const board = new Board("Some ID", mockDb);
+  const boardListener = jest.fn();
+  const itemListener = jest.fn();
+  board.addListener(boardListener, itemListener);
   const id = board.hold(
     { some: "prop" },
     { left: 0, top: 0, right: 100, bottom: 100 }
@@ -110,9 +118,14 @@ test("Changes propagate to DB", () => {
   expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
   expect(mockSubCollection.doc).toHaveBeenCalled();
   expect(mockSubItemRef.set).toHaveBeenCalled();
+  expect(itemListener).toHaveBeenLastCalledWith({
+    item: { some: "prop" },
+    boundingRectangle: { left: 0, top: 0, right: 100, bottom: 100 },
+  });
   board.removeItem(id);
   expect(mockDb.collection).toHaveBeenLastCalledWith("boards");
   expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
   expect(mockSubCollection.doc).toHaveBeenCalledWith(id);
   expect(mockSubItemRef.delete).toHaveBeenCalled();
+  expect(itemListener).toHaveBeenLastCalledWith(undefined);
 });

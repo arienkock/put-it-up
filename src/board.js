@@ -54,6 +54,7 @@ export class Board {
         .delete();
     }
     delete this.items[id];
+    this.itemListeners.forEach((fn) => fn(undefined));
   }
   moveItem(id, boundingRectangle) {
     this.items[id].boundingRectangle = boundingRectangle;
