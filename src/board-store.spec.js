@@ -1,6 +1,6 @@
 import { Board } from "./board";
 
-test("New board listens for board and item snapshots", () => {
+test("New board handles board and item snapshots", () => {
   let nextFn, errorFn;
   const mockOnSnapshot = jest.fn((n, e) => {
     nextFn = n;
@@ -91,6 +91,7 @@ test("Changes propagate to DB", () => {
   const mockSubItemRef = {
     set: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
   };
   const mockSubCollection = {
     onSnapshot: () => undefined,
@@ -99,6 +100,7 @@ test("Changes propagate to DB", () => {
   const mockDocRef = {
     onSnapshot: () => undefined,
     collection: jest.fn().mockReturnValue(mockSubCollection),
+    update: jest.fn(),
   };
   const mockDoc = {
     doc: jest.fn().mockReturnValue(mockDocRef),
@@ -110,6 +112,20 @@ test("Changes propagate to DB", () => {
   const boardListener = jest.fn();
   const itemListener = jest.fn();
   board.addListener(boardListener, itemListener);
+  function clearMocks() {
+    [
+      mockSubItemRef.delete,
+      mockSubItemRef.set,
+      mockSubItemRef.update,
+      mockSubCollection.doc,
+      mockDocRef.collection,
+      mockDoc.doc,
+      mockDb.collection,
+      boardListener,
+      itemListener,
+    ].forEach((m) => m.mockClear());
+  }
+  // Add
   const id = board.hold(
     { some: "prop" },
     { left: 0, top: 0, right: 100, bottom: 100 }
@@ -118,14 +134,32 @@ test("Changes propagate to DB", () => {
   expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
   expect(mockSubCollection.doc).toHaveBeenCalled();
   expect(mockSubItemRef.set).toHaveBeenCalled();
-  expect(itemListener).toHaveBeenLastCalledWith({
+  expect(itemListener).toHaveBeenCalledWith({
     item: { some: "prop" },
     boundingRectangle: { left: 0, top: 0, right: 100, bottom: 100 },
   });
+  clearMocks();
+
+  // Move
+  board.moveItem(id, { left: 100, top: 100, right: 200, bottom: 200 });
+  expect(mockDb.collection).toHaveBeenLastCalledWith("boards");
+  expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
+  expect(mockSubItemRef.update).toHaveBeenCalledWith({
+    boundingRectangle: { left: 100, top: 100, right: 200, bottom: 200 },
+  });
+  clearMocks();
+
+  // Remove
   board.removeItem(id);
   expect(mockDb.collection).toHaveBeenLastCalledWith("boards");
   expect(mockDocRef.collection).toHaveBeenLastCalledWith("items");
-  expect(mockSubCollection.doc).toHaveBeenCalledWith(id);
+  expect(mockSubCollection.doc).toHaveBeenLastCalledWith(id);
   expect(mockSubItemRef.delete).toHaveBeenCalled();
-  expect(itemListener).toHaveBeenLastCalledWith(undefined);
+  expect(itemListener).toHaveBeenCalledWith(undefined);
+  clearMocks();
+
+  // Change board name
+  board.setName("New name");
+  expect(board.name).toBe("New name");
+  expect(mockDocRef.update).toHaveBeenCalledWith({ name: "New name" });
 });

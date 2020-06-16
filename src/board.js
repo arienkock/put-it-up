@@ -17,6 +17,15 @@ export class Board {
       itemsRef.onSnapshot((items) => this.handleItemsSnapshot(items));
     }
   }
+  itemsRef() {
+    return this.db.collection("boards").doc(this.boardId).collection("items");
+  }
+  setName(name) {
+    if (this.db) {
+      this.db.collection("boards").doc(this.boardId).update({ name });
+    }
+    this.name = name;
+  }
   getBoardId() {
     return this.boardId;
   }
@@ -27,11 +36,7 @@ export class Board {
     const data = { item, boundingRectangle };
     let id;
     if (this.db) {
-      const docRef = this.db
-        .collection("boards")
-        .doc(this.boardId)
-        .collection("items")
-        .doc();
+      const docRef = this.itemsRef().doc();
       docRef.set(data);
       id = docRef.id;
     } else {
@@ -46,17 +51,15 @@ export class Board {
   }
   removeItem(id) {
     if (this.db) {
-      this.db
-        .collection("boards")
-        .doc(this.boardId)
-        .collection("items")
-        .doc(id)
-        .delete();
+      this.itemsRef().doc(id).delete();
     }
     delete this.items[id];
     this.itemListeners.forEach((fn) => fn(undefined));
   }
   moveItem(id, boundingRectangle) {
+    if (this.db) {
+      this.itemsRef().doc(id).update({ boundingRectangle });
+    }
     this.items[id].boundingRectangle = boundingRectangle;
   }
   getSize() {
@@ -74,7 +77,7 @@ export class Board {
       left: minLeft,
       top: minTop,
       right: maxRight,
-      bottom: maxBottom
+      bottom: maxBottom,
     };
   }
   addListener(boardListener, itemListener) {
