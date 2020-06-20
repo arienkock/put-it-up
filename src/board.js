@@ -1,4 +1,4 @@
-export class Board {
+class Board {
   constructor(boardId, db) {
     this.name = "";
     this.items = {};
@@ -101,3 +101,7 @@ export class Board {
     });
   }
 }
+
+module.exports = {
+  Board,
+};

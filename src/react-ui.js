@@ -1,7 +1,7 @@
-import * as ReactDOM from "react-dom";
-import * as React from "react";
+const ReactDOM = require("react-dom");
+const React = require("react");
 
-export class ReactUIAdapter {
+class ReactUIAdapter {
   render(bareComponent, mountPointSelector) {
     const Component = this.wrapComponentWithReactComponent(bareComponent);
     ReactDOM.render(
@@ -28,3 +28,5 @@ export class ReactUIAdapter {
     };
   }
 }
+
+module.exports = { ReactUIAdapter };

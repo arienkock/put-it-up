@@ -5,7 +5,10 @@ module.exports = {
   mutator: "javascript",
   packageManager: "npm",
   reporters: ["html", "clear-text", "progress"],
-  testRunner: "jest",
+  coverageAnalysis: "perTest",
+  testFramework: "jasmine",
+  testRunner: "jasmine",
+  jasmineConfigFile: "spec/support/jasmine.json",
   transpilers: [],
   coverageAnalysis: "off",
 };

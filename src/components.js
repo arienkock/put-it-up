@@ -1,4 +1,4 @@
-export const createBoardComponent = (board) =>
+const createBoardComponent = (board) =>
   function boardComponent(h, rerender) {
     board.addListener(rerender, rerender);
     return {
@@ -14,10 +14,15 @@ export const createBoardComponent = (board) =>
     };
   };
 
-export function itemContainerComponent(h, rerender) {
+function itemContainerComponent(h, rerender) {
   return {
     render(props) {
       return h("div", { className: "item-container" });
     },
   };
 }
+
+module.exports = {
+  createBoardComponent,
+  itemContainerComponent,
+};

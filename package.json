@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jasmine"
   },
   "repository": {
     "type": "git",
@@ -17,14 +17,19 @@
   },
   "homepage": "https://github.com/arienkock/put-it-up#readme",
   "devDependencies": {
-    "@babel/cli": "^7.10.1",
-    "@babel/core": "^7.10.2",
-    "@babel/preset-env": "^7.10.2",
     "@stryker-mutator/core": "^3.2.4",
+    "@stryker-mutator/jasmine-runner": "^3.3.0",
     "@stryker-mutator/javascript-mutator": "^3.2.4",
-    "@stryker-mutator/jest-runner": "^3.2.4",
-    "babel-jest": "^26.0.1",
-    "jest": "^26.0.1"
+    "jasmine": "^3.5.0",
+    "jasmine-core": "^3.5.0",
+    "jsdom": "^16.2.2",
+    "karma": "^5.1.0",
+    "karma-chrome-launcher": "^3.1.0",
+    "karma-jasmine": "^3.3.1",
+    "karma-jsdom-launcher": "^8.0.2",
+    "karma-sourcemap-loader": "^0.3.7",
+    "karma-webpack": "^4.0.2",
+    "webpack": "^4.43.0"
   },
   "dependencies": {
     "react": "^16.13.1",
