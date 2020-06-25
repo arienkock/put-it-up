@@ -11,16 +11,8 @@
     <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-firestore.js"></script>
     <script>
-      var firebaseConfig = {
-        apiKey: "AIzaSyDRIZv7QhIHOPXt1DbFZp4pjaFQSDIRa30",
-        authDomain: "putitup-60c9e.firebaseapp.com",
-        databaseURL: "https://putitup-60c9e.firebaseio.com",
-        projectId: "putitup-60c9e",
-        storageBucket: "putitup-60c9e.appspot.com",
-        messagingSenderId: "329311278016",
-        appId: "1:329311278016:web:ee1edaf0267ca84e476e25",
-        measurementId: "G-EEMKXP5D05",
-      };
+      let params = new URLSearchParams(window.location.search);
+      let firebaseConfig = JSON.parse(params.get("firebaseConfig"));
       firebase.initializeApp(firebaseConfig);
     </script>
     <script type="module">
