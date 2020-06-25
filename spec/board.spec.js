@@ -7,8 +7,8 @@ describe("Board basics", () => {
   it("a new board has zero stickies and no name", () => {
     const board = new Board("Test Board");
     expect(board.getItems()).toEqual({});
-    expect(board.getBoardId()).toEqual("Test Board");
-    expect(board.name).toEqual("");
+    expect(board.boardId).toEqual("Test Board");
+    expect(board.getName()).toEqual("");
   });
 
   it("an empty board has zero height and width", () => {

@@ -1,21 +1,10 @@
+const getset = require("./getset");
+
 class Sticky {
   constructor() {
-    this._text = "";
     this._color = Colors.default;
-  }
-  text(t) {
-    if (arguments.length === 0) {
-      return this._text;
-    } else {
-      this._text = t;
-    }
-  }
-  color(c) {
-    if (arguments.length === 0) {
-      return this._color;
-    } else {
-      this._color = Colors[c] || this._color;
-    }
+    this.text = getset("");
+    this.color = getset(Colors.default);
   }
 }
 

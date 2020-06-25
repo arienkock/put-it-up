@@ -1,38 +1,36 @@
-class Board {
-  constructor(boardId, db) {
-    this.name = "";
-    this.items = {};
-    this.boardId = boardId;
-    this.boardListeners = [];
-    this.itemListeners = [];
-    this.idGen = 0;
-    this.db = db;
-    this.connect();
-  }
-  connect() {
+function Board(boardId, db) {
+  let name = "";
+  this.items = {};
+  Object.defineProperty(this, "boardId", {
+    value: boardId,
+    writable: false,
+  });
+  this.boardListeners = [];
+  this.itemListeners = [];
+  this.idGen = 0;
+  this.db = db;
+  this.connect = () => {
     if (this.db) {
       const boardRef = this.db.collection("boards").doc(this.boardId);
       boardRef.onSnapshot((doc) => this.handleBoardSnapshot(doc));
       const itemsRef = boardRef.collection("items");
       itemsRef.onSnapshot((items) => this.handleItemsSnapshot(items));
     }
-  }
-  itemsRef() {
+  };
+  this.itemsRef = () => {
     return this.db.collection("boards").doc(this.boardId).collection("items");
-  }
-  setName(name) {
+  };
+  this.getName = () => name;
+  this.setName = (newName) => {
     if (this.db) {
-      this.db.collection("boards").doc(this.boardId).update({ name });
+      this.db.collection("boards").doc(this.boardId).update({ name: newName });
     }
-    this.name = name;
-  }
-  getBoardId() {
-    return this.boardId;
-  }
-  getItems() {
+    name = newName;
+  };
+  this.getItems = () => {
     return this.items;
-  }
-  hold(item, boundingRectangle) {
+  };
+  this.hold = (item, boundingRectangle) => {
     const data = { item, boundingRectangle };
     let id;
     if (this.db) {
@@ -45,24 +43,24 @@ class Board {
     this.items[id] = data;
     this.itemListeners.forEach((fn) => fn(data));
     return id;
-  }
-  getItem(id) {
+  };
+  this.getItem = (id) => {
     return this.items[id];
-  }
-  removeItem(id) {
+  };
+  this.removeItem = (id) => {
     if (this.db) {
       this.itemsRef().doc(id).delete();
     }
     delete this.items[id];
     this.itemListeners.forEach((fn) => fn(undefined));
-  }
-  moveItem(id, boundingRectangle) {
+  };
+  this.moveItem = (id, boundingRectangle) => {
     if (this.db) {
       this.itemsRef().doc(id).update({ boundingRectangle });
     }
     this.items[id].boundingRectangle = boundingRectangle;
-  }
-  getSize() {
+  };
+  this.getSize = () => {
     let maxBottom = 0,
       minTop = 0,
       maxRight = 0,
@@ -79,16 +77,16 @@ class Board {
       right: maxRight,
       bottom: maxBottom,
     };
-  }
-  addListener(boardListener, itemListener) {
+  };
+  this.addListener = (boardListener, itemListener) => {
     this.boardListeners.push(boardListener);
     this.itemListeners.push(itemListener);
-  }
-  handleBoardSnapshot(boardSnapshot) {
+  };
+  this.handleBoardSnapshot = (boardSnapshot) => {
     const boardData = boardSnapshot.data();
-    this.name = boardData.name;
-  }
-  handleItemsSnapshot(itemsSnapshot) {
+    name = boardData.name;
+  };
+  this.handleItemsSnapshot = (itemsSnapshot) => {
     itemsSnapshot.docChanges().forEach((change) => {
       if (change.type === "added" || change.type === "modified") {
         const data = change.doc.data();
@@ -99,7 +97,8 @@ class Board {
         this.itemListeners.forEach((fn) => fn(undefined));
       }
     });
-  }
+  };
+  this.connect();
 }
 
 module.exports = {

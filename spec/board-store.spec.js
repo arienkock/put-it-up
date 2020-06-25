@@ -47,7 +47,7 @@ describe("Board store", () => {
       }),
     };
     nextFn(mockDocSnapshot);
-    expect(board.name).toEqual("A board name");
+    expect(board.getName()).toEqual("A board name");
     // Add item
     const mockSubSnapshot = {};
     mockSubSnapshot.docChanges = jasmine.createSpy().and.returnValue([
@@ -167,7 +167,7 @@ describe("Board store", () => {
 
     // Change board name
     board.setName("New name");
-    expect(board.name).toBe("New name");
+    expect(board.getName()).toBe("New name");
     expect(mockDocRef.update).toHaveBeenCalledWith({ name: "New name" });
   });
 });
