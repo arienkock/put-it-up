@@ -17,9 +17,8 @@ function Board(boardId, db) {
       itemsRef.onSnapshot((items) => this.handleItemsSnapshot(items));
     }
   };
-  this.itemsRef = () => {
-    return this.db.collection("boards").doc(this.boardId).collection("items");
-  };
+  itemsRef = () =>
+    this.db.collection("boards").doc(this.boardId).collection("items");
   this.getName = () => name;
   this.setName = (newName) => {
     if (this.db) {
@@ -34,7 +33,7 @@ function Board(boardId, db) {
     const data = { item, boundingRectangle };
     let id;
     if (this.db) {
-      const docRef = this.itemsRef().doc();
+      const docRef = itemsRef().doc();
       docRef.set(data);
       id = docRef.id;
     } else {
@@ -49,14 +48,14 @@ function Board(boardId, db) {
   };
   this.removeItem = (id) => {
     if (this.db) {
-      this.itemsRef().doc(id).delete();
+      itemsRef().doc(id).delete();
     }
     delete this.items[id];
     this.itemListeners.forEach((fn) => fn(undefined));
   };
   this.moveItem = (id, boundingRectangle) => {
     if (this.db) {
-      this.itemsRef().doc(id).update({ boundingRectangle });
+      itemsRef().doc(id).update({ boundingRectangle });
     }
     this.items[id].boundingRectangle = boundingRectangle;
   };
