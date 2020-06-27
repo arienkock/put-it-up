@@ -6,7 +6,7 @@ class TestItem {}
 describe("Board basics", () => {
   it("a new board has zero stickies and no name", () => {
     const board = new Board("Test Board");
-    expect(board.getItems()).toEqual({});
+    expect(board.items()).toEqual({});
     expect(board.boardId).toEqual("Test Board");
     expect(board.getName()).toEqual("");
   });
@@ -44,13 +44,13 @@ describe("Board basics", () => {
         item,
         boundingRectangle,
       });
-      expect(Object.entries(board.getItems()).length).toBe(i + 1);
-      expect(board.getItems()).toEqual(
+      expect(Object.entries(board.items()).length).toBe(i + 1);
+      expect(board.items()).toEqual(
         jasmine.objectContaining({
           [id]: subsetExpected,
         })
       );
-      expect(board.getItem(id)).toEqual(subsetExpected);
+      expect(board.get(id)).toEqual(subsetExpected);
     }
   });
 
@@ -63,8 +63,8 @@ describe("Board basics", () => {
       right: 100,
       bottom: 100,
     });
-    board.removeItem(id);
-    expect(board.getItem(id)).toBe(undefined);
+    board.remove(id);
+    expect(board.get(id)).toBe(undefined);
   });
   it("items can be moved", () => {
     const board = new Board();
@@ -82,7 +82,7 @@ describe("Board basics", () => {
       right: 200,
       bottom: 200,
     };
-    board.moveItem(id, newPosition);
-    expect(board.getItem(id).boundingRectangle).toEqual(newPosition);
+    board.move(id, newPosition);
+    expect(board.get(id).boundingRectangle).toEqual(newPosition);
   });
 });

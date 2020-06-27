@@ -61,7 +61,7 @@ describe("Board store", () => {
     ]);
     subNextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
-    expect(board.getItem("12efasd")).toEqual({ some: "prop" });
+    expect(board.get("12efasd")).toEqual({ some: "prop" });
     // Modify item
     mockSubSnapshot.docChanges = jasmine.createSpy().and.returnValue([
       {
@@ -76,7 +76,7 @@ describe("Board store", () => {
     subNextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
     expect(itemListener).toHaveBeenCalledWith({ second: "foo" });
-    expect(board.getItem("12efasd")).toEqual({ second: "foo" });
+    expect(board.get("12efasd")).toEqual({ second: "foo" });
     // Modify item
     mockSubSnapshot.docChanges = jasmine.createSpy().and.returnValue([
       {
@@ -91,7 +91,7 @@ describe("Board store", () => {
     subNextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
     expect(itemListener).toHaveBeenCalledWith(undefined);
-    expect(board.getItem("12efasd")).toBe(undefined);
+    expect(board.get("12efasd")).toBe(undefined);
   });
 
   it("Changes propagate to DB", () => {
@@ -148,7 +148,7 @@ describe("Board store", () => {
     clearMocks();
 
     // Move
-    board.moveItem(id, { left: 100, top: 100, right: 200, bottom: 200 });
+    board.move(id, { left: 100, top: 100, right: 200, bottom: 200 });
     expect(mockDb.collection).toHaveBeenCalledWith("boards");
     expect(mockDocRef.collection).toHaveBeenCalledWith("items");
     expect(mockSubItemRef.update).toHaveBeenCalledWith({
@@ -157,7 +157,7 @@ describe("Board store", () => {
     clearMocks();
 
     // Remove
-    board.removeItem(id);
+    board.remove(id);
     expect(mockDb.collection).toHaveBeenCalledWith("boards");
     expect(mockDocRef.collection).toHaveBeenCalledWith("items");
     expect(mockSubCollection.doc).toHaveBeenCalledWith(id);

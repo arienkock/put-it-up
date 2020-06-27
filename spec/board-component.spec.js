@@ -32,7 +32,7 @@ describe("UI components and adapter", () => {
     const ui = new ReactUIAdapter();
     ui.render(boardComponent, ".app");
     function check() {
-      const numberOfItems = Object.entries(board.getItems()).length;
+      const numberOfItems = Object.entries(board.items()).length;
       const numItemContainers = document.querySelectorAll(".item-container")
         .length;
       expect(numItemContainers).toBe(numberOfItems);

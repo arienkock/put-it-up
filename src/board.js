@@ -26,7 +26,7 @@ function Board(boardId, dbArg) {
     }
     name = newName;
   };
-  this.getItems = () => {
+  this.items = () => {
     return items;
   };
   this.add = (item, boundingRectangle) => {
@@ -43,17 +43,17 @@ function Board(boardId, dbArg) {
     itemListeners.forEach((fn) => fn(data));
     return id;
   };
-  this.getItem = (id) => {
+  this.get = (id) => {
     return items[id];
   };
-  this.removeItem = (id) => {
+  this.remove = (id) => {
     if (db) {
       itemsRef().doc(id).delete();
     }
     delete items[id];
     itemListeners.forEach((fn) => fn(undefined));
   };
-  this.moveItem = (id, boundingRectangle) => {
+  this.move = (id, boundingRectangle) => {
     if (db) {
       itemsRef().doc(id).update({ boundingRectangle });
     }

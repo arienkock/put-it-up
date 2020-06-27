@@ -6,7 +6,7 @@ const createBoardComponent = (board) =>
         return h("div", { className: "board" }, this.renderItems());
       },
       renderItems() {
-        const entries = Object.entries(board.getItems());
+        const entries = Object.entries(board.items());
         return entries.map(([id, item]) =>
           h(itemContainerComponent, { key: id, item })
         );
