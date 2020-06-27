@@ -29,7 +29,7 @@ function Board(boardId, dbArg) {
   this.getItems = () => {
     return items;
   };
-  this.hold = (item, boundingRectangle) => {
+  this.add = (item, boundingRectangle) => {
     const data = { item, boundingRectangle };
     let id;
     if (db) {

@@ -133,7 +133,7 @@ describe("Board store", () => {
       ].forEach((m) => m.calls.reset());
     }
     // Add
-    const id = board.hold(
+    const id = board.add(
       { some: "prop" },
       { left: 0, top: 0, right: 100, bottom: 100 }
     );
