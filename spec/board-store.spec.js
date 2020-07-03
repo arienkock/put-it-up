@@ -1,4 +1,4 @@
-const { Board } = require("../src/board.js");
+const { ConnectedBoard } = require("../src/board.js");
 
 describe("Board store", () => {
   it("New board handles board and item snapshots", () => {
@@ -32,10 +32,9 @@ describe("Board store", () => {
     const mockDb = {
       collection: mockRootCollection,
     };
-    const board = new Board("some name", mockDb);
-    const boardListener = jasmine.createSpy();
-    const itemListener = jasmine.createSpy();
-    board.addListener(boardListener, itemListener);
+    const board = new ConnectedBoard("some id", mockDb);
+    const mockListener = jasmine.createSpy();
+    board.addListener(mockListener);
     expect(mockRootCollection).toHaveBeenCalledWith("boards");
     expect(mockDoc).toHaveBeenCalled();
     expect(mockSubCollection).toHaveBeenCalledWith("items");
@@ -72,10 +71,10 @@ describe("Board store", () => {
         },
       },
     ]);
-    itemListener.calls.reset();
+    mockListener.calls.reset();
     subNextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
-    expect(itemListener).toHaveBeenCalledWith({ second: "foo" });
+    expect(mockListener).toHaveBeenCalled();
     expect(board.get("12efasd")).toEqual({ second: "foo" });
     // Modify item
     mockSubSnapshot.docChanges = jasmine.createSpy().and.returnValue([
@@ -87,10 +86,10 @@ describe("Board store", () => {
         },
       },
     ]);
-    itemListener.calls.reset();
+    mockListener.calls.reset();
     subNextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
-    expect(itemListener).toHaveBeenCalledWith(undefined);
+    expect(mockListener).toHaveBeenCalled();
     expect(board.get("12efasd")).toBe(undefined);
   });
 
@@ -115,10 +114,9 @@ describe("Board store", () => {
     const mockDb = {
       collection: jasmine.createSpy().and.returnValue(mockDoc),
     };
-    const board = new Board("Some ID", mockDb);
-    const boardListener = jasmine.createSpy();
-    const itemListener = jasmine.createSpy();
-    board.addListener(boardListener, itemListener);
+    const board = new ConnectedBoard("Some ID", mockDb);
+    const mockListener = jasmine.createSpy();
+    board.addListener(mockListener);
     function clearMocks() {
       [
         mockSubItemRef.delete,
@@ -128,8 +126,7 @@ describe("Board store", () => {
         mockDocRef.collection,
         mockDoc.doc,
         mockDb.collection,
-        boardListener,
-        itemListener,
+        mockListener,
       ].forEach((m) => m.calls.reset());
     }
     // Add
@@ -141,10 +138,7 @@ describe("Board store", () => {
     expect(mockDocRef.collection).toHaveBeenCalledWith("items");
     expect(mockSubCollection.doc).toHaveBeenCalled();
     expect(mockSubItemRef.set).toHaveBeenCalled();
-    expect(itemListener).toHaveBeenCalledWith({
-      item: { some: "prop" },
-      boundingRectangle: { left: 0, top: 0, right: 100, bottom: 100 },
-    });
+    expect(mockListener).toHaveBeenCalled();
     clearMocks();
 
     // Move
@@ -162,7 +156,7 @@ describe("Board store", () => {
     expect(mockDocRef.collection).toHaveBeenCalledWith("items");
     expect(mockSubCollection.doc).toHaveBeenCalledWith(id);
     expect(mockSubItemRef.delete).toHaveBeenCalled();
-    expect(itemListener).toHaveBeenCalledWith(undefined);
+    expect(mockListener).toHaveBeenCalled();
     clearMocks();
 
     // Change board name

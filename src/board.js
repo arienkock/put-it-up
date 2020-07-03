@@ -1,61 +1,44 @@
-function Board(boardId, dbArg) {
+function Board(boardId, idGenerator) {
   let name = "";
   const items = {};
   Object.defineProperty(this, "boardId", {
     value: boardId,
     writable: false,
   });
-  const boardListeners = [];
-  const itemListeners = [];
-  let idGen = 0;
-  const db = dbArg;
-  this.connect = () => {
-    if (db) {
-      const boardRef = db.collection("boards").doc(this.boardId);
-      boardRef.onSnapshot((snapshot) => handleBoardSnapshot(snapshot));
-      const itemsRef = boardRef.collection("items");
-      itemsRef.onSnapshot((snapshot) => handleItemsSnapshot(snapshot));
-    }
+  const listeners = [];
+  this.addListener = (changeListener) => {
+    listeners.push(changeListener);
   };
-  itemsRef = () =>
-    db.collection("boards").doc(this.boardId).collection("items");
   this.getName = () => name;
   this.setName = (newName) => {
-    if (db) {
-      db.collection("boards").doc(this.boardId).update({ name: newName });
-    }
     name = newName;
   };
   this.items = () => {
     return items;
   };
+  const generateId = idGenerator || localIdGen;
+  let idGen = 0;
+  function localIdGen(_data) {
+    return ++idGen;
+  }
   this.add = (data) => {
-    let id;
-    if (db) {
-      const docRef = itemsRef().doc();
-      docRef.set(data);
-      id = docRef.id;
-    } else {
-      id = ++idGen;
-    }
+    const id = generateId(data);
     items[id] = data;
-    itemListeners.forEach((fn) => fn(data));
+    listeners.forEach((fn) => fn(data));
     return id;
+  };
+  this.update = (id, data) => {
+    items[id] = data;
+    listeners.forEach((fn) => fn());
   };
   this.get = (id) => {
     return items[id];
   };
   this.remove = (id) => {
-    if (db) {
-      itemsRef().doc(id).delete();
-    }
     delete items[id];
-    itemListeners.forEach((fn) => fn(undefined));
+    listeners.forEach((fn) => fn());
   };
   this.move = (id, boundingRectangle) => {
-    if (db) {
-      itemsRef().doc(id).update({ boundingRectangle });
-    }
     items[id].boundingRectangle = boundingRectangle;
   };
   this.getSize = () => {
@@ -76,29 +59,71 @@ function Board(boardId, dbArg) {
       bottom: maxBottom,
     };
   };
-  this.addListener = (boardListener, itemListener) => {
-    boardListeners.push(boardListener);
-    itemListeners.push(itemListener);
+}
+
+function wrapWithDB(Board) {
+  return function (boardId, dbArg) {
+    const board = new Board(boardId, generateId);
+    const db = dbArg;
+    this.connect = () => {
+      const boardRef = db.collection("boards").doc(this.boardId);
+      boardRef.onSnapshot((snapshot) => handleBoardSnapshot(snapshot));
+      const itemsRef = boardRef.collection("items");
+      itemsRef.onSnapshot((snapshot) => handleItemsSnapshot(snapshot));
+    };
+    itemsRef = () =>
+      db.collection("boards").doc(this.boardId).collection("items");
+    this.setName = (newName) => {
+      db.collection("boards").doc(this.boardId).update({ name: newName });
+      return board.setName(newName);
+    };
+    function generateId(data) {
+      const docRef = itemsRef().doc();
+      docRef.set(data);
+      return docRef.id;
+    }
+    this.add = (data) => {
+      const id = board.add(data);
+      return id;
+    };
+    this.remove = (id) => {
+      itemsRef().doc(id).delete();
+      board.remove(id);
+    };
+    this.move = (id, boundingRectangle) => {
+      itemsRef().doc(id).update({ boundingRectangle });
+      board.move(id, boundingRectangle);
+    };
+    function handleBoardSnapshot(boardSnapshot) {
+      const boardData = boardSnapshot.data();
+      board.setName(boardData.name);
+    }
+    function handleItemsSnapshot(itemsSnapshot) {
+      itemsSnapshot.docChanges().forEach((change) => {
+        if (change.type === "added" || change.type === "modified") {
+          const data = change.doc.data();
+          board.update(change.doc.id, data);
+        } else {
+          board.remove(change.doc.id);
+        }
+      });
+    }
+    passThroughtAllOtherMethods(this, board);
+    this.connect();
   };
-  function handleBoardSnapshot(boardSnapshot) {
-    const boardData = boardSnapshot.data();
-    name = boardData.name;
-  }
-  function handleItemsSnapshot(itemsSnapshot) {
-    itemsSnapshot.docChanges().forEach((change) => {
-      if (change.type === "added" || change.type === "modified") {
-        const data = change.doc.data();
-        items[change.doc.id] = data;
-        itemListeners.forEach((fn) => fn(data));
-      } else {
-        delete items[change.doc.id];
-        itemListeners.forEach((fn) => fn(undefined));
-      }
-    });
-  }
-  this.connect();
+}
+
+function passThroughtAllOtherMethods(source, destination) {
+  Object.getOwnPropertyNames(destination).forEach((methodName) => {
+    if (typeof destination[methodName] === "function" && !source[methodName]) {
+      source[methodName] = function (...args) {
+        return destination[methodName](...args);
+      }.bind(destination);
+    }
+  });
 }
 
 module.exports = {
   Board,
+  ConnectedBoard: wrapWithDB(Board),
 };
