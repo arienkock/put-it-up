@@ -18,8 +18,14 @@ describe("Board basics", () => {
 
   it("a board has dimensions that span the items", () => {
     const board = new Board("Test Board");
-    board.add({}, { left: -100, top: -200, right: -50, bottom: -150 });
-    board.add({}, { left: 150, top: 50, right: 200, bottom: 100 });
+    board.add({
+      item: {},
+      boundingRectangle: { left: -100, top: -200, right: -50, bottom: -150 },
+    });
+    board.add({
+      item: {},
+      boundingRectangle: { left: 150, top: 50, right: 200, bottom: 100 },
+    });
     expect(board.getSize()).toEqual({
       left: -100,
       top: -200,
@@ -38,7 +44,7 @@ describe("Board basics", () => {
         bottom: 100 + i * 100,
       };
       const item = new TestItem();
-      const id = board.add(item, boundingRectangle);
+      const id = board.add({ item, boundingRectangle });
       expect(id).toBe(i + 1);
       const subsetExpected = jasmine.objectContaining({
         item,

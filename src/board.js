@@ -29,8 +29,7 @@ function Board(boardId, dbArg) {
   this.items = () => {
     return items;
   };
-  this.add = (item, boundingRectangle) => {
-    const data = { item, boundingRectangle };
+  this.add = (data) => {
     let id;
     if (db) {
       const docRef = itemsRef().doc();

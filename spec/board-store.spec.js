@@ -133,10 +133,10 @@ describe("Board store", () => {
       ].forEach((m) => m.calls.reset());
     }
     // Add
-    const id = board.add(
-      { some: "prop" },
-      { left: 0, top: 0, right: 100, bottom: 100 }
-    );
+    const id = board.add({
+      item: { some: "prop" },
+      boundingRectangle: { left: 0, top: 0, right: 100, bottom: 100 },
+    });
     expect(mockDb.collection).toHaveBeenCalledWith("boards");
     expect(mockDocRef.collection).toHaveBeenCalledWith("items");
     expect(mockSubCollection.doc).toHaveBeenCalled();
