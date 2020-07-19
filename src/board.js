@@ -1,4 +1,4 @@
-function Board(boardId, idGenerator) {
+function Board(boardId) {
   let name = "";
   const items = {};
   Object.defineProperty(this, "boardId", {
@@ -16,13 +16,13 @@ function Board(boardId, idGenerator) {
   this.items = () => {
     return items;
   };
-  const generateId = idGenerator || localIdGen;
+  this.generateId = localIdGen;
   let idGen = 0;
   function localIdGen(_data) {
     return ++idGen;
   }
   this.add = (data) => {
-    const id = generateId(data);
+    const id = this.generateId(data);
     items[id] = data;
     listeners.forEach((fn) => fn(data));
     return id;
@@ -61,69 +61,57 @@ function Board(boardId, idGenerator) {
   };
 }
 
-function wrapWithDB(Board) {
-  return function (boardId, dbArg) {
-    const board = new Board(boardId, generateId);
-    const db = dbArg;
-    this.connect = () => {
-      const boardRef = db.collection("boards").doc(this.boardId);
-      boardRef.onSnapshot((snapshot) => handleBoardSnapshot(snapshot));
-      const itemsRef = boardRef.collection("items");
-      itemsRef.onSnapshot((snapshot) => handleItemsSnapshot(snapshot));
-    };
-    itemsRef = () =>
-      db.collection("boards").doc(this.boardId).collection("items");
-    this.setName = (newName) => {
-      db.collection("boards").doc(this.boardId).update({ name: newName });
-      return board.setName(newName);
-    };
-    function generateId(data) {
-      const docRef = itemsRef().doc();
-      docRef.set(data);
-      return docRef.id;
-    }
-    this.add = (data) => {
-      const id = board.add(data);
-      return id;
-    };
-    this.remove = (id) => {
-      itemsRef().doc(id).delete();
-      board.remove(id);
-    };
-    this.move = (id, boundingRectangle) => {
-      itemsRef().doc(id).update({ boundingRectangle });
-      board.move(id, boundingRectangle);
-    };
-    function handleBoardSnapshot(boardSnapshot) {
-      const boardData = boardSnapshot.data();
-      board.setName(boardData.name);
-    }
-    function handleItemsSnapshot(itemsSnapshot) {
-      itemsSnapshot.docChanges().forEach((change) => {
-        if (change.type === "added" || change.type === "modified") {
-          const data = change.doc.data();
-          board.update(change.doc.id, data);
-        } else {
-          board.remove(change.doc.id);
-        }
-      });
-    }
-    passThroughtAllOtherMethods(this, board);
-    this.connect();
+function connectToFirebase(board, db) {
+  board.generateId = generateId;
+  // Starts listening for changes to the board and the items sub-collection
+  function connect() {
+    const boardRef = db.collection("boards").doc(board.boardId);
+    boardRef.onSnapshot((snapshot) => handleBoardSnapshot(snapshot));
+    const itemsRef = boardRef.collection("items");
+    itemsRef.onSnapshot((snapshot) => handleItemsSnapshot(snapshot));
+  }
+  function generateId(data) {
+    const docRef = itemsRef().doc();
+    docRef.set(data);
+    return docRef.id;
+  }
+  const itemsRef = () =>
+    db.collection("boards").doc(board.boardId).collection("items");
+  const delegateSetName = board.setName.bind(board);
+  board.setName = (newName) => {
+    db.collection("boards").doc(board.boardId).update({ name: newName });
+    return delegateSetName(newName);
   };
-}
-
-function passThroughtAllOtherMethods(source, destination) {
-  Object.getOwnPropertyNames(destination).forEach((methodName) => {
-    if (typeof destination[methodName] === "function" && !source[methodName]) {
-      source[methodName] = function (...args) {
-        return destination[methodName](...args);
-      }.bind(destination);
-    }
-  });
+  const delegateRemove = board.remove.bind(board);
+  board.remove = (id) => {
+    itemsRef().doc(id).delete();
+    return delegateRemove(id);
+  };
+  const delegateMove = board.move.bind(board);
+  board.move = (id, boundingRectangle) => {
+    itemsRef().doc(id).update({ boundingRectangle });
+    return delegateMove(id, boundingRectangle);
+  };
+  // Callback passed to doc.onSnapshot() in connect()
+  function handleBoardSnapshot(boardSnapshot) {
+    const boardData = boardSnapshot.data();
+    delegateSetName(boardData.name);
+  }
+  // Callback passed to the items collection.onSnapshot() in connect()
+  function handleItemsSnapshot(itemsSnapshot) {
+    itemsSnapshot.docChanges().forEach((change) => {
+      if (change.type === "added" || change.type === "modified") {
+        const data = change.doc.data();
+        board.update(change.doc.id, data);
+      } else {
+        delegateRemove(change.doc.id);
+      }
+    });
+  }
+  connect();
 }
 
 module.exports = {
   Board,
-  ConnectedBoard: wrapWithDB(Board),
+  connectToFirebase,
 };

@@ -1,38 +1,25 @@
-const { ConnectedBoard } = require("../src/board.js");
+const { Board, connectToFirebase } = require("../src/board.js");
 
 describe("Board store", () => {
+  // it("a new cpmmected board has zero stickies and no name", () => {
+  //   const { mockDb } = createMockDb();
+  //   const board = new ConnectedBoard("Test Board", mockDb);
+  //   expect(board.items()).toEqual({});
+  //   expect(board.boardId).toEqual("Test Board");
+  //   expect(board.getName()).toEqual("");
+  // });
+
   it("New board handles board and item snapshots", () => {
-    let nextFn, errorFn;
-    const mockOnSnapshot = jasmine.createSpy().and.callFake((n, e) => {
-      nextFn = n;
-      errorFn = e;
-    });
-    let subNextFn, subErrorFn;
-    const mockSubOnSnapshot = jasmine.createSpy().and.callFake((n, e) => {
-      subNextFn = n;
-      subErrorFn = e;
-    });
-    const mockSubCollectionRef = {
-      onSnapshot: mockSubOnSnapshot,
-    };
-    const mockSubCollection = jasmine
-      .createSpy()
-      .and.returnValue(mockSubCollectionRef);
-    const mockDocReference = {
-      onSnapshot: mockOnSnapshot,
-      collection: mockSubCollection,
-    };
-    const mockDoc = jasmine.createSpy().and.callFake(() => mockDocReference);
-    const mockCollectionRef = {
-      doc: mockDoc,
-    };
-    const mockRootCollection = jasmine
-      .createSpy()
-      .and.returnValue(mockCollectionRef);
-    const mockDb = {
-      collection: mockRootCollection,
-    };
-    const board = new ConnectedBoard("some id", mockDb);
+    const {
+      mockDb,
+      mockRootCollection,
+      mockDoc,
+      mockSubCollection,
+      mockOnSnapshot,
+      mockSubOnSnapshot,
+    } = createMockDb();
+    const board = new Board("some id");
+    connectToFirebase(board, mockDb);
     const mockListener = jasmine.createSpy();
     board.addListener(mockListener);
     expect(mockRootCollection).toHaveBeenCalledWith("boards");
@@ -45,7 +32,7 @@ describe("Board store", () => {
         name: "A board name",
       }),
     };
-    nextFn(mockDocSnapshot);
+    mockOnSnapshot.nextFn(mockDocSnapshot);
     expect(board.getName()).toEqual("A board name");
     // Add item
     const mockSubSnapshot = {};
@@ -58,7 +45,7 @@ describe("Board store", () => {
         },
       },
     ]);
-    subNextFn(mockSubSnapshot);
+    mockSubOnSnapshot.nextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
     expect(board.get("12efasd")).toEqual({ some: "prop" });
     // Modify item
@@ -72,7 +59,7 @@ describe("Board store", () => {
       },
     ]);
     mockListener.calls.reset();
-    subNextFn(mockSubSnapshot);
+    mockSubOnSnapshot.nextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
     expect(mockListener).toHaveBeenCalled();
     expect(board.get("12efasd")).toEqual({ second: "foo" });
@@ -87,7 +74,7 @@ describe("Board store", () => {
       },
     ]);
     mockListener.calls.reset();
-    subNextFn(mockSubSnapshot);
+    mockSubOnSnapshot.nextFn(mockSubSnapshot);
     expect(mockSubSnapshot.docChanges).toHaveBeenCalled();
     expect(mockListener).toHaveBeenCalled();
     expect(board.get("12efasd")).toBe(undefined);
@@ -114,7 +101,8 @@ describe("Board store", () => {
     const mockDb = {
       collection: jasmine.createSpy().and.returnValue(mockDoc),
     };
-    const board = new ConnectedBoard("Some ID", mockDb);
+    const board = new Board("Some ID");
+    connectToFirebase(board, mockDb);
     const mockListener = jasmine.createSpy();
     board.addListener(mockListener);
     function clearMocks() {
@@ -165,3 +153,45 @@ describe("Board store", () => {
     expect(mockDocRef.update).toHaveBeenCalledWith({ name: "New name" });
   });
 });
+
+function createMockDb() {
+  const mockOnSnapshot = jasmine.createSpy().and.callFake((n, e) => {
+    mockOnSnapshot.nextFn = n;
+    mockOnSnapshot.errorFn = e;
+  });
+  const mockSubOnSnapshot = jasmine.createSpy().and.callFake((n, e) => {
+    mockSubOnSnapshot.nextFn = n;
+    mockSubOnSnapshot.errorFn = e;
+  });
+  const mockSubCollectionRef = {
+    onSnapshot: mockSubOnSnapshot,
+  };
+  const mockSubCollection = jasmine
+    .createSpy()
+    .and.returnValue(mockSubCollectionRef);
+  const mockDocReference = {
+    onSnapshot: mockOnSnapshot,
+    collection: mockSubCollection,
+  };
+  const mockDoc = jasmine.createSpy().and.callFake(() => mockDocReference);
+  const mockCollectionRef = {
+    doc: mockDoc,
+  };
+  const mockRootCollection = jasmine
+    .createSpy()
+    .and.returnValue(mockCollectionRef);
+  const mockDb = {
+    collection: mockRootCollection,
+  };
+  return {
+    mockDb,
+    mockRootCollection,
+    mockCollectionRef,
+    mockDoc,
+    mockDocReference,
+    mockSubCollection,
+    mockSubCollectionRef,
+    mockSubOnSnapshot,
+    mockOnSnapshot,
+  };
+}

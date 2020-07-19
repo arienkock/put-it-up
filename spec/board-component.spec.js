@@ -38,17 +38,17 @@ describe("UI components and adapter", () => {
       expect(numItemContainers).toBe(numberOfItems);
     }
     check();
-    board.add({}, { left: 0, top: 0, right: 100, bottom: 100 });
+    board.add({});
     check();
-    board.add({}, { left: 0, top: 0, right: 100, bottom: 100 });
+    board.add({});
     check();
   });
 
   it("all item containers have a unique key prop", () => {
     const board = new Board("uyhjkiuyg");
     const boardComponent = createBoardComponent(board);
-    board.add({}, { left: 0, top: 0, right: 100, bottom: 100 });
-    board.add({}, { left: 0, top: 0, right: 100, bottom: 100 });
+    board.add({});
+    board.add({});
     const h = (tag, props, children) => [tag, props, children];
     const comp = boardComponent(h, () => null);
     function checkChildrenForKeys([tag, props, children]) {
