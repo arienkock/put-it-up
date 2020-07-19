@@ -1,4 +1,4 @@
-const { Board, ConnectedBoard } = require("../src/board.js");
+const { Board } = require("../src/board.js");
 const { ReactUIAdapter } = require("../src/react-ui.js");
 const {
   itemContainerComponent,

@@ -1,14 +1,20 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import * as serviceWorker from './serviceWorker';
+import React from "react";
+import ReactDOM from "react-dom";
+import * as serviceWorker from "./serviceWorker";
+
+import { Board } from "put-it-up/src/board";
+import { createRoot } from "put-it-up/src/root-component";
+import { ReactUIAdapter } from "put-it-up/src/react-ui";
+
+const ui = new ReactUIAdapter();
+
+const App = ui.wrapComponentWithReactComponent(createRoot(new Board("test")));
 
 ReactDOM.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
-  document.getElementById('root')
+  document.getElementById("root")
 );
 
 // If you want your app to work offline and load faster, you can change
