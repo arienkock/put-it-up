@@ -3,7 +3,17 @@ const createBoardComponent = (board) =>
     board.addListener(rerender, rerender);
     return {
       render(props) {
-        return h("div", { className: "board" }, this.renderItems());
+        return h(
+          "div",
+          {
+            className: "board",
+            styles: {
+              width: "100vw",
+              height: "100vh",
+            },
+          },
+          this.renderItems()
+        );
       },
       renderItems() {
         const entries = Object.entries(board.items());
