@@ -1,4 +1,5 @@
 const createBoardComponent = (board) =>
+  // TODO: Pass single argument "ui". include a "wrap" function to wrap compontents once and only once.
   function boardComponent(h, rerender) {
     board.addListener(rerender, rerender);
     return {
@@ -23,7 +24,7 @@ const createBoardComponent = (board) =>
       },
     };
   };
-
+// TODO: Split into its own module
 function itemContainerComponent(h, rerender) {
   return {
     render(props) {

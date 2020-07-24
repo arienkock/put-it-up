@@ -73,6 +73,8 @@ function initComponent(createBoardComponent, ...constructorArgs) {
   return [component, rerender];
 }
 
+// TODO: put fake ui in its own module and test it with same tests as ReactUIAdapter
+
 function createFakeUI() {
   const rerender = jasmine.createSpy();
   function h(tag, props, children) {
