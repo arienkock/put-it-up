@@ -11,19 +11,27 @@ class ReactUIAdapter {
   }
 
   wrapComponentWithReactComponent(bareComponent) {
-    const h = (tag, ...rest) => {
+    const h = (tag, props, children) => {
       if (typeof tag !== "string") {
         tag = this.wrapComponentWithReactComponent(tag);
       }
-      return React.createElement(tag, ...rest);
+      return React.createElement(tag, props, children);
     };
+    let i = 0, j=0
     return class WrappedComponent extends React.Component {
-      constructor(...args) {
-        super(...args);
-        this.delegate = bareComponent(h, () => this.forceUpdate());
+      constructor(props) {
+        super(props);
+        this.delegate = bareComponent(h, () => {
+          this.forceUpdate()
+        });
+        this.componentDidMount = () => {
+          if (typeof this.delegate.setup === "function") {
+            this.delegate.setup(props)
+          }
+        }
       }
-      render(props) {
-        return this.delegate.render(props);
+      render() {
+        return this.delegate.render(this.props);
       }
     };
   }
