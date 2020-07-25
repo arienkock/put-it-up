@@ -1,4 +1,5 @@
-const { Board, connectToFirebase } = require("../src/board.js");
+const { Board } = require("../src/board.js");
+const { connectToFirebase } = require("../src/firebase-connect.js");
 
 describe("Board store", () => {
   // it("a new cpmmected board has zero stickies and no name", () => {

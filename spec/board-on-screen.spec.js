@@ -35,7 +35,6 @@ describe("root component", () => {
     expect(rerender).toHaveBeenCalled();
     vElement = rootComponent.render();
     expandComponents(vElement);
-    console.log(vElement.children[0].children);
     expect(findByClassName("item-container", vElement)).toBeTruthy();
   });
 });

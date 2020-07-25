@@ -1,18 +1,14 @@
 function Board(boardId) {
-  let name = "";
-  const items = {};
-  Object.defineProperty(this, "boardId", {
-    value: boardId,
-    writable: false,
-  });
   const listeners = [];
   this.addListener = (changeListener) => {
     listeners.push(changeListener);
   };
-  this.getName = () => name;
-  this.setName = (newName) => {
-    name = newName;
-  };
+  addBoardProperties.bind(this)(boardId);
+  addContentProperties.bind(this)(listeners);
+}
+
+function addContentProperties(listeners) {
+  const items = {};
   this.items = () => {
     return items;
   };
@@ -41,7 +37,7 @@ function Board(boardId) {
   this.move = (id, boundingRectangle) => {
     items[id].boundingRectangle = boundingRectangle;
   };
-  this.getSize = () => {
+  this.getContentBounds = () => {
     let maxBottom = 0,
       minTop = 0,
       maxRight = 0,
@@ -61,57 +57,18 @@ function Board(boardId) {
   };
 }
 
-function connectToFirebase(board, db) {
-  board.generateId = generateId;
-  // Starts listening for changes to the board and the items sub-collection
-  function connect() {
-    const boardRef = db.collection("boards").doc(board.boardId);
-    boardRef.onSnapshot((snapshot) => handleBoardSnapshot(snapshot));
-    const itemsRef = boardRef.collection("items");
-    itemsRef.onSnapshot((snapshot) => handleItemsSnapshot(snapshot));
-  }
-  function generateId(data) {
-    const docRef = itemsRef().doc();
-    docRef.set(data);
-    return docRef.id;
-  }
-  const itemsRef = () =>
-    db.collection("boards").doc(board.boardId).collection("items");
-  const delegateSetName = board.setName.bind(board);
-  board.setName = (newName) => {
-    db.collection("boards").doc(board.boardId).update({ name: newName });
-    return delegateSetName(newName);
+function addBoardProperties(boardId) {
+  Object.defineProperty(this, "boardId", {
+    value: boardId,
+    writable: false,
+  });
+  let name = "";
+  this.getName = () => name;
+  this.setName = (newName) => {
+    name = newName;
   };
-  const delegateRemove = board.remove.bind(board);
-  board.remove = (id) => {
-    itemsRef().doc(id).delete();
-    return delegateRemove(id);
-  };
-  const delegateMove = board.move.bind(board);
-  board.move = (id, boundingRectangle) => {
-    itemsRef().doc(id).update({ boundingRectangle });
-    return delegateMove(id, boundingRectangle);
-  };
-  // Callback passed to doc.onSnapshot() in connect()
-  function handleBoardSnapshot(boardSnapshot) {
-    const boardData = boardSnapshot.data();
-    delegateSetName(boardData.name);
-  }
-  // Callback passed to the items collection.onSnapshot() in connect()
-  function handleItemsSnapshot(itemsSnapshot) {
-    itemsSnapshot.docChanges().forEach((change) => {
-      if (change.type === "added" || change.type === "modified") {
-        const data = change.doc.data();
-        board.update(change.doc.id, data);
-      } else {
-        delegateRemove(change.doc.id);
-      }
-    });
-  }
-  connect();
 }
 
 module.exports = {
   Board,
-  connectToFirebase,
 };
