@@ -27,7 +27,7 @@ class ReactUIAdapter {
         this.delegate = bareComponent({
           h,
           c,
-          rerender: this.forceUpdate.bind(this),
+          rerender: () => this.forceUpdate(),
         });
         this.componentDidMount = () => {
           if (typeof this.delegate.setup === "function") {

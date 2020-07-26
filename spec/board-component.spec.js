@@ -12,33 +12,35 @@ beforeEach(() => {
 describe("UI components and adapter", () => {
   it("render boardComponent", () => {
     const board = new Board("uyhjkiuyg");
-    const rootComponent = (h) => ({
-      render() {
-        return h(boardComponent, { board });
-      },
-    });
     const ui = new ReactUIAdapter();
-    ui.render(rootComponent, ".app");
+    const boardC = ui.c(boardComponent);
+    const rootComponent = ui.c(({ h }) => ({
+      render() {
+        return h(boardC, { board });
+      },
+    }));
+    ui.mount(rootComponent, ".app");
     const boardIsOnPage = !!document.querySelector(".board");
     expect(boardIsOnPage).toBe(true);
   });
 
   it("render itemContainerComponent", () => {
     const ui = new ReactUIAdapter();
-    ui.render(itemContainerComponent, ".app");
+    ui.mount(ui.c(itemContainerComponent), ".app");
     const itemContainerIsOnPage = !!document.querySelector(".item-container");
     expect(itemContainerIsOnPage).toBe(true);
   });
 
   it("board with items contains same number of ItemContainers", () => {
-    const board = new Board("uyhjkiuyg");
-    const rootComponent = (h) => ({
-      render() {
-        return h(boardComponent, { board }, []);
-      },
-    });
     const ui = new ReactUIAdapter();
-    ui.render(rootComponent, ".app");
+    const board = new Board("uyhjkiuyg");
+    const boardC = ui.c(boardComponent);
+    const rootComponent = ui.c(({ h }) => ({
+      render() {
+        return h(boardC, { board }, []);
+      },
+    }));
+    ui.mount(rootComponent, ".app");
     function check() {
       const numberOfItems = Object.entries(board.items()).length;
       const numItemContainers = document.querySelectorAll(".item-container")
@@ -57,7 +59,7 @@ describe("UI components and adapter", () => {
     board.add({});
     board.add({});
     const h = (tag, props, children) => [tag, props, children];
-    const comp = boardComponent(h, () => null);
+    const comp = boardComponent({ h, c: () => null, rerender: () => null });
     function checkChildrenForKeys([tag, props, children]) {
       if (children) {
         if (children instanceof Array) {
@@ -69,6 +71,6 @@ describe("UI components and adapter", () => {
         }
       }
     }
-    checkChildrenForKeys(comp.render({board}));
+    checkChildrenForKeys(comp.render({ board }));
   });
 });

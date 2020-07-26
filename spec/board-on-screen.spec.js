@@ -5,9 +5,9 @@ const { Sticky } = require("../src/sticky");
 
 describe("board component", () => {
   it("is full screen", () => {
-    const board = new Board("test_id")
-    const { h, rerender } = createFakeUI();
-    const vElement = boardComponent(h, rerender).render({board});
+    const board = new Board("test_id");
+    const ui = createFakeUI();
+    const vElement = boardComponent(ui).render({ board });
     const boardStyles = vElement.props.styles;
     expect(boardStyles).toEqual({
       width: "100vw",
@@ -64,8 +64,8 @@ function findByClassName(cn, vElement) {
 }
 
 function initComponent(createComponent, ...constructorArgs) {
-  const { h, rerender } = createFakeUI();
-  const component = createComponent(...constructorArgs)(h, rerender);
+  const ui = createFakeUI();
+  const component = createComponent(...constructorArgs)(ui);
   return component;
 }
 
@@ -73,18 +73,20 @@ function initComponent(createComponent, ...constructorArgs) {
 
 function createFakeUI() {
   const rerender = jasmine.createSpy();
+  const c = (comp) => comp;
   function h(tag, props, children) {
     if (!children instanceof Array) {
       children = [children];
     }
     if (typeof tag === "function") {
       const compFunction = tag;
-      tag = compFunction(h, rerender);
+      tag = compFunction({ h, c, rerender });
     }
     return { tag, props, children };
   }
   return {
     h,
+    c,
     rerender,
   };
 }

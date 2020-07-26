@@ -1,7 +1,7 @@
 const { ReactUIAdapter } = require("../src/react-ui");
 
 describe("ui", () => {
-  fit("wrapped components cause an in place update", () => {
+  it("wrapped components cause an in place update", () => {
     const ui = new ReactUIAdapter();
     const childSetup = jasmine.createSpy();
     const child = ui.c(({ h }) => ({
