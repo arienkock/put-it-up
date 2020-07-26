@@ -1,15 +1,13 @@
-const { createBoardComponent } = require("../src/components");
+const { boardComponent } = require("../src/board-component");
 const { createRoot } = require("../src/root-component");
 const { Board } = require("../src/board");
 const { Sticky } = require("../src/sticky");
 
 describe("board component", () => {
   it("is full screen", () => {
-    const [boardComponent] = initComponent(
-      createBoardComponent,
-      new Board("test_id")
-    );
-    const vElement = boardComponent.render();
+    const board = new Board("test_id")
+    const { h, rerender } = createFakeUI();
+    const vElement = boardComponent(h, rerender).render({board});
     const boardStyles = vElement.props.styles;
     expect(boardStyles).toEqual({
       width: "100vw",
@@ -20,7 +18,7 @@ describe("board component", () => {
 
 describe("root component", () => {
   it("contains an empty board component", () => {
-    const [rootComponent] = initComponent(createRoot, new Board("test_id"));
+    const rootComponent = initComponent(createRoot, new Board("test_id"));
     const vElement = rootComponent.render();
     expandComponents(vElement);
     expect(findByClassName("board", vElement)).toBeTruthy();
@@ -28,14 +26,12 @@ describe("root component", () => {
   });
   it("contains a empty board with stickies", () => {
     const board = new Board("test_id");
-    const [rootComponent, rerender] = initComponent(createRoot, board);
+    const rootComponent = initComponent(createRoot, board);
     let vElement = rootComponent.render();
     board.add({ item: new Sticky() });
     expandComponents(vElement);
-    expect(rerender).toHaveBeenCalled();
     vElement = rootComponent.render();
     expandComponents(vElement);
-    console.log(vElement.children[0].children);
     expect(findByClassName("item-container", vElement)).toBeTruthy();
   });
 });
@@ -67,10 +63,10 @@ function findByClassName(cn, vElement) {
   }
 }
 
-function initComponent(createBoardComponent, ...constructorArgs) {
+function initComponent(createComponent, ...constructorArgs) {
   const { h, rerender } = createFakeUI();
-  const component = createBoardComponent(...constructorArgs)(h, rerender);
-  return [component, rerender];
+  const component = createComponent(...constructorArgs)(h, rerender);
+  return component;
 }
 
 // TODO: put fake ui in its own module and test it with same tests as ReactUIAdapter

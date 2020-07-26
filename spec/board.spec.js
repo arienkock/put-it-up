@@ -13,7 +13,7 @@ describe("Board basics", () => {
 
   it("an empty board has zero height and width", () => {
     const board = new Board("Test Board");
-    expect(board.getSize()).toEqual({ left: 0, top: 0, right: 0, bottom: 0 });
+    expect(board.getContentBounds()).toEqual({ left: 0, top: 0, right: 0, bottom: 0 });
   });
 
   it("a board has dimensions that span the items", () => {
@@ -26,7 +26,7 @@ describe("Board basics", () => {
       item: {},
       boundingRectangle: { left: 150, top: 50, right: 200, bottom: 100 },
     });
-    expect(board.getSize()).toEqual({
+    expect(board.getContentBounds()).toEqual({
       left: -100,
       top: -200,
       right: 200,

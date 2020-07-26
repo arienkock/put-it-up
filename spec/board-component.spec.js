@@ -2,8 +2,8 @@ const { Board } = require("../src/board.js");
 const { ReactUIAdapter } = require("../src/react-ui.js");
 const {
   itemContainerComponent,
-  createBoardComponent,
-} = require("../src/components.js");
+  boardComponent,
+} = require("../src/board-component.js");
 
 beforeEach(() => {
   document.body.innerHTML = '<div class="app"></div>';
@@ -12,9 +12,13 @@ beforeEach(() => {
 describe("UI components and adapter", () => {
   it("render boardComponent", () => {
     const board = new Board("uyhjkiuyg");
-    const boardComponent = createBoardComponent(board);
+    const rootComponent = (h) => ({
+      render() {
+        return h(boardComponent, { board });
+      },
+    });
     const ui = new ReactUIAdapter();
-    ui.render(boardComponent, ".app");
+    ui.render(rootComponent, ".app");
     const boardIsOnPage = !!document.querySelector(".board");
     expect(boardIsOnPage).toBe(true);
   });
@@ -28,9 +32,13 @@ describe("UI components and adapter", () => {
 
   it("board with items contains same number of ItemContainers", () => {
     const board = new Board("uyhjkiuyg");
-    const boardComponent = createBoardComponent(board);
+    const rootComponent = (h) => ({
+      render() {
+        return h(boardComponent, { board }, []);
+      },
+    });
     const ui = new ReactUIAdapter();
-    ui.render(boardComponent, ".app");
+    ui.render(rootComponent, ".app");
     function check() {
       const numberOfItems = Object.entries(board.items()).length;
       const numItemContainers = document.querySelectorAll(".item-container")
@@ -46,7 +54,6 @@ describe("UI components and adapter", () => {
 
   it("all item containers have a unique key prop", () => {
     const board = new Board("uyhjkiuyg");
-    const boardComponent = createBoardComponent(board);
     board.add({});
     board.add({});
     const h = (tag, props, children) => [tag, props, children];
@@ -62,6 +69,6 @@ describe("UI components and adapter", () => {
         }
       }
     }
-    checkChildrenForKeys(comp.render());
+    checkChildrenForKeys(comp.render({board}));
   });
 });

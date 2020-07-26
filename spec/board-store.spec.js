@@ -1,14 +1,7 @@
-const { Board, connectToFirebase } = require("../src/board.js");
+const { Board } = require("../src/board.js");
+const { connectToFirebase } = require("../src/firebase-connect.js");
 
 describe("Board store", () => {
-  // it("a new cpmmected board has zero stickies and no name", () => {
-  //   const { mockDb } = createMockDb();
-  //   const board = new ConnectedBoard("Test Board", mockDb);
-  //   expect(board.items()).toEqual({});
-  //   expect(board.boardId).toEqual("Test Board");
-  //   expect(board.getName()).toEqual("");
-  // });
-
   it("New board handles board and item snapshots", () => {
     const {
       mockDb,
