@@ -1,5 +1,5 @@
 const { boardComponent } = require("../src/board-component");
-const { createRoot } = require("../src/root-component");
+const { RootComponent } = require("../src/root-component");
 const { Board } = require("../src/board");
 const { Sticky } = require("../src/sticky");
 
@@ -18,19 +18,19 @@ describe("board component", () => {
 
 describe("root component", () => {
   it("contains an empty board component", () => {
-    const rootComponent = initComponent(createRoot, new Board("test_id"));
-    const vElement = rootComponent.render();
+    const rootComponent = initComponent(RootComponent);
+    const vElement = rootComponent.render({ board: new Board("test_id") });
     expandComponents(vElement);
     expect(findByClassName("board", vElement)).toBeTruthy();
     expect(findByClassName("sticky", vElement)).toBeFalsy();
   });
   it("contains a empty board with stickies", () => {
     const board = new Board("test_id");
-    const rootComponent = initComponent(createRoot, board);
-    let vElement = rootComponent.render();
+    const rootComponent = initComponent(RootComponent);
+    let vElement = rootComponent.render({ board });
     board.add({ item: new Sticky() });
     expandComponents(vElement);
-    vElement = rootComponent.render();
+    vElement = rootComponent.render({ board });
     expandComponents(vElement);
     expect(findByClassName("item-container", vElement)).toBeTruthy();
   });
@@ -63,9 +63,9 @@ function findByClassName(cn, vElement) {
   }
 }
 
-function initComponent(createComponent, ...constructorArgs) {
+function initComponent(Component) {
   const ui = createFakeUI();
-  const component = createComponent(...constructorArgs)(ui);
+  const component = new Component(ui);
   return component;
 }
 

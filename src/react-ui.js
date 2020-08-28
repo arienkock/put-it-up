@@ -7,11 +7,8 @@ class ReactUIAdapter {
     this.c = this.c.bind(this);
   }
 
-  mount(Component, mountPointSelector) {
-    ReactDOM.render(
-      React.createElement(Component),
-      document.querySelector(mountPointSelector)
-    );
+  mount(element, mountPoint) {
+    ReactDOM.render(element, mountPoint);
   }
 
   h(tag, props, children) {
@@ -24,7 +21,7 @@ class ReactUIAdapter {
     return class WrappedComponent extends React.Component {
       constructor(props) {
         super(props);
-        this.delegate = bareComponent({
+        this.delegate = new bareComponent({
           h,
           c,
           rerender: () => this.forceUpdate(),

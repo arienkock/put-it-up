@@ -3,17 +3,15 @@ import ReactDOM from "react-dom";
 import * as serviceWorker from "./serviceWorker";
 
 import { Board } from "put-it-up/src/board";
-import { createRoot } from "put-it-up/src/root-component";
+import { RootComponent } from "put-it-up/src/root-component";
 import { ReactUIAdapter } from "put-it-up/src/react-ui";
 
 const ui = new ReactUIAdapter();
 
-const App = ui.wrapComponentWithReactComponent(createRoot(new Board("test")));
+const App = ui.c(RootComponent);
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+ui.mount(
+  ui.h(App, { board: new Board("test") }),
   document.getElementById("root")
 );
 

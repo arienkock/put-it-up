@@ -14,19 +14,20 @@ describe("UI components and adapter", () => {
     const board = new Board("uyhjkiuyg");
     const ui = new ReactUIAdapter();
     const boardC = ui.c(boardComponent);
-    const rootComponent = ui.c(({ h }) => ({
-      render() {
-        return h(boardC, { board });
-      },
-    }));
-    ui.mount(rootComponent, ".app");
+    const rootComponent = ui.c(function ({ h }) {
+      this.render = () => h(boardC, { board });
+    });
+    ui.mount(ui.h(rootComponent), document.querySelector(".app"));
     const boardIsOnPage = !!document.querySelector(".board");
     expect(boardIsOnPage).toBe(true);
   });
 
   it("render itemContainerComponent", () => {
     const ui = new ReactUIAdapter();
-    ui.mount(ui.c(itemContainerComponent), ".app");
+    ui.mount(
+      ui.h(ui.c(itemContainerComponent)),
+      document.querySelector(".app")
+    );
     const itemContainerIsOnPage = !!document.querySelector(".item-container");
     expect(itemContainerIsOnPage).toBe(true);
   });
@@ -35,12 +36,10 @@ describe("UI components and adapter", () => {
     const ui = new ReactUIAdapter();
     const board = new Board("uyhjkiuyg");
     const boardC = ui.c(boardComponent);
-    const rootComponent = ui.c(({ h }) => ({
-      render() {
-        return h(boardC, { board }, []);
-      },
-    }));
-    ui.mount(rootComponent, ".app");
+    const rootComponent = ui.c(function ({ h }) {
+      this.render = () => h(boardC, { board }, []);
+    });
+    ui.mount(ui.h(rootComponent), document.querySelector(".app"));
     function check() {
       const numberOfItems = Object.entries(board.items()).length;
       const numItemContainers = document.querySelectorAll(".item-container")

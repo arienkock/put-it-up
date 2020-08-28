@@ -1,12 +1,10 @@
 const { boardComponent } = require("./board-component");
 
-const createRoot = (board) => ({ h, c }) => {
+function RootComponent({ h, c }) {
   const boardC = c(boardComponent);
-  return {
-    render: () => h("div", {}, [h(boardC, { board })]),
-  };
-};
+  this.render = ({ board }) => h("div", {}, [h(boardC, { board })]);
+}
 
 module.exports = {
-  createRoot,
+  RootComponent,
 };

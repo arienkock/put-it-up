@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "test": "jasmine"
+    "test": "jasmine",
+    "test:mutation": "stryker run"
   },
   "repository": {
     "type": "git",
