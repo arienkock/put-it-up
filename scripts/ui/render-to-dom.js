@@ -1,7 +1,7 @@
 // TODO: Move stickies when board shrinks too small for them
 // TODO: Write tests for: all growth and shrink directions, tabbing through inputs
 // TODO: When tabbing through textareas, adjust selection if the blurred sticky was the only one selected, or there was no selection.
-// TODO: Add help texts/instructions
+// TODO: Add help texts/instrxuctions
 // TODO: Select by dragging box area around items
 // TODO: Reimplement drag and drop as custom JS, so you can show a drop-zone, and have the same logic for touch events
 // TODO: On mobile the menu isn't really fixed at the top left

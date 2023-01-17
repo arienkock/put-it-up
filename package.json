@@ -10,17 +10,26 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@babel/core": "^7.9.0",
+    "@babel/core": "^7.13.14",
     "@babel/plugin-proposal-class-properties": "^7.8.3",
-    "@babel/preset-env": "^7.9.0",
-    "@stryker-mutator/core": "^3.2.4",
-    "@stryker-mutator/javascript-mutator": "^3.2.4",
-    "@stryker-mutator/jest-runner": "^3.2.4",
+    "@babel/preset-env": "^7.13.12",
+    "@stryker-mutator/core": "^4.5.1",
+    "@stryker-mutator/javascript-mutator": "^4.0.0",
+    "@stryker-mutator/jest-runner": "^4.5.1",
+    "@stryker-mutator/karma-runner": "^4.5.1",
+    "jasmine-core": "^3.7.1",
     "jest": "^25.2.7",
     "jest-puppeteer": "^4.4.0",
+    "karma": "^6.3.2",
+    "karma-browserify": "^8.0.0",
+    "karma-chrome-launcher": "^3.1.0",
+    "karma-jasmine": "^4.0.1",
     "node-static": "^0.7.11",
     "nyc": "^15.0.1",
     "puppeteer": "^2.1.1",
     "puppeteer-to-istanbul": "./test/puppeteer-to-istanbul"
+  },
+  "dependencies": {
+    "babelify": "^10.0.0"
   }
 }

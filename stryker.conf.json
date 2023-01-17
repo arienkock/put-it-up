@@ -1,13 +1,22 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "mutator": "javascript",
   "packageManager": "npm",
+  "mutate": [
+    "scripts/**/*.js"
+  ],
+  "testRunner": "karma",
+  "karma": {
+    "projectType": "custom",
+    "configFile": "karma.conf.js",
+    "config": {
+      "browsers": ["ChromeHeadless"]
+    }
+  },
+  "timeoutFactor": 4,
   "reporters": [
     "html",
     "clear-text",
     "progress"
   ],
-  "testRunner": "jest",
-  "transpilers": [],
   "coverageAnalysis": "off"
 }
