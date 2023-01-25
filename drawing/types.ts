@@ -4,7 +4,6 @@ export interface BoardRenderer {
 }
 
 export interface DrawingContext {
-    root: Element
 }
 
 export interface BoardDefinition {
@@ -12,13 +11,16 @@ export interface BoardDefinition {
 }
 
 type BoardItem = Note | Path;
-interface Note extends Box, Draggable {
+interface Note extends Box, Draggable, Selectable {
     text: string;
     color: string;
 }
 type Box = Coordinates & Dimensions;
 interface Draggable {
     isBeingDragged: boolean;
+}
+interface Selectable {
+    isSelected: boolean
 }
 interface Coordinates {
     top: number;
@@ -28,7 +30,7 @@ interface Dimensions {
     height: number;
     width: number;
 }
-interface Path {
+interface Path extends Selectable {
     points: AnchorPoints[];
     strokeStyle: string;
     startMarkerStyle: string;
