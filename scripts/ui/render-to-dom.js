@@ -195,6 +195,8 @@ export function mount(board, root, Observer) {
   // Expose board globally for sticky events to access
   window.board = board;
   window.boardRenderCallback = renderBoard;
+  // Expose menu render to allow selection-driven UI updates
+  window.menuRenderCallback = renderMenu;
   
   render();
   return {

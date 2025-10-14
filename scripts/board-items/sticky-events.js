@@ -134,8 +134,14 @@ export function setupStickyEvents(
     if (event.shiftKey) {
       selectedStickies.toggleSelected(id);
       setEditable(false);
+      if (window.menuRenderCallback) {
+        window.menuRenderCallback();
+      }
     } else {
       selectedStickies.replaceSelection(id);
+      if (window.menuRenderCallback) {
+        window.menuRenderCallback();
+      }
     }
   };
 
