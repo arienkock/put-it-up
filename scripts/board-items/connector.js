@@ -42,6 +42,11 @@ export const createRenderer = (
       
       // ordering - connectors should be behind stickies
       const elementsOnBoard = [...domElement.children];
+      const activeElement = document.activeElement;
+      let shouldRefocus = false;
+      if (elementsOnBoard.some((el) => el.contains(activeElement))) {
+        shouldRefocus = true;
+      }
       elementsOnBoard.sort((a, b) => {
         // Connectors first, then stickies (by position)
         const aIsConnector = a.classList.contains("connector-container");
@@ -62,6 +67,9 @@ export const createRenderer = (
         return yDif;
       });
       elementsOnBoard.forEach((el) => domElement.appendChild(el));
+      if (shouldRefocus) {
+        activeElement.focus();
+      }
     }
   };
 
