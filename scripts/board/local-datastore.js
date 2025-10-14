@@ -43,6 +43,12 @@ export class LocalDatastore {
     this.notifyStickyChange(id);
   };
 
+  updateSize = (id, size) => {
+    const sticky = this.getSticky(id);
+    sticky.size = size;
+    this.notifyStickyChange(id);
+  };
+
   setLocation = (id, location) => {
     this.getSticky(id).location = location;
     this.notifyStickyChange(id);

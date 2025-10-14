@@ -35,8 +35,11 @@ export function setStickyStyles(
     container.classList.remove("selected");
   }
   
-  const size = STICKY_SIZE + "px";
-  container.style.width = size;
-  container.style.height = size;
+  const sizeXUnits = (sticky.size && sticky.size.x) || 1;
+  const sizeYUnits = (sticky.size && sticky.size.y) || 1;
+  const widthPx = STICKY_SIZE * sizeXUnits + "px";
+  const heightPx = STICKY_SIZE * sizeYUnits + "px";
+  container.style.width = widthPx;
+  container.style.height = heightPx;
   stickyElement.style.backgroundColor = sticky.color || DEFAULT_STICKY_COLOR;
 }

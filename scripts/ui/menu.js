@@ -1,6 +1,7 @@
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor } from "./color-management.js";
 import { createBoardSizeControls } from "./board-size-controls.js";
+import { createStickySizeControls } from "./sticky-size-controls.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
 
 /**
@@ -125,6 +126,27 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       className: "board-size",
       itemClickHandler: (activatingEvent) => {
         createBoardSizeControls(board, root, activatingEvent);
+      },
+    },
+    {
+      itemLabel: "Sticky size",
+      className: "sticky-size",
+      itemClickHandler: (activatingEvent) => {
+        // Only available when exactly one sticky is selected
+        if (selectedStickies.size() === 1) {
+          let theId;
+          selectedStickies.forEach((id) => (theId = id));
+          createStickySizeControls(board, root, activatingEvent, theId);
+        }
+      },
+      customLabel: (dom, label) => {
+        if (selectedStickies.size() === 1) {
+          dom.textContent = label;
+          dom.disabled = false;
+        } else {
+          dom.textContent = `${label} (select 1)`;
+          dom.disabled = true;
+        }
       },
     },
   ];

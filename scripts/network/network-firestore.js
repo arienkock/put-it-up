@@ -81,6 +81,10 @@ export class FirestoreStore {
     this.stickyRef.doc(id).update({ location });
   };
 
+  updateSize = (id, size) => {
+    this.stickyRef.doc(id).update({ size });
+  };
+
   updateBoard = (board) => {
     this.docRef.update(board);
   };

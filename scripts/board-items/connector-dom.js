@@ -69,19 +69,20 @@ export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickySiz
   const dx = targetX - centerX;
   const dy = targetY - centerY;
   const angle = Math.atan2(dy, dx);
-  
-  // Calculate intersection with the square edge
-  const absTanAngle = Math.abs(Math.tan(angle));
-  
-  if (absTanAngle <= 1) {
-    // Intersects left or right edge
-    const x = centerX + (dx > 0 ? halfSize : -halfSize);
-    const y = centerY + (dx > 0 ? halfSize : -halfSize) * Math.tan(angle);
-    return { x, y };
-  } else {
-    // Intersects top or bottom edge
-    const x = centerX + (dy > 0 ? halfSize : -halfSize) / Math.tan(angle);
-    const y = centerY + (dy > 0 ? halfSize : -halfSize);
-    return { x, y };
-  }
+
+  // Treat stickySize as diameter of the minimal enclosing circle for a rectangle side
+  // Use rectangle intersection to be more accurate when sizes differ in X/Y
+  const halfWidth = halfSize;
+  const halfHeight = halfSize;
+
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  // Scale to rectangle edge
+  const scaleX = absDx !== 0 ? halfWidth / absDx : Infinity;
+  const scaleY = absDy !== 0 ? halfHeight / absDy : Infinity;
+  const scale = Math.min(scaleX, scaleY);
+  const x = centerX + dx * scale;
+  const y = centerY + dy * scale;
+  return { x, y };
 }

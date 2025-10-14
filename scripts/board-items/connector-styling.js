@@ -25,14 +25,19 @@ export function setConnectorStyles(
   const arrowHeadType = connector.arrowHead || "filled";
   
   // Calculate center points of stickies
+  const originSizeX = (originSticky.size && originSticky.size.x) || 1;
+  const originSizeY = (originSticky.size && originSticky.size.y) || 1;
+  const destSizeX = (destSticky.size && destSticky.size.x) || 1;
+  const destSizeY = (destSticky.size && destSticky.size.y) || 1;
+
   const originCenter = {
-    x: originSticky.location.x - boardOrigin.x + stickySize / 2,
-    y: originSticky.location.y - boardOrigin.y + stickySize / 2,
+    x: originSticky.location.x - boardOrigin.x + (stickySize * originSizeX) / 2,
+    y: originSticky.location.y - boardOrigin.y + (stickySize * originSizeY) / 2,
   };
   
   const destCenter = {
-    x: destSticky.location.x - boardOrigin.x + stickySize / 2,
-    y: destSticky.location.y - boardOrigin.y + stickySize / 2,
+    x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
+    y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
   };
   
   // Calculate edge points
@@ -41,7 +46,7 @@ export function setConnectorStyles(
     originCenter.y,
     destCenter.x,
     destCenter.y,
-    stickySize
+    Math.max(stickySize * originSizeX, stickySize * originSizeY)
   );
   
   const endPoint = calculateEdgePoint(
@@ -49,7 +54,7 @@ export function setConnectorStyles(
     destCenter.y,
     originCenter.x,
     originCenter.y,
-    stickySize
+    Math.max(stickySize * destSizeX, stickySize * destSizeY)
   );
   
   // Calculate bounding box for the SVG
