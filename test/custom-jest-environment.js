@@ -1,7 +1,7 @@
 const http = require("http");
 const nodeStatic = require("node-static");
 
-const PuppeteerEnvironment = require("jest-environment-puppeteer");
+const { default: PuppeteerEnvironment } = require("jest-environment-puppeteer");
 
 class CustomEnvironment extends PuppeteerEnvironment {
   constructor(config, ...args) {
