@@ -115,7 +115,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     marker.setAttribute("id", markerId);
     marker.setAttribute("markerWidth", "10");
     marker.setAttribute("markerHeight", "10");
-    marker.setAttribute("refX", "9");
+    marker.setAttribute("refX", "6");
     marker.setAttribute("refY", "3");
     marker.setAttribute("orient", "auto");
     marker.setAttribute("markerUnits", "strokeWidth");
