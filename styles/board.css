@@ -69,6 +69,38 @@ body {
   cursor: crosshair;
 }
 
+.board.click-to-connect,
+.board.click-to-connect .sticky-container {
+  cursor: copy;
+}
+
+.connector-container {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.connector-container.selected .connector-path {
+  stroke: #4646d8;
+  stroke-width: 3;
+}
+
+.connector-svg {
+  pointer-events: none;
+}
+
+.connector-path {
+  pointer-events: visibleStroke;
+  stroke: #444;
+  stroke-width: 4;
+  fill: none;
+  cursor: pointer;
+}
+
+.connector-path:hover {
+  stroke-width: 6;
+}
+
 .board-action-menu {
   position: fixed;
   top: 0;

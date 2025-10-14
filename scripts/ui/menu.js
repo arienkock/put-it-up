@@ -1,18 +1,34 @@
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor } from "./color-management.js";
 import { createBoardSizeControls } from "./board-size-controls.js";
+import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
+
+/**
+ * Changes arrow head type to the next one in rotation
+ * @param {string} currentArrowHead - Current arrow head type
+ * @param {boolean} reverse - Whether to go backwards in the list
+ * @returns {string} Next arrow head type
+ */
+function changeArrowHead(currentArrowHead, reverse = false) {
+  const currentIndex = ARROW_HEAD_TYPES.indexOf(currentArrowHead);
+  const nextIndex = reverse
+    ? (currentIndex - 1 + ARROW_HEAD_TYPES.length) % ARROW_HEAD_TYPES.length
+    : (currentIndex + 1) % ARROW_HEAD_TYPES.length;
+  return ARROW_HEAD_TYPES[nextIndex];
+}
 
 /**
  * Creates and manages the board action menu
  * 
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection management object
+ * @param {Object} selectedStickies - Selection management object for stickies
+ * @param {Object} selectedConnectors - Selection management object for connectors
  * @param {HTMLElement} root - Root element to attach menu to
  * @param {Object} appState - Application state object
  * @param {Function} renderCallback - Callback to trigger re-rendering
  * @returns {Object} Object with menuElement and render function
  */
-export function createMenu(board, selectedStickies, root, appState, renderCallback) {
+export function createMenu(board, selectedStickies, selectedConnectors, root, appState, renderCallback) {
   let menuElement;
 
   const menuItems = [
@@ -21,6 +37,18 @@ export function createMenu(board, selectedStickies, root, appState, renderCallba
       className: "new-sticky",
       itemClickHandler: () => {
         appState.ui.nextClickCreatesNewSticky = true;
+        appState.ui.nextClickCreatesConnector = false;
+        appState.ui.connectorOriginId = null;
+        renderCallback();
+      },
+    },
+    {
+      itemLabel: "New connector",
+      className: "new-connector",
+      itemClickHandler: () => {
+        appState.ui.nextClickCreatesConnector = true;
+        appState.ui.nextClickCreatesNewSticky = false;
+        appState.ui.connectorOriginId = null;
         renderCallback();
       },
     },
@@ -30,6 +58,9 @@ export function createMenu(board, selectedStickies, root, appState, renderCallba
       itemClickHandler: () => {
         selectedStickies.forEach((id) => {
           board.deleteSticky(id);
+        });
+        selectedConnectors.forEach((id) => {
+          board.deleteConnector(id);
         });
       },
     },
@@ -50,6 +81,25 @@ export function createMenu(board, selectedStickies, root, appState, renderCallba
         dom.innerHTML = 'text<div class="color-preview"></div>';
         dom.firstChild.textContent = label;
         dom.lastChild.style.backgroundColor = appState.ui.currentColor;
+      },
+    },
+    {
+      itemLabel: "Arrow head",
+      className: "change-arrow-head",
+      itemClickHandler: (event) => {
+        const newArrowHead = changeArrowHead(
+          appState.ui.currentArrowHead,
+          event.shiftKey
+        );
+        appState.ui.currentArrowHead = newArrowHead;
+        // Update selected connectors
+        selectedConnectors.forEach((id) => {
+          board.updateArrowHead(id, newArrowHead);
+        });
+        renderMenu();
+      },
+      customLabel: (dom, label) => {
+        dom.textContent = `${label}: ${appState.ui.currentArrowHead}`;
       },
     },
     {
