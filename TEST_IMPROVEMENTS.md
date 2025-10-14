@@ -114,7 +114,7 @@ Created comprehensive GitHub Actions workflow (`.github/workflows/pr-checks.yml`
 
 ### Workflow Features
 - **Caching:** Uses npm cache for faster builds
-- **Multiple Node Versions:** Ensures compatibility across versions
+- **Node 18.x:** Tests run on the latest stable LTS version
 - **Comprehensive Logging:** Clear step names and output
 - **Artifact Retention:** Test results kept for 7 days, coverage for 30 days
 - **CI Best Practices:** Puppeteer runs in headless mode with proper sandbox flags
