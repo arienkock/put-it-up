@@ -97,7 +97,8 @@ Created comprehensive GitHub Actions workflow (`.github/workflows/pr-checks.yml`
 
 ### 1. Test Job
 - **Matrix Testing:** Runs tests on Node.js versions 14.x, 16.x, and 18.x
-- **Browser Support:** Installs all required Puppeteer dependencies (libxss1, libx11-xcb1, etc.)
+- **Browser Support:** Uses GitHub-hosted runners with Chrome pre-installed
+- **CI-Optimized Config:** Puppeteer configured with `--no-sandbox` and headless mode for CI
 - **Artifact Upload:** Saves test results and coverage data
 - **Triggers:** Runs on PRs and pushes to main/master branches
 
@@ -116,6 +117,19 @@ Created comprehensive GitHub Actions workflow (`.github/workflows/pr-checks.yml`
 - **Multiple Node Versions:** Ensures compatibility across versions
 - **Comprehensive Logging:** Clear step names and output
 - **Artifact Retention:** Test results kept for 7 days, coverage for 30 days
+- **CI Best Practices:** Puppeteer runs in headless mode with proper sandbox flags
+
+### Puppeteer CI Configuration
+
+The workflow follows best practices for running Puppeteer in CI environments:
+
+1. **No Manual Dependencies:** GitHub-hosted runners come with Chrome pre-installed
+2. **Headless Mode:** Explicitly enabled for faster, more stable tests
+3. **Security Flags:** Uses `--no-sandbox` and `--disable-setuid-sandbox` for containerized environments
+4. **Memory Optimization:** Uses `--disable-dev-shm-usage` to prevent shared memory issues
+5. **GPU Disabled:** Uses `--disable-gpu` as GPU is not needed in CI
+
+These settings are standard for Puppeteer in CI and are used by thousands of projects.
 
 ## Test Statistics
 
@@ -175,6 +189,7 @@ Created comprehensive GitHub Actions workflow (`.github/workflows/pr-checks.yml`
 2. **jest.config.js** - Reduced testTimeout from 95000ms to 60000ms
 3. **test/ui.spec.js** - Removed arbitrary timeout from one test
 4. **.github/workflows/pr-checks.yml** - New comprehensive CI/CD workflow
+5. **jest-puppeteer.config.js** - Added CI-optimized Puppeteer configuration
 
 ## Testing the Changes
 
