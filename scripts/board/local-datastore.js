@@ -57,20 +57,52 @@ export class LocalDatastore {
 
   connect() {}
 
+  getConnector = (id) => {
+    const connector = getAppState().connectors[id];
+    if (!connector) {
+      throw new Error("No such connector id=" + id);
+    }
+    return connector;
+  };
+
+  createConnector = (connector) => {
+    const state = getAppState();
+    const id = ++state.connectorIdGen;
+    state.connectors[id] = connector;
+    this.notifyConnectorChange(id);
+    return id;
+  };
+
+  deleteConnector = (id) => {
+    const state = getAppState();
+    delete state.connectors[id];
+    this.notifyConnectorChange(id);
+  };
+
+  updateArrowHead = (id, arrowHead) => {
+    this.getConnector(id).arrowHead = arrowHead;
+    this.notifyConnectorChange(id);
+  };
+
   getState = () => {
-    const { stickies, idGen } = getAppState();
-    return clone({ stickies, idGen });
+    const { stickies, connectors, idGen, connectorIdGen } = getAppState();
+    return clone({ stickies, connectors, idGen, connectorIdGen });
   };
 
   setState = (state) => {
     const appState = getAppState();
     appState.stickies = state.stickies || {};
+    appState.connectors = state.connectors || {};
     appState.idGen = state.idGen || 0;
+    appState.connectorIdGen = state.connectorIdGen || 0;
     this.notifyBoardChange();
   };
 
   notifyStickyChange = (id) => {
     this.observers.forEach((o) => o.onStickyChange(id));
+  };
+  notifyConnectorChange = (id) => {
+    this.observers.forEach((o) => o.onConnectorChange && o.onConnectorChange(id));
   };
   notifyBoardChange = () => {
     this.observers.forEach((o) => o.onBoardChange());

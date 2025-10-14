@@ -34,8 +34,10 @@ export function setupKeyboardHandlers(
     }
     // Cancel action with Escape
     else if (event.key === "Escape") {
-      if (appState.ui.nextClickCreatesNewSticky) {
+      if (appState.ui.nextClickCreatesNewSticky || appState.ui.nextClickCreatesConnector) {
         appState.ui.nextClickCreatesNewSticky = false;
+        appState.ui.nextClickCreatesConnector = false;
+        appState.ui.connectorOriginId = null;
         callbacks.onCancelAction();
       }
     }
@@ -50,11 +52,17 @@ export function setupKeyboardHandlers(
       appState.ui.currentColor = newColor;
       callbacks.onColorChange();
     }
-    // Delete selected stickies with Delete key
+    // Delete selected stickies and connectors with Delete key
     else if (event.key === "Delete") {
       selectedStickies.forEach((id) => {
         board.deleteSticky(id);
       });
+      // Also delete connectors if they exist
+      if (appState.ui.connectorSelection) {
+        Object.keys(appState.ui.connectorSelection).forEach((id) => {
+          board.deleteConnector(id);
+        });
+      }
     }
     // Move selection with arrow keys
     else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {

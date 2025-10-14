@@ -1,14 +1,16 @@
 import { getAppState } from "../app-state.js";
 
 /**
- * Manages selection state for board items (stickies)
+ * Manages selection state for board items (stickies or connectors)
  * Notifies observers when selection changes
  */
 export class Selection {
-  constructor(observer) {
+  constructor(observer, selectionKey, changeNotifier) {
     this.observer = observer;
     this.appState = getAppState();
-    this.appState.ui.selection = this.appState.ui.selection || {};
+    this.selectionKey = selectionKey || "selection";
+    this.changeNotifier = changeNotifier || "onStickyChange";
+    this.appState.ui[this.selectionKey] = this.appState.ui[this.selectionKey] || {};
   }
 
   /**
@@ -16,10 +18,10 @@ export class Selection {
    * @param {string} id - Item ID to select
    */
   replaceSelection(id) {
-    const prevData = this.appState.ui.selection;
-    this.appState.ui.selection = { [id]: true };
-    Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
-    this.observer.onStickyChange(id);
+    const prevData = this.appState.ui[this.selectionKey];
+    this.appState.ui[this.selectionKey] = { [id]: true };
+    Object.keys(prevData).forEach((id) => this.observer[this.changeNotifier](id));
+    this.observer[this.changeNotifier](id);
   }
 
   /**
@@ -27,22 +29,22 @@ export class Selection {
    * @param {string} id - Item ID to toggle
    */
   toggleSelected(id) {
-    const data = this.appState.ui.selection;
+    const data = this.appState.ui[this.selectionKey];
     if (data[id]) {
       delete data[id];
     } else {
       data[id] = true;
     }
-    this.observer.onStickyChange(id);
+    this.observer[this.changeNotifier](id);
   }
 
   /**
    * Clears all selections
    */
   clearSelection() {
-    const prevData = this.appState.ui.selection;
-    this.appState.ui.selection = {};
-    Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
+    const prevData = this.appState.ui[this.selectionKey];
+    this.appState.ui[this.selectionKey] = {};
+    Object.keys(prevData).forEach((id) => this.observer[this.changeNotifier](id));
   }
 
   /**
@@ -51,7 +53,7 @@ export class Selection {
    * @returns {boolean} True if selected
    */
   isSelected(id) {
-    return this.appState.ui.selection[id];
+    return this.appState.ui[this.selectionKey][id];
   }
 
   /**
@@ -67,7 +69,7 @@ export class Selection {
    * @param {Function} fn - Function to call for each selected ID
    */
   forEach(fn) {
-    return Object.keys(this.appState.ui.selection).forEach(fn);
+    return Object.keys(this.appState.ui[this.selectionKey]).forEach(fn);
   }
 
   /**
@@ -75,6 +77,6 @@ export class Selection {
    * @returns {number} Number of selected items
    */
   size() {
-    return Object.keys(this.appState.ui.selection).length;
+    return Object.keys(this.appState.ui[this.selectionKey]).length;
   }
 }

@@ -27,6 +27,29 @@ export function Board(aStore) {
     return sticky;
   };
 
+  this.getConnector = (id) => store.getConnector(id);
+
+  this.getConnectorSafe = (id) => {
+    let connector;
+    try {
+      connector = this.getConnector(id);
+    } catch (e) {}
+    return connector;
+  };
+
+  this.putConnector = (connector) => {
+    const id = store.createConnector(connector);
+    return id;
+  };
+
+  this.deleteConnector = (id) => {
+    store.deleteConnector(id);
+  };
+
+  this.updateArrowHead = (id, arrowHead) => {
+    store.updateArrowHead(id, arrowHead);
+  };
+
   this.putSticky = (sticky) => {
     const { origin, limit } = getBoardInternal();
     sticky.text = sticky.text || "";
@@ -42,6 +65,13 @@ export function Board(aStore) {
   };
 
   this.deleteSticky = (id) => {
+    // Delete all connectors attached to this sticky
+    const state = store.getState();
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      if (connector.originId == id || connector.destinationId == id) {
+        store.deleteConnector(connectorId);
+      }
+    });
     store.deleteSticky(id);
   };
 

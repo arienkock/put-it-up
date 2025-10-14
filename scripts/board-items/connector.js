@@ -1,0 +1,91 @@
+import { createConnectorDOM, removePx } from "./connector-dom.js";
+import { setConnectorStyles } from "./connector-styling.js";
+
+export const CONNECTOR_TYPE = "application/connector";
+export const DEFAULT_ARROW_HEAD = "filled";
+
+export const createRenderer = (
+  board,
+  domElement,
+  getSelectedConnectors
+) =>
+  function renderConnector(connectorId, connector) {
+    const selectedConnectors = getSelectedConnectors();
+    const shouldDelete = connector === undefined;
+    const connectorElement = getConnectorElement(
+      domElement,
+      connectorId,
+      board,
+      selectedConnectors,
+      shouldDelete
+    );
+    
+    if (connectorElement) {
+      const originSticky = board.getStickySafe(connector.originId);
+      const destSticky = board.getStickySafe(connector.destinationId);
+      
+      // Skip rendering if stickies don't exist (shouldn't happen with cascade delete)
+      if (!originSticky || !destSticky) {
+        return;
+      }
+      
+      const connectorIsSelected = !!selectedConnectors.isSelected(connectorId);
+      setConnectorStyles(
+        connector,
+        connectorElement,
+        originSticky,
+        destSticky,
+        connectorIsSelected,
+        board.getOrigin(),
+        board.getStickyBaseSize()
+      );
+      
+      // ordering - connectors should be behind stickies
+      const elementsOnBoard = [...domElement.children];
+      elementsOnBoard.sort((a, b) => {
+        // Connectors first, then stickies (by position)
+        const aIsConnector = a.classList.contains("connector-container");
+        const bIsConnector = b.classList.contains("connector-container");
+        
+        if (aIsConnector && !bIsConnector) return -1;
+        if (!aIsConnector && bIsConnector) return 1;
+        
+        // Both connectors or both stickies - sort by position
+        let yDif = removePx(a.style.top) - removePx(b.style.top);
+        if (yDif === 0) {
+          const xDif = removePx(a.style.left) - removePx(b.style.left);
+          if (xDif === 0) {
+            return b.className > a.className;
+          }
+          return xDif;
+        }
+        return yDif;
+      });
+      elementsOnBoard.forEach((el) => domElement.appendChild(el));
+    }
+  };
+
+function getConnectorElement(
+  boardElement,
+  id,
+  board,
+  selectedConnectors,
+  shouldDelete = false
+) {
+  const connectorIdClass = "connector-" + id;
+  let container = boardElement[connectorIdClass];
+  
+  if (shouldDelete) {
+    delete boardElement[connectorIdClass];
+    if (container) {
+      boardElement.removeChild(container);
+    }
+    container = undefined;
+  } else if (!container) {
+    container = createConnectorDOM(connectorIdClass, id, selectedConnectors);
+    boardElement[connectorIdClass] = container;
+    boardElement.appendChild(container);
+  }
+  
+  return container;
+}

@@ -59,6 +59,10 @@ import {
   STICKY_TYPE,
   DEFAULT_STICKY_COLOR,
 } from "../board-items/sticky.js";
+import {
+  createRenderer as createConnectorRenderer,
+  DEFAULT_ARROW_HEAD,
+} from "../board-items/connector.js";
 import { getAppState } from "../app-state.js";
 import { Selection } from "./selection.js";
 import { createMenu } from "./menu.js";
@@ -82,12 +86,22 @@ export function mount(board, root, Observer) {
     getSelectedStickies,
     stickiesMovedByDragging
   );
+  const renderConnector = createConnectorRenderer(
+    board,
+    domElement,
+    getSelectedConnectors
+  );
   appState.ui.currentColor = appState.ui.currentColor || colorPalette[0];
-  const observer = new Observer(board, render, renderSticky);
+  appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
+  const observer = new Observer(board, render, renderSticky, renderConnector);
   board.addObserver(observer);
-  const selectedStickies = new Selection(observer);
+  const selectedStickies = new Selection(observer, "selection", "onStickyChange");
+  const selectedConnectors = new Selection(observer, "connectorSelection", "onConnectorChange");
   function getSelectedStickies() {
     return selectedStickies;
+  }
+  function getSelectedConnectors() {
+    return selectedConnectors;
   }
   function renderBoard() {
     if (!board.isReadyForUse()) {
@@ -103,13 +117,23 @@ export function mount(board, root, Observer) {
     } else {
       domElement.classList.remove("click-to-create");
     }
+    
+    if (appState.ui.nextClickCreatesConnector) {
+      domElement.classList.add("click-to-connect");
+    } else {
+      domElement.classList.remove("click-to-connect");
+    }
   }
-  const menu = createMenu(board, selectedStickies, root, appState, render);
+  const menu = createMenu(board, selectedStickies, selectedConnectors, root, appState, render);
   const renderMenu = menu.render;
   function render() {
     renderBoard();
     renderMenu();
-    Object.entries(board.getState().stickies).forEach(([stickyId, sticky]) =>
+    const state = board.getState();
+    Object.entries(state.connectors).forEach(([connectorId, connector]) =>
+      renderConnector(connectorId, connector)
+    );
+    Object.entries(state.stickies).forEach(([stickyId, sticky]) =>
       renderSticky(stickyId, sticky)
     );
   }
@@ -165,8 +189,13 @@ export function mount(board, root, Observer) {
       renderBoard();
     } else if (event.target === domElement && !event.shiftKey) {
       selectedStickies.clearSelection();
+      selectedConnectors.clearSelection();
     }
   };
+  // Expose board globally for sticky events to access
+  window.board = board;
+  window.boardRenderCallback = renderBoard;
+  
   render();
   return {
     render,

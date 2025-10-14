@@ -1,4 +1,4 @@
-export function BufferedObserver(board, render, renderSticky) {
+export function BufferedObserver(board, render, renderSticky, renderConnector) {
   let isRunScheduled = false;
   const tasks = [];
   let tasksScheduledCount = 0;
@@ -29,7 +29,19 @@ export function BufferedObserver(board, render, renderSticky) {
   this.numTasks = () => tasks.length;
 
   this.onStickyChange = (id) => {
-    scheduleRenderTask(() => renderSticky(id, board.getStickySafe(id)));
+    scheduleRenderTask(() => {
+      renderSticky(id, board.getStickySafe(id));
+      // Re-render all connectors connected to this sticky
+      const state = board.getState();
+      Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+        if (connector.originId == id || connector.destinationId == id) {
+          renderConnector(connectorId, connector);
+        }
+      });
+    });
+  };
+  this.onConnectorChange = (id) => {
+    scheduleRenderTask(() => renderConnector(id, board.getConnectorSafe(id)));
   };
   this.onBoardChange = () => {
     scheduleRenderTask(() => render());
