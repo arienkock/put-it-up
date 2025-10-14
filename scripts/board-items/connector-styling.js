@@ -95,11 +95,11 @@ export function setConnectorStyles(
   if (isSelected) {
     container.classList.add("selected");
     container.path.setAttribute("stroke", "#4646d8");
-    container.path.setAttribute("stroke-width", "3");
+    container.path.setAttribute("stroke-width", "4");
   } else {
     container.classList.remove("selected");
     container.path.setAttribute("stroke", "#444");
-    container.path.setAttribute("stroke-width", "2");
+    container.path.setAttribute("stroke-width", "4");
   }
 }
 
@@ -110,16 +110,22 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
   const markerId = `arrowhead-${arrowHeadType}`;
   let marker = defs.querySelector(`#${markerId}`);
   
+  // Filled arrows need slightly different refX to account for no stroke
+  const refX = arrowHeadType === "filled" ? "7" : "6";
+  
   if (!marker) {
     marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
     marker.setAttribute("id", markerId);
     marker.setAttribute("markerWidth", "10");
     marker.setAttribute("markerHeight", "10");
-    marker.setAttribute("refX", "6");
+    marker.setAttribute("refX", refX);
     marker.setAttribute("refY", "3");
     marker.setAttribute("orient", "auto");
     marker.setAttribute("markerUnits", "strokeWidth");
     defs.appendChild(marker);
+  } else {
+    // Update refX in case it changed
+    marker.setAttribute("refX", refX);
   }
   
   // Clear existing content

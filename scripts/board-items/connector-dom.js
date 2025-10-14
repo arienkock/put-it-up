@@ -25,7 +25,7 @@ export function createConnectorDOM(connectorIdClass, id, selectedConnectors) {
   path.classList.add("connector-path");
   path.setAttribute("fill", "none");
   path.setAttribute("stroke", "#444");
-  path.setAttribute("stroke-width", "2");
+  path.setAttribute("stroke-width", "4");
   svg.appendChild(path);
   
   container.appendChild(svg);

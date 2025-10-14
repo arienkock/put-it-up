@@ -82,7 +82,7 @@ body {
 
 .connector-container.selected .connector-path {
   stroke: #4646d8;
-  stroke-width: 3;
+  stroke-width: 4;
 }
 
 .connector-svg {
@@ -98,7 +98,7 @@ body {
 }
 
 .connector-path:hover {
-  stroke-width: 6;
+  stroke-width: 5;
 }
 
 .board-action-menu {
