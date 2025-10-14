@@ -1,6 +1,6 @@
+import { getAppState } from "../app-state.js";
+
 export class FirestoreStore {
-  stickies = {};
-  board = undefined;
   connectCalled = false;
   collectionName = "board-events";
   boardName = "my-board2";
@@ -16,8 +16,9 @@ export class FirestoreStore {
     this.docRef.onSnapshot((documentSnapshot) => {
       this.readyForUse = true;
       const data = documentSnapshot.data();
+      const state = getAppState();
       if (data) {
-        this.board = data;
+        state.board = data;
       }
       this.notifyBoardChange();
     });
@@ -25,10 +26,11 @@ export class FirestoreStore {
     this.stickyRef = this.docRef.collection("stickies");
     this.stickyRef.onSnapshot((querySnapshot) => {
       doBatched(querySnapshot.docChanges(), (change) => {
+        const state = getAppState();
         if (change.type === "added" || change.type === "modified") {
-          this.stickies[change.doc.id] = change.doc.data();
+          state.stickies[change.doc.id] = change.doc.data();
         } else if (change.type === "removed") {
-          delete this.stickies[change.doc.id];
+          delete state.stickies[change.doc.id];
         }
         this.notifyStickyChange(change.doc.id);
       });
@@ -40,15 +42,16 @@ export class FirestoreStore {
   }
 
   getBoard = (defaults) => {
-    if (!this.board) {
-      this.board = defaults;
-      this.docRef.set(this.board);
+    const state = getAppState();
+    if (!state.board) {
+      state.board = defaults;
+      this.docRef.set(state.board);
     }
-    return clone(this.board);
+    return clone(state.board);
   };
 
   getSticky = (id) => {
-    const sticky = this.stickies[id];
+    const sticky = getAppState().stickies[id];
     if (!sticky) {
       throw new Error("No such sticky id=" + id);
     }
@@ -58,7 +61,7 @@ export class FirestoreStore {
   createSticky = (sticky) => {
     const docRef = this.stickyRef.doc();
     docRef.set(sticky, { merge: true });
-    this.stickies[docRef.id] = sticky;
+    getAppState().stickies[docRef.id] = sticky;
     return docRef.id;
   };
 
@@ -81,11 +84,15 @@ export class FirestoreStore {
   updateBoard = (board) => {
     this.docRef.update(board);
   };
-  getState = () => clone({ stickies: this.stickies });
+  getState = () => {
+    const { stickies } = getAppState();
+    return clone({ stickies });
+  };
 
   setState = (state) => {
-    this.stickies = state.stickies;
-    this.idGen = state.idGen;
+    const appState = getAppState();
+    appState.stickies = state.stickies || {};
+    appState.idGen = state.idGen;
     this.notifyBoardChange();
   };
 

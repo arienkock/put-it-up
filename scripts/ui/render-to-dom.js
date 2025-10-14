@@ -59,6 +59,7 @@ import {
   STICKY_TYPE,
   DEFAULT_STICKY_COLOR,
 } from "../board-items/sticky.js";
+import { getAppState } from "../app-state.js";
 
 const zoomScale = [0.3, 0.6, 1];
 export const colorPalette = [
@@ -76,14 +77,16 @@ export function mount(board, root, Observer) {
     '<div class="board-container"><div class="board"></div></div>';
   const boardContainer = root.firstElementChild;
   const domElement = boardContainer.firstElementChild;
-  let stickiesMovedByDragging = [];
+  const appState = getAppState();
+  // Use globally stored UI state
+  let stickiesMovedByDragging = appState.ui.stickiesMovedByDragging;
   const renderSticky = createRenderer(
     board,
     domElement,
     getSelectedStickies,
     stickiesMovedByDragging
   );
-  let currentColor = colorPalette[0];
+  appState.ui.currentColor = appState.ui.currentColor || colorPalette[0];
   const observer = new Observer(board, render, renderSticky);
   board.addObserver(observer);
   const selectedStickies = new Selection(observer);
@@ -94,22 +97,22 @@ export function mount(board, root, Observer) {
     if (!board.isReadyForUse()) {
       return;
     }
-    domElement.boardScale =
-      domElement.boardScale || zoomScale[zoomScale.length - 1];
+    appState.ui.boardScale =
+      appState.ui.boardScale || zoomScale[zoomScale.length - 1];
     const size = board.getBoardSize();
-    root.style.width = size.width * domElement.boardScale + "px";
-    root.style.height = size.height * domElement.boardScale + "px";
+    root.style.width = size.width * appState.ui.boardScale + "px";
+    root.style.height = size.height * appState.ui.boardScale + "px";
     domElement.style.width = size.width + "px";
     domElement.style.height = size.height + "px";
-    boardContainer.style.width = size.width * domElement.boardScale + "px";
-    boardContainer.style.height = size.height * domElement.boardScale + "px";
-    domElement.style.transform = `scale3d(${domElement.boardScale},${domElement.boardScale},1)`;
-    if (domElement.boardScale < 0.5) {
+    boardContainer.style.width = size.width * appState.ui.boardScale + "px";
+    boardContainer.style.height = size.height * appState.ui.boardScale + "px";
+    domElement.style.transform = `scale3d(${appState.ui.boardScale},${appState.ui.boardScale},1)`;
+    if (appState.ui.boardScale < 0.5) {
       domElement.classList.add("sticky-text-hidden");
     } else {
       domElement.classList.remove("sticky-text-hidden");
     }
-    if (nextClickCreatesNewSticky) {
+    if (appState.ui.nextClickCreatesNewSticky) {
       domElement.classList.add("click-to-create");
     } else {
       domElement.classList.remove("click-to-create");
@@ -121,7 +124,7 @@ export function mount(board, root, Observer) {
       itemLabel: "New sticky",
       className: "new-sticky",
       itemClickHandler: () => {
-        nextClickCreatesNewSticky = true;
+        appState.ui.nextClickCreatesNewSticky = true;
         renderBoard();
       },
     },
@@ -143,7 +146,7 @@ export function mount(board, root, Observer) {
       customLabel: (dom, label) => {
         dom.innerHTML = 'text<div class="color-preview"></div>';
         dom.firstChild.textContent = label;
-        dom.lastChild.style.backgroundColor = currentColor;
+        dom.lastChild.style.backgroundColor = appState.ui.currentColor;
       },
     },
     {
@@ -153,10 +156,10 @@ export function mount(board, root, Observer) {
         changeZoomLevel(event.shiftKey);
       },
       customLabel: (dom, label) => {
-        if (!domElement.boardScale) {
+        if (!appState.ui.boardScale) {
           dom.textContent = label;
         } else {
-          dom.textContent = `${label} (${(domElement.boardScale * 100).toFixed(
+          dom.textContent = `${label} (${(appState.ui.boardScale * 100).toFixed(
             0
           )}%)`;
         }
@@ -251,8 +254,8 @@ export function mount(board, root, Observer) {
       event.dataTransfer.getData(STICKY_TYPE)
     );
     const offset = {
-      x: (x - dragStart.x) / domElement.boardScale,
-      y: (y - dragStart.y) / domElement.boardScale,
+      x: (x - dragStart.x) / appState.ui.boardScale,
+      y: (y - dragStart.y) / appState.ui.boardScale,
     };
     Object.keys(originalLocations).forEach((id) => {
       const originalLocation = originalLocations[id];
@@ -260,7 +263,7 @@ export function mount(board, root, Observer) {
         x: originalLocation.x + offset.x,
         y: originalLocation.y + offset.y,
       };
-      stickiesMovedByDragging.push(id);
+      appState.ui.stickiesMovedByDragging.push(id);
       board.moveSticky(id, newLocation);
     });
   };
@@ -276,9 +279,9 @@ export function mount(board, root, Observer) {
   }
   function changeZoomLevel(reverse) {
     let index =
-      zoomScale.findIndex((v) => v === domElement.boardScale) +
+      zoomScale.findIndex((v) => v === appState.ui.boardScale) +
       (reverse ? -1 : 1);
-    domElement.boardScale = zoomScale[index % zoomScale.length];
+    appState.ui.boardScale = zoomScale[index % zoomScale.length];
     render(board, domElement);
   }
   function changeColor(reverse) {
@@ -287,7 +290,7 @@ export function mount(board, root, Observer) {
         nextColor();
       }
       selectedStickies.forEach((id) => {
-        board.updateColor(id, currentColor);
+        board.updateColor(id, appState.ui.currentColor);
       });
     } else {
       nextColor();
@@ -295,12 +298,12 @@ export function mount(board, root, Observer) {
     function nextColor() {
       const delta = reverse ? -1 : 1;
       let index =
-        (colorPalette.findIndex((c) => c === currentColor) + delta) %
+        (colorPalette.findIndex((c) => c === appState.ui.currentColor) + delta) %
         colorPalette.length;
       if (index < 0) {
         index += colorPalette.length;
       }
-      currentColor = colorPalette[index];
+      appState.ui.currentColor = colorPalette[index];
       renderMenu();
     }
     function multipleSelectedHaveSameColor() {
@@ -309,7 +312,7 @@ export function mount(board, root, Observer) {
     }
     function singleSelectedHasCurrentColor() {
       const colors = selectedColors();
-      return colors.length === 1 && colors[0] === currentColor;
+      return colors.length === 1 && colors[0] === appState.ui.currentColor;
     }
     function selectedColors() {
       const colors = [];
@@ -317,16 +320,16 @@ export function mount(board, root, Observer) {
       return colors;
     }
   }
-  let nextClickCreatesNewSticky = false;
+  // keyboard and global UI state
   document.body.onkeydown = (event) => {
     if (event.key === "o" || event.key === "O") {
       changeZoomLevel(event.shiftKey);
     } else if (event.key === "n") {
-      nextClickCreatesNewSticky = true;
+      appState.ui.nextClickCreatesNewSticky = true;
       renderBoard();
     } else if (event.key === "Escape") {
-      if (nextClickCreatesNewSticky) {
-        nextClickCreatesNewSticky = false;
+      if (appState.ui.nextClickCreatesNewSticky) {
+        appState.ui.nextClickCreatesNewSticky = false;
         renderBoard();
       }
     } else if (event.key === "c" || event.key === "C") {
@@ -357,21 +360,21 @@ export function mount(board, root, Observer) {
     }
   };
   domElement.onclick = (event) => {
-    if (nextClickCreatesNewSticky) {
-      nextClickCreatesNewSticky = false;
+    if (appState.ui.nextClickCreatesNewSticky) {
+      appState.ui.nextClickCreatesNewSticky = false;
       const rect = domElement.getBoundingClientRect();
       const origin = board.getOrigin();
       const location = {
         x:
-          (event.clientX - rect.left - 50 * domElement.boardScale) /
-            domElement.boardScale +
+          (event.clientX - rect.left - 50 * appState.ui.boardScale) /
+            appState.ui.boardScale +
           origin.x,
         y:
-          (event.clientY - rect.top - 50 * domElement.boardScale) /
-            domElement.boardScale +
+          (event.clientY - rect.top - 50 * appState.ui.boardScale) /
+            appState.ui.boardScale +
           origin.y,
       };
-      const id = board.putSticky({ color: currentColor, location });
+      const id = board.putSticky({ color: appState.ui.currentColor, location });
       selectedStickies.replaceSelection(id);
       renderBoard();
     } else if (event.target === domElement && !event.shiftKey) {
@@ -386,41 +389,43 @@ export function mount(board, root, Observer) {
 }
 
 class Selection {
-  data = {};
   // TODO: Make this generally observable, make an StickyObservable mixin.
   constructor(observer) {
     this.observer = observer;
+    this.appState = getAppState();
+    this.appState.ui.selection = this.appState.ui.selection || {};
   }
   replaceSelection(id) {
-    const prevData = this.data;
-    this.data = { [id]: true };
+    const prevData = this.appState.ui.selection;
+    this.appState.ui.selection = { [id]: true };
     Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
     this.observer.onStickyChange(id);
   }
   toggleSelected(id) {
-    if (this.data[id]) {
-      delete this.data[id];
+    const data = this.appState.ui.selection;
+    if (data[id]) {
+      delete data[id];
     } else {
-      this.data[id] = true;
+      data[id] = true;
     }
     this.observer.onStickyChange(id);
   }
   clearSelection() {
-    const prevData = this.data;
-    this.data = {};
+    const prevData = this.appState.ui.selection;
+    this.appState.ui.selection = {};
     Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
   }
   isSelected(id) {
-    return this.data[id];
+    return this.appState.ui.selection[id];
   }
   hasItems() {
     return this.size() !== 0;
   }
   forEach(fn) {
-    return Object.keys(this.data).forEach(fn);
+    return Object.keys(this.appState.ui.selection).forEach(fn);
   }
   size() {
-    return Object.keys(this.data).length;
+    return Object.keys(this.appState.ui.selection).length;
   }
 }
 

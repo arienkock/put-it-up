@@ -1,18 +1,18 @@
+import { getAppState } from "../app-state.js";
+
 export class LocalDatastore {
-  stickies = {};
-  board = undefined;
-  idGen = 0;
   observers = [];
 
   isReadyForUse = () => true;
 
   getBoard = (defaults) => {
-    this.board = this.board || defaults;
-    return clone(this.board);
+    const state = getAppState();
+    state.board = state.board || defaults;
+    return clone(state.board);
   };
 
   getSticky = (id) => {
-    const sticky = this.stickies[id];
+    const sticky = getAppState().stickies[id];
     if (!sticky) {
       throw new Error("No such sticky id=" + id);
     }
@@ -20,13 +20,16 @@ export class LocalDatastore {
   };
 
   createSticky = (sticky) => {
-    this.stickies[++this.idGen] = sticky;
-    this.notifyStickyChange(this.idGen);
-    return this.idGen;
+    const state = getAppState();
+    const id = ++state.idGen;
+    state.stickies[id] = sticky;
+    this.notifyStickyChange(id);
+    return id;
   };
 
   deleteSticky = (id) => {
-    delete this.stickies[id];
+    const state = getAppState();
+    delete state.stickies[id];
     this.notifyStickyChange(id);
   };
 
@@ -46,17 +49,23 @@ export class LocalDatastore {
   };
 
   updateBoard = (board) => {
-    Object.assign(this.board, board);
+    const state = getAppState();
+    state.board = state.board || {};
+    Object.assign(state.board, board);
     this.notifyBoardChange();
   };
 
   connect() {}
 
-  getState = () => clone({ stickies: this.stickies, idGen: this.idGen });
+  getState = () => {
+    const { stickies, idGen } = getAppState();
+    return clone({ stickies, idGen });
+  };
 
   setState = (state) => {
-    this.stickies = state.stickies;
-    this.idGen = state.idGen;
+    const appState = getAppState();
+    appState.stickies = state.stickies || {};
+    appState.idGen = state.idGen || 0;
     this.notifyBoardChange();
   };
 
