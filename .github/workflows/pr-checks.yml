@@ -1,0 +1,157 @@
+name: PR Code Checks
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install system dependencies for Puppeteer
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxss1 \
+          libx11-xcb1 \
+          libxcomposite1 \
+          libxcursor1 \
+          libxdamage1 \
+          libxi6 \
+          libxtst6 \
+          libnss3 \
+          libcups2 \
+          libxrandr2 \
+          libasound2 \
+          libatk1.0-0 \
+          libatk-bridge2.0-0 \
+          libpangocairo-1.0-0 \
+          libgtk-3-0 \
+          libgbm1
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests
+      run: npm test
+      env:
+        CI: true
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.node-version }}
+        path: |
+          .nyc_output/
+          coverage/
+        retention-days: 7
+  
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check for lint script
+      id: check-lint
+      run: |
+        if grep -q '"lint"' package.json; then
+          echo "has_lint=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_lint=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Run linter
+      if: steps.check-lint.outputs.has_lint == 'true'
+      run: npm run lint
+      continue-on-error: true
+    
+    - name: Check code formatting
+      if: steps.check-lint.outputs.has_lint == 'false'
+      run: |
+        echo "No lint script found in package.json"
+        echo "Consider adding ESLint or another linting tool"
+      continue-on-error: true
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+    
+    - name: Install system dependencies for Puppeteer
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxss1 \
+          libx11-xcb1 \
+          libxcomposite1 \
+          libxcursor1 \
+          libxdamage1 \
+          libxi6 \
+          libxtst6 \
+          libnss3 \
+          libcups2 \
+          libxrandr2 \
+          libasound2 \
+          libatk1.0-0 \
+          libatk-bridge2.0-0 \
+          libpangocairo-1.0-0 \
+          libgtk-3-0 \
+          libgbm1
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests with coverage
+      run: npm test -- --coverage
+      env:
+        CI: true
+      continue-on-error: true
+    
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: |
+          coverage/
+          .nyc_output/
+        retention-days: 30

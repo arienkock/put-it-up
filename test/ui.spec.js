@@ -95,7 +95,7 @@ describe("Board UI", () => {
       clickLocation,
       await withinGridUnit()
     );
-  }, 999999);
+  });
 
   it("moves with drag and drop", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
