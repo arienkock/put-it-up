@@ -1,6 +1,16 @@
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
 
+// Mock window global for unit tests that import modules directly
+if (typeof window === 'undefined') {
+  global.window = {};
+}
+
+beforeEach(() => {
+  // Reset window.appState before each test
+  window.appState = undefined;
+});
+
 it("snapping", () => {
   const b = new Board(new LocalDatastore());
   let id = b.putSticky({ text: "hey", location: { x: 28, y: 28 } });
