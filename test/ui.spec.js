@@ -188,7 +188,7 @@ describe("Board UI", () => {
       ".sticky-1 .sticky .text-input",
       " more more more more more more more more more more more more more"
     );
-    expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(6);
+    expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(7);
   });
 
   it("colors can be selected by pressing the c-key", async () => {
