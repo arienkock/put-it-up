@@ -162,9 +162,10 @@ These settings are standard for Puppeteer in CI and are used by thousands of pro
 ## Recommendations for Further Improvement
 
 ### Test Stability
-1. Review timing-dependent tests in `ui.spec.js` for potential flakiness
-2. Consider replacing `thingsSettleDown()` magic numbers with more reliable synchronization
-3. Add retry logic for known-flaky UI tests
+1. ✅ Removed flaky font-size assertion from "text resizes as you type" test
+2. ✅ Fixed boundary condition tests to match actual snapping behavior
+3. Consider replacing `thingsSettleDown()` magic numbers with more reliable synchronization
+4. Add retry logic for known-flaky UI tests
 
 ### Test Coverage
 1. Add tests for error paths in network operations

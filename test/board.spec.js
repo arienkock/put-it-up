@@ -123,10 +123,11 @@ it("handles empty text gracefully", () => {
 
 it("snaps negative coordinates to origin", () => {
   const b = new Board(new LocalDatastore());
+  const origin = b.getOrigin();
   const id = b.putSticky({ text: "negative", location: { x: -100, y: -100 } });
   const location = b.getStickyLocation(id);
-  expect(location.x).toBeGreaterThanOrEqual(0);
-  expect(location.y).toBeGreaterThanOrEqual(0);
+  expect(location.x).toBe(origin.x);
+  expect(location.y).toBe(origin.y);
 });
 
 it("snaps coordinates exceeding board limits", () => {
@@ -222,6 +223,8 @@ describe("LocalDatastore", () => {
       onStickyChange: jest.fn(),
       onBoardChange: jest.fn(),
     };
+    // Initialize board first
+    store.getBoard({ origin: { x: 0, y: 0 }, limit: { x: 2400, y: 1350 } });
     store.addObserver(observer);
     
     store.updateBoard({ origin: { x: 10, y: 10 }, limit: { x: 2500, y: 1450 } });
