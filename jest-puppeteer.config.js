@@ -1,15 +1,16 @@
+const isCI = process.env.CI === 'true';
+
 module.exports = {
   launch: {
     // dumpio: true,
-    // headless: false,
+    headless: true,
     // devtools: true,
     // slowMo: 20,
-    headless: true,
-    args: [
+    args: isCI ? [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-    ],
+    ] : [],
   },
 };
