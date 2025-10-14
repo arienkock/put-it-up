@@ -8,21 +8,24 @@
   </head>
   <body>
     <div class="app"></div>
-    <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-app.js"></script>
+    <!-- <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-firestore.js"></script>
     <script>
       let params = new URLSearchParams(window.location.search);
       let firebaseConfig = JSON.parse(params.get("firebaseConfig"));
       firebase.initializeApp(firebaseConfig);
-    </script>
+    </script> -->
     <script type="module">
       import { mount } from "./scripts/ui/render-to-dom.js";
       import { Board } from "./scripts/board/board.js";
       import { getAppState } from "./scripts/app-state.js";
       import { BufferedObserver } from "./scripts/ui/buffered-observer.js";
-      import { FirestoreStore } from "./scripts/network/network-firestore.js";
+      // import { FirestoreStore } from "./scripts/network/network-firestore.js";
+      import { LocalDatastore } from "./scripts/board/local-datastore.js";
+      
 
-      const store = new FirestoreStore();
+      // const store = new FirestoreStore();
+      const store = new LocalDatastore();
       const board = new Board(store);
       mount(board, document.querySelector(".app"), BufferedObserver);
       store.connect();
