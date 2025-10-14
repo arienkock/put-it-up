@@ -60,17 +60,13 @@ import {
   DEFAULT_STICKY_COLOR,
 } from "../board-items/sticky.js";
 import { getAppState } from "../app-state.js";
+import { Selection } from "./selection.js";
+import { createMenu } from "./menu.js";
+import { setupKeyboardHandlers } from "./keyboard-handlers.js";
+import { zoomScale, applyZoomToBoard } from "./zoom.js";
+import { colorPalette } from "./color-management.js";
 
-const zoomScale = [0.3, 0.6, 1];
-export const colorPalette = [
-  "khaki",
-  "#F8C471",
-  "#AED6F1",
-  "#82E0AA",
-  "#F1948A",
-  "#C39BD3",
-];
-Object.freeze(colorPalette);
+export { colorPalette };
 
 export function mount(board, root, Observer) {
   root.innerHTML =
@@ -100,142 +96,16 @@ export function mount(board, root, Observer) {
     appState.ui.boardScale =
       appState.ui.boardScale || zoomScale[zoomScale.length - 1];
     const size = board.getBoardSize();
-    root.style.width = size.width * appState.ui.boardScale + "px";
-    root.style.height = size.height * appState.ui.boardScale + "px";
-    domElement.style.width = size.width + "px";
-    domElement.style.height = size.height + "px";
-    boardContainer.style.width = size.width * appState.ui.boardScale + "px";
-    boardContainer.style.height = size.height * appState.ui.boardScale + "px";
-    domElement.style.transform = `scale3d(${appState.ui.boardScale},${appState.ui.boardScale},1)`;
-    if (appState.ui.boardScale < 0.5) {
-      domElement.classList.add("sticky-text-hidden");
-    } else {
-      domElement.classList.remove("sticky-text-hidden");
-    }
+    applyZoomToBoard(domElement, boardContainer, root, appState.ui.boardScale, size);
+    
     if (appState.ui.nextClickCreatesNewSticky) {
       domElement.classList.add("click-to-create");
     } else {
       domElement.classList.remove("click-to-create");
     }
   }
-  let menuElement;
-  const menuItems = [
-    {
-      itemLabel: "New sticky",
-      className: "new-sticky",
-      itemClickHandler: () => {
-        appState.ui.nextClickCreatesNewSticky = true;
-        renderBoard();
-      },
-    },
-    {
-      itemLabel: "Delete",
-      className: "delete",
-      itemClickHandler: () => {
-        selectedStickies.forEach((id) => {
-          board.deleteSticky(id);
-        });
-      },
-    },
-    {
-      itemLabel: "Color",
-      className: "change-color",
-      itemClickHandler: (event) => {
-        changeColor(event.shiftKey);
-      },
-      customLabel: (dom, label) => {
-        dom.innerHTML = 'text<div class="color-preview"></div>';
-        dom.firstChild.textContent = label;
-        dom.lastChild.style.backgroundColor = appState.ui.currentColor;
-      },
-    },
-    {
-      itemLabel: "Zoom",
-      className: "change-zoom",
-      itemClickHandler: (event) => {
-        changeZoomLevel(event.shiftKey);
-      },
-      customLabel: (dom, label) => {
-        if (!appState.ui.boardScale) {
-          dom.textContent = label;
-        } else {
-          dom.textContent = `${label} (${(appState.ui.boardScale * 100).toFixed(
-            0
-          )}%)`;
-        }
-      },
-    },
-    {
-      itemLabel: "Board size",
-      className: "board-size",
-      itemClickHandler: (activatingEvent) => {
-        const container = document.createElement("div");
-        if (!document.querySelector(".sizing-controls")) {
-          container.innerHTML = `<div class="sizing-controls">
-            <label for="Grow">Grow</label>
-            <input type="radio" id="Grow" name="size-change-direction" value="Grow" checked="checked">
-            &nbsp;&nbsp;
-            <label for="Shrink">Shrink</label>
-            <input type="radio" id="Shrink" name="size-change-direction" value="Shrink">
-            <div class="grow-arrows">
-              <button class="top">${arrowHTML()}</button>
-              <button class="right">${arrowHTML()}</button>
-              <button class="bottom">${arrowHTML()}</button>
-              <button class="left">${arrowHTML()}</button>
-            </div>
-          </div>`;
-          const sizingControls = container.firstElementChild;
-          sizingControls.addEventListener("click", (event) => {
-            const isGrow = sizingControls.querySelector("#Grow").checked;
-            const side = ["top", "right", "bottom", "left"].find((side) =>
-              isChildOf(event.target, side)
-            );
-            board.changeSize(isGrow, side);
-          });
-          document.body.addEventListener("click", (event) => {
-            if (
-              event !== activatingEvent &&
-              !isChildOf(event.target, "sizing-controls")
-            ) {
-              sizingControls.remove();
-            }
-          });
-          document.body.addEventListener("keydown", (event) => {
-            if (event.key === "Escape") {
-              sizingControls.remove();
-            }
-          });
-          root.appendChild(sizingControls);
-        }
-      },
-    },
-  ];
-  function renderMenu() {
-    if (!menuElement) {
-      menuElement = document.createElement("div");
-      menuElement.classList.add("board-action-menu");
-      menuItems.forEach((item) => {
-        menuElement.appendChild(renderMenuButton(item));
-      });
-      root.insertAdjacentElement("afterbegin", menuElement);
-      function renderMenuButton(item) {
-        const itemElement = document.createElement("button");
-        item.dom = itemElement;
-        itemElement.onclick = item.itemClickHandler;
-        itemElement.classList.add(item.className);
-        return itemElement;
-      }
-    }
-    menuItems.forEach(({ itemLabel, customLabel, dom }) => {
-      if (itemLabel) {
-        if (customLabel) {
-          customLabel(dom, itemLabel);
-        } else {
-          dom.textContent = itemLabel;
-        }
-      }
-    });
-  }
+  const menu = createMenu(board, selectedStickies, root, appState, render);
+  const renderMenu = menu.render;
   function render() {
     renderBoard();
     renderMenu();
@@ -267,98 +137,14 @@ export function mount(board, root, Observer) {
       board.moveSticky(id, newLocation);
     });
   };
-  function moveSelection(dx, dy) {
-    selectedStickies.forEach((sid) => {
-      const originalLocation = board.getStickyLocation(sid);
-      const newLocation = {
-        x: originalLocation.x + dx,
-        y: originalLocation.y + dy,
-      };
-      board.moveSticky(sid, newLocation);
-    });
-  }
-  function changeZoomLevel(reverse) {
-    let index =
-      zoomScale.findIndex((v) => v === appState.ui.boardScale) +
-      (reverse ? -1 : 1);
-    appState.ui.boardScale = zoomScale[index % zoomScale.length];
-    render(board, domElement);
-  }
-  function changeColor(reverse) {
-    if (selectedStickies.hasItems()) {
-      if (multipleSelectedHaveSameColor() || singleSelectedHasCurrentColor()) {
-        nextColor();
-      }
-      selectedStickies.forEach((id) => {
-        board.updateColor(id, appState.ui.currentColor);
-      });
-    } else {
-      nextColor();
-    }
-    function nextColor() {
-      const delta = reverse ? -1 : 1;
-      let index =
-        (colorPalette.findIndex((c) => c === appState.ui.currentColor) + delta) %
-        colorPalette.length;
-      if (index < 0) {
-        index += colorPalette.length;
-      }
-      appState.ui.currentColor = colorPalette[index];
-      renderMenu();
-    }
-    function multipleSelectedHaveSameColor() {
-      const colors = selectedColors();
-      return colors.length > 1 && colors.every((color) => color === colors[0]);
-    }
-    function singleSelectedHasCurrentColor() {
-      const colors = selectedColors();
-      return colors.length === 1 && colors[0] === appState.ui.currentColor;
-    }
-    function selectedColors() {
-      const colors = [];
-      selectedStickies.forEach((id) => colors.push(board.getSticky(id).color));
-      return colors;
-    }
-  }
-  // keyboard and global UI state
-  document.body.onkeydown = (event) => {
-    if (event.key === "o" || event.key === "O") {
-      changeZoomLevel(event.shiftKey);
-    } else if (event.key === "n") {
-      appState.ui.nextClickCreatesNewSticky = true;
-      renderBoard();
-    } else if (event.key === "Escape") {
-      if (appState.ui.nextClickCreatesNewSticky) {
-        appState.ui.nextClickCreatesNewSticky = false;
-        renderBoard();
-      }
-    } else if (event.key === "c" || event.key === "C") {
-      changeColor(event.shiftKey);
-    } else if (event.key === "Delete") {
-      selectedStickies.forEach((id) => {
-        board.deleteSticky(id);
-      });
-    } else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {
-      event.preventDefault();
-      const gridUnit = board.getGridUnit();
-      switch (event.key) {
-        case "ArrowUp":
-          moveSelection(0, -gridUnit);
-          break;
-        case "ArrowDown":
-          moveSelection(0, gridUnit);
-          break;
-        case "ArrowLeft":
-          moveSelection(-gridUnit, 0);
-          break;
-        case "ArrowRight":
-          moveSelection(gridUnit, 0);
-          break;
-        default:
-          break;
-      }
-    }
-  };
+
+  // Set up keyboard handlers
+  setupKeyboardHandlers(board, selectedStickies, appState, {
+    onZoomChange: () => render(),
+    onColorChange: () => renderMenu(),
+    onNewStickyRequest: () => renderBoard(),
+    onCancelAction: () => renderBoard(),
+  });
   domElement.onclick = (event) => {
     if (appState.ui.nextClickCreatesNewSticky) {
       appState.ui.nextClickCreatesNewSticky = false;
@@ -386,60 +172,4 @@ export function mount(board, root, Observer) {
     render,
     observer,
   };
-}
-
-class Selection {
-  // TODO: Make this generally observable, make an StickyObservable mixin.
-  constructor(observer) {
-    this.observer = observer;
-    this.appState = getAppState();
-    this.appState.ui.selection = this.appState.ui.selection || {};
-  }
-  replaceSelection(id) {
-    const prevData = this.appState.ui.selection;
-    this.appState.ui.selection = { [id]: true };
-    Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
-    this.observer.onStickyChange(id);
-  }
-  toggleSelected(id) {
-    const data = this.appState.ui.selection;
-    if (data[id]) {
-      delete data[id];
-    } else {
-      data[id] = true;
-    }
-    this.observer.onStickyChange(id);
-  }
-  clearSelection() {
-    const prevData = this.appState.ui.selection;
-    this.appState.ui.selection = {};
-    Object.keys(prevData).forEach((id) => this.observer.onStickyChange(id));
-  }
-  isSelected(id) {
-    return this.appState.ui.selection[id];
-  }
-  hasItems() {
-    return this.size() !== 0;
-  }
-  forEach(fn) {
-    return Object.keys(this.appState.ui.selection).forEach(fn);
-  }
-  size() {
-    return Object.keys(this.appState.ui.selection).length;
-  }
-}
-
-function arrowHTML() {
-  return `
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="Layer_1" x="0px" y="0px" width="25px" height="25px" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve">
-  <path class="svg-arrow" fill="#010101" d="M128,256L384,0v128L256,256l128,128v128L128,256z"/>
-</svg>
-  `;
-}
-
-function isChildOf(element, cn) {
-  if (element.classList && element.classList.contains(cn)) {
-    return true;
-  }
-  return element.parentNode && isChildOf(element.parentNode, cn);
 }
