@@ -190,6 +190,8 @@ export function mount(board, root, Observer) {
     } else if (event.target === domElement && !event.shiftKey) {
       selectedStickies.clearSelection();
       selectedConnectors.clearSelection();
+      // Ensure menu reflects empty selection state
+      renderMenu();
     }
   };
   // Expose board globally for sticky events to access
