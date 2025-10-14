@@ -190,6 +190,8 @@ These settings are standard for Puppeteer in CI and are used by thousands of pro
 3. **test/ui.spec.js** - Removed arbitrary timeout from one test
 4. **.github/workflows/pr-checks.yml** - New comprehensive CI/CD workflow
 5. **jest-puppeteer.config.js** - Added CI-optimized Puppeteer configuration
+6. **test/pages/starter-content.html** - Fixed import paths for LocalDatastore and render-to-dom
+7. **test/pages/empty-scrollable.html** - Fixed import paths for LocalDatastore and render-to-dom
 
 ## Testing the Changes
 
