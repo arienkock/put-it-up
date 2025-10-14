@@ -35,7 +35,7 @@ export const createRenderer = (
     // if container is falsy, then sticky was deleted
     if (container) {
       const shouldAnimateMove = !stickiesMovedByDragging.includes(stickyId);
-      const stickyIsSelected = selectedStickies.data[stickyId];
+      const stickyIsSelected = !!selectedStickies.isSelected(stickyId);
       setStickyStyles(
         sticky,
         container,
@@ -44,9 +44,11 @@ export const createRenderer = (
         board.getOrigin()
       );
       if (!shouldAnimateMove) {
-        stickiesMovedByDragging = stickiesMovedByDragging.filter(
-          (sid) => sid !== stickyId
-        );
+        // mutate the global UI array instead of reassigning the local variable
+        const index = stickiesMovedByDragging.indexOf(stickyId);
+        if (index >= 0) {
+          stickiesMovedByDragging.splice(index, 1);
+        }
       }
       const textarea = container.inputElement;
       if (textarea.value !== sticky.text) {

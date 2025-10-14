@@ -120,7 +120,8 @@ export function Board(aStore) {
   this.addObserver = store.addObserver;
 
   this.moveInBounds = ({ origin, limit }) => {
-    Object.entries(store.stickies).forEach(([id, sticky]) => {
+    const state = store.getState();
+    Object.entries(state.stickies).forEach(([id, sticky]) => {
       const oldLocation = sticky.location;
       const newLocation = snapLocation(oldLocation, gridSize, origin, limit);
       let outOfBounds =
