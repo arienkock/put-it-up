@@ -1,19 +1,10 @@
-export const STICKY_TYPE = "application/sticky";
-export const DEFAULT_STICKY_COLOR = "khaki";
+import { fitContentInSticky } from "./text-fitting.js";
+import { createStickyContainerDOM, removePx } from "./sticky-dom.js";
+import { setStickyStyles, DEFAULT_STICKY_COLOR } from "./sticky-styling.js";
+import { setupStickyEvents } from "./sticky-events.js";
 
-/*
-Things that need to move out:
- - domElement
- - selectedStickies
- - stickiesMovedByDragging
- - styles that determine positioning on the board
- - ondragstart
- - sorting
-Things that need to be in:
- - text fitting
- - creating dom inside the container
- - 
-*/
+export const STICKY_TYPE = "application/sticky";
+export { DEFAULT_STICKY_COLOR };
 
 export const createRenderer = (
   board,
@@ -100,154 +91,13 @@ function getStickyElement(
     container = createStickyContainerDOM(stickyIdClass);
     boardElement[stickyIdClass] = container;
     boardElement.appendChild(container);
-    container.ondragstart = (event) => {
-      const { pageX: x, pageY: y } = event;
-      let originalLocations = {};
-      if (selectedStickies.isSelected(id)) {
-        selectedStickies.forEach((sid) => {
-          originalLocations[sid] = getStickyLocation(sid);
-        });
-      } else {
-        originalLocations[id] = getStickyLocation(id);
-      }
-      event.dataTransfer.setData(
-        STICKY_TYPE,
-        JSON.stringify({ originalLocations, dragStart: { x, y } })
-      );
-      moveToFront();
-    };
-    function setEditable(enabled) {
-      if (enabled) {
-        container.classList.add("editing");
-        container.inputElement.focus();
-      } else {
-        container.classList.remove("editing");
-        container.inputElement.blur();
-      }
-    }
-    container.inputElement.onblur = () => setEditable(false);
-    container.inputElement.onfocus = () => {
-      setEditable(true);
-      moveToFront();
-    };
-    container.inputElement.onkeydown = (event) => {
-      event.stopPropagation();
-      if (event.key === "Escape") {
-        setEditable(false);
-      }
-    };
-    container.inputElement.onkeyup = (event) => {
-      event.stopPropagation();
-      if (event.keyCode === 13) {
-        setEditable(false);
-      }
-    };
-    container.inputElement.onclick = (event) => {
-      if (event.shiftKey) {
-        event.preventDefault();
-      }
-    };
-    function moveToFront() {
-      [...container.parentNode.children].forEach((el) => {
-        if (el === container) {
-          el.style.zIndex = "1";
-        } else {
-          el.style.zIndex = "unset";
-        }
-      });
-    }
-    container.inputElement.addEventListener("input", () => {
-      moveToFront();
-      container.inputElement.value = updateTextById(
-        id,
-        container.inputElement.value
-      );
-      fitContentInSticky(container.sticky, container.inputElement);
-    });
-    container.sticky.onclick = (event) => {
-      moveToFront();
-      if (event.shiftKey) {
-        selectedStickies.toggleSelected(id);
-        setEditable(false);
-      } else {
-        selectedStickies.replaceSelection(id);
-      }
-    };
-    moveToFront();
+    setupStickyEvents(
+      container,
+      id,
+      updateTextById,
+      getStickyLocation,
+      selectedStickies
+    );
   }
   return container;
-}
-function fitContentInSticky(sticky, textarea) {
-  textarea.rows = 1;
-  textarea.style.fontSize = "1.5rem";
-  let fontSize = 1.5;
-  const wordMatches = textarea.value.match(/\S+/g);
-  const numWords = wordMatches === null ? 0 : wordMatches.length;
-  while (true) {
-    let adjusted = false;
-    if (textarea.rows < numWords || textarea.value.length > 15) {
-      if (
-        textarea.scrollHeight > textarea.clientHeight &&
-        sticky.scrollHeight <= sticky.clientHeight
-      ) {
-        textarea.rows++;
-        adjusted = true;
-      }
-      if (sticky.scrollHeight > sticky.clientHeight) {
-        textarea.rows--;
-        adjusted = false;
-      }
-    }
-    if (textarea.scrollHeight > textarea.clientHeight && fontSize > 0.5) {
-      adjusted = true;
-      fontSize -= 0.1;
-      textarea.style.fontSize = fontSize + "rem";
-    }
-    if (!adjusted) {
-      break;
-    }
-  }
-}
-
-function setStickyStyles(
-  sticky,
-  container,
-  animateMove,
-  stickyIsSelected,
-  origin
-) {
-  const { sticky: stickyElement } = container;
-  if (animateMove) {
-    container.classList.add("animate-move");
-  } else {
-    container.classList.remove("animate-move");
-  }
-  container.style.left = sticky.location.x - origin.x + "px";
-  container.style.top = sticky.location.y - origin.y + "px";
-  if (stickyIsSelected) {
-    container.classList.add("selected");
-    container.style.backgroundColor = "";
-  } else {
-    container.classList.remove("selected");
-  }
-  const size = 100 + "px";
-  container.style.width = size;
-  container.style.height = size;
-  stickyElement.style.backgroundColor = sticky.color || DEFAULT_STICKY_COLOR;
-}
-
-function createStickyContainerDOM(stickyIdClass) {
-  const container = document.createElement("div");
-  container.innerHTML =
-    '<div class="sticky"><textarea class="text-input text" rows="1"></textarea></div>';
-  container.classList.add(stickyIdClass);
-  container.inputElement = container.querySelector(".text-input");
-  container.sticky = container.querySelector(".sticky");
-  container.classList.add("sticky-container");
-  container.sticky.setAttribute("draggable", "true");
-  return container;
-}
-
-function removePx(s) {
-  return +s.substring(0, s.length - 2);
 }
