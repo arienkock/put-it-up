@@ -209,6 +209,15 @@ export function setupConnectorEvents(boardElement, board, selectedConnectors, re
     const connectorContainer = event.target.closest('.connector-container');
     if (!connectorContainer) return;
     
+    // Only allow selection when clicking on the actual path or marker elements
+    const isPathClick = event.target.classList.contains('connector-path');
+    const isMarkerClick = event.target.closest('marker') !== null;
+    const isHandleClick = event.target.classList.contains('connector-handle');
+    
+    if (!isPathClick && !isMarkerClick && !isHandleClick) {
+      return; // Don't select if clicking on empty SVG area
+    }
+    
     event.stopPropagation();
     
     // Extract connector ID from class name

@@ -132,7 +132,7 @@ export function setConnectorStyles(
   container.style.top = (minY - padding) + "px";
   container.style.width = width + "px";
   container.style.height = height + "px";
-  container.style.pointerEvents = "auto";
+  container.style.pointerEvents = "none"; // Don't capture clicks on empty areas
   
   // Set SVG dimensions
   const svg = container.svg;
@@ -153,6 +153,7 @@ export function setConnectorStyles(
   const pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
   container.path.setAttribute("d", pathData);
   container.path.setAttribute("marker-end", `url(#arrowhead-${arrowHeadType})`);
+  container.path.style.pointerEvents = "all"; // Allow clicks on the path
   
   // Add handles for unconnected endpoints
   updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected);
@@ -250,6 +251,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", "none");
+      path.style.pointerEvents = "all"; // Allow clicks on marker path
       marker.appendChild(path);
       break;
     }
@@ -260,6 +262,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", "white");
+      path.style.pointerEvents = "all"; // Allow clicks on marker path
       marker.appendChild(path);
       break;
     }
@@ -270,6 +273,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", color);
+      path.style.pointerEvents = "all"; // Allow clicks on marker path
       marker.appendChild(path);
       break;
     }
