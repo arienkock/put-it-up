@@ -163,6 +163,26 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       });
       root.insertAdjacentElement("afterbegin", menuElement);
 
+      // Handle viewport zoom to keep menu visible and at constant size
+      if (window.visualViewport) {
+        function updateMenuForViewportZoom() {
+          const viewport = window.visualViewport;
+          const scale = viewport.scale;
+          
+          // Counter-scale to keep menu at constant visual size
+          menuElement.style.transform = `scale(${1 / scale})`;
+          menuElement.style.transformOrigin = 'top left';
+          
+          // Adjust position to account for viewport offset
+          menuElement.style.left = `${viewport.offsetLeft}px`;
+          menuElement.style.top = `${viewport.offsetTop}px`;
+        }
+        
+        window.visualViewport.addEventListener('resize', updateMenuForViewportZoom);
+        window.visualViewport.addEventListener('scroll', updateMenuForViewportZoom);
+        updateMenuForViewportZoom(); // Initial call
+      }
+
       function renderMenuButton(item) {
         const itemElement = document.createElement("button");
         item.dom = itemElement;

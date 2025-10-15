@@ -108,6 +108,7 @@ body {
   display: flex;
   margin: 1em;
   z-index: 1;
+  will-change: transform; /* Optimize for frequent transforms */
 }
 
 .board-action-menu button {
