@@ -63,8 +63,10 @@ export function setConnectorStyles(
   const maxX = Math.max(startPoint.x, endPoint.x);
   const maxY = Math.max(startPoint.y, endPoint.y);
   
-  // Add padding for arrow head
-  const padding = 20;
+  // Add padding for arrow head (accounts for stroke width scaling of marker)
+  const strokeWidth = 4;
+  const markerExtension = 6 * strokeWidth; // marker extends 6 units * stroke width
+  const padding = Math.max(50, markerExtension + 10); // ensure enough space for marker
   const width = maxX - minX + padding * 2;
   const height = maxY - minY + padding * 2;
   
@@ -116,21 +118,17 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
   let marker = defs.querySelector(`#${markerId}`);
   
   // Filled arrows need slightly different refX to account for no stroke
-  const refX = arrowHeadType === "filled" ? "7" : "6";
   
   if (!marker) {
     marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
     marker.setAttribute("id", markerId);
     marker.setAttribute("markerWidth", "10");
     marker.setAttribute("markerHeight", "10");
-    marker.setAttribute("refX", refX);
-    marker.setAttribute("refY", "3");
+    marker.setAttribute("refX", "6");
+    marker.setAttribute("refY", "5");
     marker.setAttribute("orient", "auto");
     marker.setAttribute("markerUnits", "strokeWidth");
     defs.appendChild(marker);
-  } else {
-    // Update refX in case it changed
-    marker.setAttribute("refX", refX);
   }
   
   // Clear existing content
@@ -143,7 +141,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     case "line": {
       // Simple line arrow (two lines forming a V)
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", "M 0 0 L 6 3 L 0 6");
+      path.setAttribute("d", "M 0 2 L 6 5 L 0 8");
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", "none");
@@ -153,7 +151,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     case "hollow": {
       // Hollow triangle
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", "M 0 0 L 6 3 L 0 6 Z");
+      path.setAttribute("d", "M 0 2 L 6 5 L 0 8 Z");
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", "white");
@@ -163,7 +161,9 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     case "filled": {
       // Filled triangle
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", "M 0 0 L 6 3 L 0 6 Z");
+      path.setAttribute("d", "M 0 2 L 6 5 L 0 8 Z");
+      path.setAttribute("stroke", color);
+      path.setAttribute("stroke-width", "1.5");
       path.setAttribute("fill", color);
       marker.appendChild(path);
       break;
