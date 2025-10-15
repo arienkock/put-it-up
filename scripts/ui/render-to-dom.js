@@ -63,6 +63,7 @@ import {
   createRenderer as createConnectorRenderer,
   DEFAULT_ARROW_HEAD,
 } from "../board-items/connector.js";
+import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { getAppState } from "../app-state.js";
 import { Selection } from "./selection.js";
 import { createMenu } from "./menu.js";
@@ -169,6 +170,9 @@ export function mount(board, root, Observer) {
     onNewStickyRequest: () => renderBoard(),
     onCancelAction: () => renderBoard(),
   });
+
+  // Set up connector events
+  const connectorEvents = setupConnectorEvents(domElement, board, selectedConnectors, render);
   domElement.onclick = (event) => {
     if (appState.ui.nextClickCreatesNewSticky) {
       appState.ui.nextClickCreatesNewSticky = false;
@@ -187,7 +191,7 @@ export function mount(board, root, Observer) {
       const id = board.putSticky({ color: appState.ui.currentColor, location });
       selectedStickies.replaceSelection(id);
       renderBoard();
-    } else if (event.target === domElement && !event.shiftKey) {
+    } else if (event.target === domElement && !event.shiftKey && !appState.ui.nextClickCreatesConnector) {
       selectedStickies.clearSelection();
       selectedConnectors.clearSelection();
       // Ensure menu reflects empty selection state

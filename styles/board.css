@@ -74,6 +74,11 @@ body {
   cursor: copy;
 }
 
+.board.click-to-connect .sticky-container:hover {
+  background-color: rgba(70, 70, 216, 0.2);
+  border-radius: 5px;
+}
+
 .connector-container {
   position: absolute;
   pointer-events: none;
@@ -99,6 +104,20 @@ body {
 
 .connector-path:hover {
   stroke-width: 5;
+}
+
+.connector-handle {
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.connector-handle:hover {
+  r: 6;
+  stroke-width: 3;
+}
+
+.connector-handle:active {
+  cursor: grabbing;
 }
 
 .board-action-menu {

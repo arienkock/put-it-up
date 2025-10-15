@@ -33,16 +33,6 @@ export function createConnectorDOM(connectorIdClass, id, selectedConnectors) {
   container.path = path;
   container.defs = defs;
   
-  // Click handler for selection
-  container.onclick = (event) => {
-    event.stopPropagation();
-    if (event.shiftKey) {
-      selectedConnectors.toggleSelected(id);
-    } else {
-      selectedConnectors.replaceSelection(id);
-    }
-  };
-  
   return container;
 }
 

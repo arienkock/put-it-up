@@ -21,11 +21,11 @@ export const createRenderer = (
     );
     
     if (connectorElement) {
-      const originSticky = board.getStickySafe(connector.originId);
-      const destSticky = board.getStickySafe(connector.destinationId);
+      const originSticky = connector.originId ? board.getStickySafe(connector.originId) : null;
+      const destSticky = connector.destinationId ? board.getStickySafe(connector.destinationId) : null;
       
-      // Skip rendering if stickies don't exist (shouldn't happen with cascade delete)
-      if (!originSticky || !destSticky) {
+      // Skip rendering if both endpoints are unconnected and have no points
+      if (!originSticky && !destSticky && !connector.originPoint && !connector.destinationPoint) {
         return;
       }
       

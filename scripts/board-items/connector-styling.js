@@ -7,8 +7,8 @@ export const ARROW_HEAD_TYPES = ["line", "hollow", "filled"];
  * 
  * @param {Object} connector - Connector data object
  * @param {HTMLElement} container - Container element
- * @param {Object} originSticky - Origin sticky data
- * @param {Object} destSticky - Destination sticky data
+ * @param {Object} originSticky - Origin sticky data (null if unconnected)
+ * @param {Object} destSticky - Destination sticky data (null if unconnected)
  * @param {boolean} isSelected - Whether connector is selected
  * @param {Object} boardOrigin - Board origin {x, y}
  * @param {number} stickySize - Base size of stickies
@@ -24,38 +24,93 @@ export function setConnectorStyles(
 ) {
   const arrowHeadType = connector.arrowHead || "filled";
   
-  // Calculate center points of stickies
-  const originSizeX = (originSticky.size && originSticky.size.x) || 1;
-  const originSizeY = (originSticky.size && originSticky.size.y) || 1;
-  const destSizeX = (destSticky.size && destSticky.size.x) || 1;
-  const destSizeY = (destSticky.size && destSticky.size.y) || 1;
-
-  const originCenter = {
-    x: originSticky.location.x - boardOrigin.x + (stickySize * originSizeX) / 2,
-    y: originSticky.location.y - boardOrigin.y + (stickySize * originSizeY) / 2,
-  };
+  // Calculate start and end points
+  let startPoint, endPoint;
   
-  const destCenter = {
-    x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
-    y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
-  };
-  
-  // Calculate edge points
-  const startPoint = calculateEdgePoint(
-    originCenter.x,
-    originCenter.y,
-    destCenter.x,
-    destCenter.y,
-    Math.max(stickySize * originSizeX, stickySize * originSizeY)
-  );
-  
-  const endPoint = calculateEdgePoint(
-    destCenter.x,
-    destCenter.y,
-    originCenter.x,
-    originCenter.y,
-    Math.max(stickySize * destSizeX, stickySize * destSizeY)
-  );
+  if (originSticky) {
+    // Connected to sticky
+    const originSizeX = (originSticky.size && originSticky.size.x) || 1;
+    const originSizeY = (originSticky.size && originSticky.size.y) || 1;
+    const originCenter = {
+      x: originSticky.location.x - boardOrigin.x + (stickySize * originSizeX) / 2,
+      y: originSticky.location.y - boardOrigin.y + (stickySize * originSizeY) / 2,
+    };
+    
+    if (destSticky) {
+      // Both endpoints connected to stickies
+      const destSizeX = (destSticky.size && destSticky.size.x) || 1;
+      const destSizeY = (destSticky.size && destSticky.size.y) || 1;
+      const destCenter = {
+        x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
+        y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
+      };
+      
+      startPoint = calculateEdgePoint(
+        originCenter.x,
+        originCenter.y,
+        destCenter.x,
+        destCenter.y,
+        Math.max(stickySize * originSizeX, stickySize * originSizeY)
+      );
+      
+      endPoint = calculateEdgePoint(
+        destCenter.x,
+        destCenter.y,
+        originCenter.x,
+        originCenter.y,
+        Math.max(stickySize * destSizeX, stickySize * destSizeY)
+      );
+    } else {
+      // Origin connected, destination unconnected
+      const destPoint = connector.destinationPoint || { x: 0, y: 0 };
+      const destCenter = {
+        x: destPoint.x - boardOrigin.x,
+        y: destPoint.y - boardOrigin.y,
+      };
+      
+      startPoint = calculateEdgePoint(
+        originCenter.x,
+        originCenter.y,
+        destCenter.x,
+        destCenter.y,
+        Math.max(stickySize * originSizeX, stickySize * originSizeY)
+      );
+      
+      endPoint = destCenter;
+    }
+  } else {
+    // Origin unconnected
+    const originPoint = connector.originPoint || { x: 0, y: 0 };
+    startPoint = {
+      x: originPoint.x - boardOrigin.x,
+      y: originPoint.y - boardOrigin.y,
+    };
+    
+    if (destSticky) {
+      // Origin unconnected, destination connected
+      const destSizeX = (destSticky.size && destSticky.size.x) || 1;
+      const destSizeY = (destSticky.size && destSticky.size.y) || 1;
+      const destCenter = {
+        x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
+        y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
+      };
+      
+      endPoint = calculateEdgePoint(
+        destCenter.x,
+        destCenter.y,
+        startPoint.x,
+        startPoint.y,
+        Math.max(stickySize * destSizeX, stickySize * destSizeY)
+      );
+    } else {
+      // Both endpoints unconnected
+      const destPoint = connector.destinationPoint || { x: 0, y: 0 };
+      endPoint = {
+        x: destPoint.x - boardOrigin.x,
+        y: destPoint.y - boardOrigin.y,
+      };
+    }
+  }
   
   // Calculate bounding box for the SVG
   const minX = Math.min(startPoint.x, endPoint.x);
@@ -63,10 +118,11 @@ export function setConnectorStyles(
   const maxX = Math.max(startPoint.x, endPoint.x);
   const maxY = Math.max(startPoint.y, endPoint.y);
   
-  // Add padding for arrow head (accounts for stroke width scaling of marker)
+  // Add padding for arrow head and handles
   const strokeWidth = 4;
-  const markerExtension = 6 * strokeWidth; // marker extends 6 units * stroke width
-  const padding = Math.max(50, markerExtension + 10); // ensure enough space for marker
+  const markerExtension = 6 * strokeWidth;
+  const handleSize = 8; // Size of unconnected endpoint handles
+  const padding = Math.max(50, markerExtension + handleSize + 10);
   const width = maxX - minX + padding * 2;
   const height = maxY - minY + padding * 2;
   
@@ -98,6 +154,9 @@ export function setConnectorStyles(
   container.path.setAttribute("d", pathData);
   container.path.setAttribute("marker-end", `url(#arrowhead-${arrowHeadType})`);
   
+  // Add handles for unconnected endpoints
+  updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected);
+  
   // Update selection state
   if (isSelected) {
     container.classList.add("selected");
@@ -107,6 +166,52 @@ export function setConnectorStyles(
     container.classList.remove("selected");
     container.path.setAttribute("stroke", "#444");
     container.path.setAttribute("stroke-width", "4");
+  }
+}
+
+/**
+ * Updates or creates handles for unconnected connector endpoints
+ */
+function updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected) {
+  const svg = container.svg;
+  
+  // Remove existing handles
+  const existingHandles = svg.querySelectorAll('.connector-handle');
+  existingHandles.forEach(handle => handle.remove());
+  
+  const handleSize = 8;
+  const color = isSelected ? "#4646d8" : "#444";
+  
+  // Add handle for unconnected origin
+  if (!connector.originId) {
+    const originHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    originHandle.classList.add("connector-handle");
+    originHandle.classList.add("origin-handle");
+    originHandle.setAttribute("cx", localStartX);
+    originHandle.setAttribute("cy", localStartY);
+    originHandle.setAttribute("r", handleSize / 2);
+    originHandle.setAttribute("fill", color);
+    originHandle.setAttribute("stroke", "white");
+    originHandle.setAttribute("stroke-width", "2");
+    originHandle.setAttribute("cursor", "grab");
+    originHandle.style.pointerEvents = "all";
+    svg.appendChild(originHandle);
+  }
+  
+  // Add handle for unconnected destination
+  if (!connector.destinationId) {
+    const destHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    destHandle.classList.add("connector-handle");
+    destHandle.classList.add("destination-handle");
+    destHandle.setAttribute("cx", localEndX);
+    destHandle.setAttribute("cy", localEndY);
+    destHandle.setAttribute("r", handleSize / 2);
+    destHandle.setAttribute("fill", color);
+    destHandle.setAttribute("stroke", "white");
+    destHandle.setAttribute("stroke-width", "2");
+    destHandle.setAttribute("cursor", "grab");
+    destHandle.style.pointerEvents = "all";
+    svg.appendChild(destHandle);
   }
 }
 

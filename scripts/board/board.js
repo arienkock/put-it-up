@@ -50,6 +50,10 @@ export function Board(aStore) {
     store.updateArrowHead(id, arrowHead);
   };
 
+  this.updateConnectorEndpoint = (id, endpoint, data) => {
+    store.updateConnectorEndpoint(id, endpoint, data);
+  };
+
   this.putSticky = (sticky) => {
     const { origin, limit } = getBoardInternal();
     sticky.text = sticky.text || "";

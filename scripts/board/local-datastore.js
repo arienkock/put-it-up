@@ -90,6 +90,28 @@ export class LocalDatastore {
     this.notifyConnectorChange(id);
   };
 
+  updateConnectorEndpoint = (id, endpoint, data) => {
+    const connector = this.getConnector(id);
+    if (endpoint === 'origin') {
+      if (data.stickyId) {
+        connector.originId = data.stickyId;
+        delete connector.originPoint;
+      } else if (data.point) {
+        connector.originPoint = data.point;
+        delete connector.originId;
+      }
+    } else if (endpoint === 'destination') {
+      if (data.stickyId) {
+        connector.destinationId = data.stickyId;
+        delete connector.destinationPoint;
+      } else if (data.point) {
+        connector.destinationPoint = data.point;
+        delete connector.destinationId;
+      }
+    }
+    this.notifyConnectorChange(id);
+  };
+
   getState = () => {
     const { stickies, connectors, idGen, connectorIdGen } = getAppState();
     return clone({ stickies, connectors, idGen, connectorIdGen });

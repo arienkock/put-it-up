@@ -22,6 +22,12 @@ export function setupStickyEvents(
   const appState = getAppState();
   // Drag start event
   container.ondragstart = (event) => {
+    // Don't start sticky drag if we're in connector creation mode
+    if (appState.ui.nextClickCreatesConnector) {
+      event.preventDefault();
+      return;
+    }
+    
     const { pageX: x, pageY: y } = event;
     let originalLocations = {};
     
@@ -102,34 +108,12 @@ export function setupStickyEvents(
 
   // Sticky click event for selection
   container.sticky.onclick = (event) => {
-    moveToFront();
-    
-    // Handle connector creation
+    // Don't handle sticky selection if we're in connector creation mode
     if (appState.ui.nextClickCreatesConnector) {
-      event.stopPropagation();
-      if (!appState.ui.connectorOriginId) {
-        // First click - set origin
-        appState.ui.connectorOriginId = id;
-        selectedStickies.replaceSelection(id);
-        // Keep connector mode active for second click
-      } else if (appState.ui.connectorOriginId !== id) {
-        // Second click - create connector
-        const board = window.board; // Access board from global (set in mount)
-        board.putConnector({
-          originId: appState.ui.connectorOriginId,
-          destinationId: id,
-          arrowHead: appState.ui.currentArrowHead,
-        });
-        appState.ui.nextClickCreatesConnector = false;
-        appState.ui.connectorOriginId = null;
-        selectedStickies.clearSelection();
-        // Trigger re-render to update cursor
-        if (window.boardRenderCallback) {
-          window.boardRenderCallback();
-        }
-      }
       return;
     }
+    
+    moveToFront();
     
     if (event.shiftKey) {
       selectedStickies.toggleSelected(id);
