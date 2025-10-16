@@ -173,9 +173,19 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
           menuElement.style.transform = `scale(${1 / scale})`;
           menuElement.style.transformOrigin = 'top left';
           
-          // Adjust position to account for viewport offset
-          menuElement.style.left = `${viewport.offsetLeft}px`;
-          menuElement.style.top = `${viewport.offsetTop}px`;
+          // Position menu with consistent margin (equivalent to 1em)
+          // Since we're counter-scaling, we need to scale the margin inversely
+          const baseMargin = 16; // 1em equivalent in pixels
+          const scaledMargin = baseMargin / scale;
+          
+          menuElement.style.left = `${viewport.offsetLeft + scaledMargin}px`;
+          menuElement.style.top = `${viewport.offsetTop + scaledMargin}px`;
+          
+          // Compensate for button margins that get scaled down
+          // Each button has margin: 0.15em, so we need to expand the menu width
+          const buttonMargin = parseFloat(getComputedStyle(menuElement.querySelector('button')).marginLeft) || 2.4; // 0.15em ≈ 2.4px
+          const marginCompensation = buttonMargin * (menuItems.length - 1) * (scale - 1);
+          menuElement.style.width = `calc(100% + ${marginCompensation}px)`;
         }
         
         window.visualViewport.addEventListener('resize', updateMenuForViewportZoom);

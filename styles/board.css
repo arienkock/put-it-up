@@ -125,7 +125,7 @@ body {
   top: 0;
   left: 0;
   display: flex;
-  margin: 1em;
+  margin: 0; /* Remove margin - handled in JS */
   z-index: 1;
   will-change: transform; /* Optimize for frequent transforms */
 }
