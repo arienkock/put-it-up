@@ -35,6 +35,19 @@ export class FirestoreStore {
         this.notifyStickyChange(change.doc.id);
       });
     });
+
+    this.connectorRef = this.docRef.collection("connectors");
+    this.connectorRef.onSnapshot((querySnapshot) => {
+      doBatched(querySnapshot.docChanges(), (change) => {
+        const state = getAppState();
+        if (change.type === "added" || change.type === "modified") {
+          state.connectors[change.doc.id] = change.doc.data();
+        } else if (change.type === "removed") {
+          delete state.connectors[change.doc.id];
+        }
+        this.notifyConnectorChange(change.doc.id);
+      });
+    });
   }
 
   isReadyForUse() {
@@ -88,20 +101,71 @@ export class FirestoreStore {
   updateBoard = (board) => {
     this.docRef.update(board);
   };
+
+  getConnector = (id) => {
+    const connector = getAppState().connectors[id];
+    if (!connector) {
+      throw new Error("No such connector id=" + id);
+    }
+    return connector;
+  };
+
+  createConnector = (connector) => {
+    const docRef = this.connectorRef.doc();
+    docRef.set(connector, { merge: true });
+    getAppState().connectors[docRef.id] = connector;
+    return docRef.id;
+  };
+
+  deleteConnector = (id) => {
+    this.connectorRef.doc(id).delete();
+  };
+
+  updateArrowHead = (id, arrowHead) => {
+    this.connectorRef.doc(id).update({ arrowHead });
+  };
+
+  updateConnectorEndpoint = (id, endpoint, data) => {
+    const updateData = {};
+    if (endpoint === 'origin') {
+      if (data.stickyId) {
+        updateData.originId = data.stickyId;
+        updateData.originPoint = null;
+      } else if (data.point) {
+        updateData.originPoint = data.point;
+        updateData.originId = null;
+      }
+    } else if (endpoint === 'destination') {
+      if (data.stickyId) {
+        updateData.destinationId = data.stickyId;
+        updateData.destinationPoint = null;
+      } else if (data.point) {
+        updateData.destinationPoint = data.point;
+        updateData.destinationId = null;
+      }
+    }
+    this.connectorRef.doc(id).update(updateData);
+  };
+
   getState = () => {
-    const { stickies } = getAppState();
-    return clone({ stickies });
+    const { stickies, connectors, idGen, connectorIdGen } = getAppState();
+    return clone({ stickies, connectors, idGen, connectorIdGen });
   };
 
   setState = (state) => {
     const appState = getAppState();
     appState.stickies = state.stickies || {};
-    appState.idGen = state.idGen;
+    appState.connectors = state.connectors || {};
+    appState.idGen = state.idGen || 0;
+    appState.connectorIdGen = state.connectorIdGen || 0;
     this.notifyBoardChange();
   };
 
   notifyStickyChange = (id) => {
     this.observers.forEach((o) => o.onStickyChange(id));
+  };
+  notifyConnectorChange = (id) => {
+    this.observers.forEach((o) => o.onConnectorChange && o.onConnectorChange(id));
   };
   notifyBoardChange = () => {
     this.observers.forEach((o) => o.onBoardChange());
