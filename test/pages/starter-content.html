@@ -19,7 +19,8 @@
       const { observer } = mount(
         board,
         document.querySelector(".app"),
-        BufferedObserver
+        BufferedObserver,
+        store
       );
       store.connect();
       window.board = board;

@@ -64,7 +64,6 @@ import {
   DEFAULT_ARROW_HEAD,
 } from "../board-items/connector.js";
 import { setupConnectorEvents } from "../board-items/connector-events.js";
-import { getAppState } from "../app-state.js";
 import { Selection } from "./selection.js";
 import { createMenu } from "./menu.js";
 import { setupKeyboardHandlers } from "./keyboard-handlers.js";
@@ -73,19 +72,20 @@ import { colorPalette } from "./color-management.js";
 
 export { colorPalette };
 
-export function mount(board, root, Observer) {
+export function mount(board, root, Observer, store) {
   root.innerHTML =
     '<div class="board-container"><div class="board"></div></div>';
   const boardContainer = root.firstElementChild;
   const domElement = boardContainer.firstElementChild;
-  const appState = getAppState();
+  const appState = store.getAppState();
   // Use globally stored UI state
   let stickiesMovedByDragging = appState.ui.stickiesMovedByDragging;
   const renderSticky = createRenderer(
     board,
     domElement,
     getSelectedStickies,
-    stickiesMovedByDragging
+    stickiesMovedByDragging,
+    store
   );
   const renderConnector = createConnectorRenderer(
     board,
@@ -96,8 +96,8 @@ export function mount(board, root, Observer) {
   appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
   const observer = new Observer(board, render, renderSticky, renderConnector);
   board.addObserver(observer);
-  const selectedStickies = new Selection(observer, "selection", "onStickyChange");
-  const selectedConnectors = new Selection(observer, "connectorSelection", "onConnectorChange");
+  const selectedStickies = new Selection(observer, "selection", "onStickyChange", store);
+  const selectedConnectors = new Selection(observer, "connectorSelection", "onConnectorChange", store);
   function getSelectedStickies() {
     return selectedStickies;
   }
@@ -172,7 +172,7 @@ export function mount(board, root, Observer) {
   });
 
   // Set up connector events
-  const connectorEvents = setupConnectorEvents(domElement, board, selectedConnectors, render);
+  const connectorEvents = setupConnectorEvents(domElement, board, selectedConnectors, render, store);
   domElement.onclick = (event) => {
     if (appState.ui.nextClickCreatesNewSticky) {
       appState.ui.nextClickCreatesNewSticky = false;

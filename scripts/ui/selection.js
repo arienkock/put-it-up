@@ -1,16 +1,15 @@
-import { getAppState } from "../app-state.js";
-
 /**
  * Manages selection state for board items (stickies or connectors)
  * Notifies observers when selection changes
  */
 export class Selection {
-  constructor(observer, selectionKey, changeNotifier) {
+  constructor(observer, selectionKey, changeNotifier, store) {
     this.observer = observer;
-    this.appState = getAppState();
+    this.store = store;
     this.selectionKey = selectionKey || "selection";
     this.changeNotifier = changeNotifier || "onStickyChange";
-    this.appState.ui[this.selectionKey] = this.appState.ui[this.selectionKey] || {};
+    const appState = this.store.getAppState();
+    appState.ui[this.selectionKey] = appState.ui[this.selectionKey] || {};
   }
 
   /**
@@ -18,8 +17,9 @@ export class Selection {
    * @param {string} id - Item ID to select
    */
   replaceSelection(id) {
-    const prevData = this.appState.ui[this.selectionKey];
-    this.appState.ui[this.selectionKey] = { [id]: true };
+    const appState = this.store.getAppState();
+    const prevData = appState.ui[this.selectionKey];
+    appState.ui[this.selectionKey] = { [id]: true };
     Object.keys(prevData).forEach((id) => this.observer[this.changeNotifier](id));
     this.observer[this.changeNotifier](id);
   }
@@ -29,7 +29,8 @@ export class Selection {
    * @param {string} id - Item ID to toggle
    */
   toggleSelected(id) {
-    const data = this.appState.ui[this.selectionKey];
+    const appState = this.store.getAppState();
+    const data = appState.ui[this.selectionKey];
     if (data[id]) {
       delete data[id];
     } else {
@@ -42,8 +43,9 @@ export class Selection {
    * Clears all selections
    */
   clearSelection() {
-    const prevData = this.appState.ui[this.selectionKey];
-    this.appState.ui[this.selectionKey] = {};
+    const appState = this.store.getAppState();
+    const prevData = appState.ui[this.selectionKey];
+    appState.ui[this.selectionKey] = {};
     Object.keys(prevData).forEach((id) => this.observer[this.changeNotifier](id));
   }
 
@@ -53,7 +55,8 @@ export class Selection {
    * @returns {boolean} True if selected
    */
   isSelected(id) {
-    return this.appState.ui[this.selectionKey][id];
+    const appState = this.store.getAppState();
+    return appState.ui[this.selectionKey][id];
   }
 
   /**
@@ -69,7 +72,8 @@ export class Selection {
    * @param {Function} fn - Function to call for each selected ID
    */
   forEach(fn) {
-    return Object.keys(this.appState.ui[this.selectionKey]).forEach(fn);
+    const appState = this.store.getAppState();
+    return Object.keys(appState.ui[this.selectionKey]).forEach(fn);
   }
 
   /**
@@ -77,6 +81,7 @@ export class Selection {
    * @returns {number} Number of selected items
    */
   size() {
-    return Object.keys(this.appState.ui[this.selectionKey]).length;
+    const appState = this.store.getAppState();
+    return Object.keys(appState.ui[this.selectionKey]).length;
   }
 }

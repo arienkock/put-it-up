@@ -138,6 +138,10 @@ export class LocalDatastore {
   addObserver = (observer) => {
     this.observers.push(observer);
   };
+
+  getAppState = () => {
+    return getAppState();
+  };
 }
 
 function clone(data) {

@@ -1,6 +1,5 @@
 import { fitContentInSticky } from "./text-fitting.js";
 import { STICKY_TYPE } from "./sticky.js";
-import { getAppState } from "../app-state.js";
 
 /**
  * Sets up all event handlers for a sticky note
@@ -10,6 +9,7 @@ import { getAppState } from "../app-state.js";
  * @param {Function} updateTextById - Function to update sticky text
  * @param {Function} getStickyLocation - Function to get sticky location
  * @param {Object} selectedStickies - Selection management object
+ * @param {Object} store - Store instance for state access
  * @returns {Object} Object with cleanup functions if needed
  */
 export function setupStickyEvents(
@@ -17,9 +17,10 @@ export function setupStickyEvents(
   id,
   updateTextById,
   getStickyLocation,
-  selectedStickies
+  selectedStickies,
+  store
 ) {
-  const appState = getAppState();
+  const appState = store.getAppState();
   // Drag start event
   container.ondragstart = (event) => {
     // Don't start sticky drag if we're in connector creation mode

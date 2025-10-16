@@ -10,7 +10,8 @@ export const createRenderer = (
   board,
   domElement,
   getSelectedStickies,
-  stickiesMovedByDragging
+  stickiesMovedByDragging,
+  store
 ) =>
   function renderSticky(stickyId, sticky) {
     const selectedStickies = getSelectedStickies();
@@ -21,7 +22,8 @@ export const createRenderer = (
       board.updateText,
       board.getStickyLocation,
       selectedStickies,
-      shouldDelete
+      shouldDelete,
+      store
     );
     // if container is falsy, then sticky was deleted
     if (container) {
@@ -77,7 +79,8 @@ function getStickyElement(
   updateTextById,
   getStickyLocation,
   selectedStickies,
-  shouldDelete = false
+  shouldDelete = false,
+  store
 ) {
   const stickyIdClass = "sticky-" + id;
   let container = boardElement[stickyIdClass];
@@ -96,7 +99,8 @@ function getStickyElement(
       id,
       updateTextById,
       getStickyLocation,
-      selectedStickies
+      selectedStickies,
+      store
     );
   }
   return container;

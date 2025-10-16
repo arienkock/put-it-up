@@ -1,5 +1,3 @@
-import { getAppState } from "../app-state.js";
-
 /**
  * Sets up connector creation and interaction events
  * 
@@ -7,9 +5,10 @@ import { getAppState } from "../app-state.js";
  * @param {Object} board - Board instance
  * @param {Object} selectedConnectors - Selection management object
  * @param {Function} renderCallback - Callback to trigger re-rendering
+ * @param {Object} store - Store instance for state access
  */
-export function setupConnectorEvents(boardElement, board, selectedConnectors, renderCallback) {
-  const appState = getAppState();
+export function setupConnectorEvents(boardElement, board, selectedConnectors, renderCallback, store) {
+  const appState = store.getAppState();
   let isDraggingConnector = false;
   let dragStartPoint = null;
   let currentConnectorId = null;

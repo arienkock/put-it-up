@@ -27,7 +27,7 @@
       // const store = new FirestoreStore();
       const store = new LocalDatastore();
       const board = new Board(store);
-      mount(board, document.querySelector(".app"), BufferedObserver);
+      mount(board, document.querySelector(".app"), BufferedObserver, store);
       store.connect();
       // expose app state for debugging
       window.appState = getAppState();
