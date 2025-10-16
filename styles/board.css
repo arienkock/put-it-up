@@ -120,6 +120,11 @@ body {
   cursor: grabbing;
 }
 
+/* Arrow head marker paths should show pointer cursor */
+.marker-path {
+  cursor: pointer;
+}
+
 .board-action-menu {
   position: fixed;
   top: 0;

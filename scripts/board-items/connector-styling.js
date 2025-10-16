@@ -139,6 +139,7 @@ export function setConnectorStyles(
   svg.setAttribute("width", width);
   svg.setAttribute("height", height);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.style.pointerEvents = "none"; // Ensure SVG doesn't capture pointer events
   
   // Calculate local coordinates for the path
   const localStartX = startPoint.x - minX + padding;
@@ -247,6 +248,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     case "line": {
       // Simple line arrow (two lines forming a V)
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.classList.add("marker-path");
       path.setAttribute("d", "M 0 2 L 6 5 L 0 8");
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
@@ -258,6 +260,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     case "hollow": {
       // Hollow triangle
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.classList.add("marker-path");
       path.setAttribute("d", "M 0 2 L 6 5 L 0 8 Z");
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");
@@ -269,6 +272,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
     case "filled": {
       // Filled triangle
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.classList.add("marker-path");
       path.setAttribute("d", "M 0 2 L 6 5 L 0 8 Z");
       path.setAttribute("stroke", color);
       path.setAttribute("stroke-width", "1.5");

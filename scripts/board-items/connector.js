@@ -39,37 +39,6 @@ export const createRenderer = (
         board.getOrigin(),
         board.getStickyBaseSize()
       );
-      
-      // ordering - connectors should be behind stickies
-      const elementsOnBoard = [...domElement.children];
-      const activeElement = document.activeElement;
-      let shouldRefocus = false;
-      if (elementsOnBoard.some((el) => el.contains(activeElement))) {
-        shouldRefocus = true;
-      }
-      elementsOnBoard.sort((a, b) => {
-        // Connectors first, then stickies (by position)
-        const aIsConnector = a.classList.contains("connector-container");
-        const bIsConnector = b.classList.contains("connector-container");
-        
-        if (aIsConnector && !bIsConnector) return -1;
-        if (!aIsConnector && bIsConnector) return 1;
-        
-        // Both connectors or both stickies - sort by position
-        let yDif = removePx(a.style.top) - removePx(b.style.top);
-        if (yDif === 0) {
-          const xDif = removePx(a.style.left) - removePx(b.style.left);
-          if (xDif === 0) {
-            return b.className > a.className;
-          }
-          return xDif;
-        }
-        return yDif;
-      });
-      elementsOnBoard.forEach((el) => domElement.appendChild(el));
-      if (shouldRefocus) {
-        activeElement.focus();
-      }
     }
   };
 
@@ -89,11 +58,51 @@ function getConnectorElement(
       boardElement.removeChild(container);
     }
     container = undefined;
+    // Reorder elements after deletion
+    reorderBoardElements(boardElement);
   } else if (!container) {
     container = createConnectorDOM(connectorIdClass, id, selectedConnectors);
     boardElement[connectorIdClass] = container;
     boardElement.appendChild(container);
+    // Reorder elements after addition
+    reorderBoardElements(boardElement);
   }
   
   return container;
+}
+
+/**
+ * Reorders board elements to ensure connectors are behind stickies
+ * Only called when elements are added or removed to avoid unnecessary DOM manipulation
+ */
+function reorderBoardElements(domElement) {
+  const elementsOnBoard = [...domElement.children];
+  const activeElement = document.activeElement;
+  let shouldRefocus = false;
+  if (elementsOnBoard.some((el) => el.contains(activeElement))) {
+    shouldRefocus = true;
+  }
+  elementsOnBoard.sort((a, b) => {
+    // Connectors first, then stickies (by position)
+    const aIsConnector = a.classList.contains("connector-container");
+    const bIsConnector = b.classList.contains("connector-container");
+    
+    if (aIsConnector && !bIsConnector) return -1;
+    if (!aIsConnector && bIsConnector) return 1;
+    
+    // Both connectors or both stickies - sort by position
+    let yDif = removePx(a.style.top) - removePx(b.style.top);
+    if (yDif === 0) {
+      const xDif = removePx(a.style.left) - removePx(b.style.left);
+      if (xDif === 0) {
+        return b.className > a.className;
+      }
+      return xDif;
+    }
+    return yDif;
+  });
+  elementsOnBoard.forEach((el) => domElement.appendChild(el));
+  if (shouldRefocus) {
+    activeElement.focus();
+  }
 }

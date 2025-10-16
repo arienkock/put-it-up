@@ -210,7 +210,10 @@ export function setupConnectorEvents(boardElement, board, selectedConnectors, re
     
     // Only allow selection when clicking on the actual path or marker elements
     const isPathClick = event.target.classList.contains('connector-path');
-    const isMarkerClick = event.target.closest('marker') !== null;
+    const isMarkerClick = event.target.closest('marker') !== null || 
+                        (event.target.tagName === 'path' && 
+                         event.target.parentElement && 
+                         event.target.parentElement.tagName === 'marker');
     const isHandleClick = event.target.classList.contains('connector-handle');
     
     if (!isPathClick && !isMarkerClick && !isHandleClick) {
