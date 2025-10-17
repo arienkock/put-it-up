@@ -125,32 +125,82 @@ body {
   cursor: pointer;
 }
 
-.board-action-menu {
+.menu-container {
   position: fixed;
   top: 0;
   left: 0;
-  display: flex;
-  margin: 0; /* Remove margin - handled in JS */
+  width: 100%;
+  padding: 0.5em 1em;
+  box-sizing: border-box;
   z-index: 1;
   will-change: transform; /* Optimize for frequent transforms */
   transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
 }
 
+.board-action-menu {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0.5em 0;
+  box-sizing: border-box;
+}
+
 .board-action-menu button {
   font-size: 100%;
-  font-weight: 200;
+  font-weight: 400;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  padding: 0.5em;
-  margin: 0.15em;
+  padding: 0.5em 0.75em;
+  margin: 0 0.25em;
   border: none;
-  border-radius: 0.2em;
-  color: #757575;
-  box-shadow: 1px 1px 3px 0px rgba(0, 0, 0, 0.36);
-  background-color: white;
+  border-radius: 0.25em;
+  color: #333;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.board-action-menu button:hover {
+  background-color: #f5f5f5;
 }
 .board-action-menu button:active {
   transform: translateY(0.1em);
+}
+
+.board-action-menu .menu-title {
+  font-size: 100%;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  color: #333;
+  padding: 0.5em 1em;
+  margin: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+
+.board-action-menu .menu-separator {
+  width: 1px;
+  height: 1.5em;
+  background-color: #e0e0e0;
+  margin: 0 0.5em;
+}
+
+.board-action-menu button.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: #999;
+}
+
+.board-action-menu button.disabled:hover {
+  background-color: transparent;
+}
+
+.board-action-menu button.disabled:active {
+  transform: none;
 }
 
 .board-action-menu .group-items {

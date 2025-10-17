@@ -34,8 +34,21 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
 
   const menuItems = [
     {
-      itemLabel: "New sticky",
+      itemLabel: "Whiteboard",
+      className: "menu-title",
+      itemClickHandler: null,
+      isTitle: true,
+    },
+    {
+      itemLabel: "separator",
+      className: "menu-separator",
+      itemClickHandler: null,
+      isSeparator: true,
+    },
+    {
+      itemLabel: "New Sticky",
       className: "new-sticky",
+      icon: "📄",
       itemClickHandler: () => {
         appState.ui.nextClickCreatesNewSticky = true;
         appState.ui.nextClickCreatesConnector = false;
@@ -44,8 +57,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
     },
     {
-      itemLabel: "New connector",
+      itemLabel: "Connector",
       className: "new-connector",
+      icon: "—",
       itemClickHandler: () => {
         appState.ui.nextClickCreatesConnector = true;
         appState.ui.nextClickCreatesNewSticky = false;
@@ -54,16 +68,10 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
     },
     {
-      itemLabel: "Delete",
-      className: "delete",
-      itemClickHandler: () => {
-        selectedStickies.forEach((id) => {
-          board.deleteSticky(id);
-        });
-        selectedConnectors.forEach((id) => {
-          board.deleteConnector(id);
-        });
-      },
+      itemLabel: "separator",
+      className: "menu-separator",
+      itemClickHandler: null,
+      isSeparator: true,
     },
     {
       itemLabel: "Color",
@@ -85,6 +93,46 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
     },
     {
+      itemLabel: "Delete",
+      className: "delete",
+      icon: "🗑️",
+      itemClickHandler: () => {
+        selectedStickies.forEach((id) => {
+          board.deleteSticky(id);
+        });
+        selectedConnectors.forEach((id) => {
+          board.deleteConnector(id);
+        });
+      },
+      customLabel: (dom, label) => {
+        const hasSelection = selectedStickies.hasItems() || selectedConnectors.hasItems();
+        dom.innerHTML = `🗑️ ${label}`;
+        dom.disabled = !hasSelection;
+        if (!hasSelection) {
+          dom.classList.add('disabled');
+        } else {
+          dom.classList.remove('disabled');
+        }
+      },
+    },
+    {
+      itemLabel: "Zoom",
+      className: "change-zoom",
+      icon: "🔍",
+      itemClickHandler: (event) => {
+        const newScale = changeZoomLevel(appState.ui.boardScale, event.shiftKey);
+        appState.ui.boardScale = newScale;
+        renderCallback();
+      },
+      customLabel: (dom, label) => {
+        if (!appState.ui.boardScale) {
+          dom.textContent = `🔍 ${label}`;
+        } else {
+          dom.textContent = `🔍 ${(appState.ui.boardScale * 100).toFixed(0)}%`;
+        }
+      },
+    },
+    {
       itemLabel: "Arrow head",
       className: "change-arrow-head",
       itemClickHandler: (event) => {
@@ -101,24 +149,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
       customLabel: (dom, label) => {
         dom.textContent = `${label}: ${appState.ui.currentArrowHead}`;
-      },
-    },
-    {
-      itemLabel: "Zoom",
-      className: "change-zoom",
-      itemClickHandler: (event) => {
-        const newScale = changeZoomLevel(appState.ui.boardScale, event.shiftKey);
-        appState.ui.boardScale = newScale;
-        renderCallback();
-      },
-      customLabel: (dom, label) => {
-        if (!appState.ui.boardScale) {
-          dom.textContent = label;
-        } else {
-          dom.textContent = `${label} (${(appState.ui.boardScale * 100).toFixed(
-            0
-          )}%)`;
-        }
       },
     },
     {
@@ -156,12 +186,20 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
    */
   function renderMenu() {
     if (!menuElement) {
+      // Create container wrapper
+      const menuContainer = document.createElement("div");
+      menuContainer.classList.add("menu-container");
+      
+      // Create menu element
       menuElement = document.createElement("div");
       menuElement.classList.add("board-action-menu");
       menuItems.forEach((item) => {
         menuElement.appendChild(renderMenuButton(item));
       });
-      root.insertAdjacentElement("afterbegin", menuElement);
+      
+      // Add menu to container and container to root
+      menuContainer.appendChild(menuElement);
+      root.insertAdjacentElement("afterbegin", menuContainer);
 
       // Handle viewport zoom to keep menu visible and at constant size
       if (window.visualViewport) {
@@ -176,19 +214,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
           menuElement.style.transform = `scale(${1 / scale})`;
           menuElement.style.transformOrigin = 'top left';
           
-          // Position menu with consistent margin (equivalent to 1em)
-          // Since we're counter-scaling, we need to scale the margin inversely
-          const baseMargin = 16; // 1em equivalent in pixels
-          const scaledMargin = baseMargin / scale;
-          
-          menuElement.style.left = `${viewport.offsetLeft + scaledMargin}px`;
-          menuElement.style.top = `${viewport.offsetTop + scaledMargin}px`;
-          
-          // Compensate for button margins that get scaled down
-          // Each button has margin: 0.15em, so we need to expand the menu width
-          const buttonMargin = parseFloat(getComputedStyle(menuElement.querySelector('button')).marginLeft) || 2.4; // 0.15em ≈ 2.4px
-          const marginCompensation = buttonMargin * (menuItems.length - 1) * (scale - 1);
-          menuElement.style.width = `calc(100% + ${marginCompensation}px)`;
+          // Position container to follow viewport
+          menuContainer.style.left = `${viewport.offsetLeft}px`;
+          menuContainer.style.top = `${viewport.offsetTop}px`;
         }
         
         function updateMenuForViewportScroll() {
@@ -203,17 +231,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
           menuElement.style.transform = `scale(${1 / scale})`;
           menuElement.style.transformOrigin = 'top left';
           
-          // Position menu with consistent margin (equivalent to 1em)
-          const baseMargin = 16; // 1em equivalent in pixels
-          const scaledMargin = baseMargin / scale;
-          
-          menuElement.style.left = `${viewport.offsetLeft + scaledMargin}px`;
-          menuElement.style.top = `${viewport.offsetTop + scaledMargin}px`;
-          
-          // Compensate for button margins that get scaled down
-          const buttonMargin = parseFloat(getComputedStyle(menuElement.querySelector('button')).marginLeft) || 2.4; // 0.15em ≈ 2.4px
-          const marginCompensation = buttonMargin * (menuItems.length - 1) * (scale - 1);
-          menuElement.style.width = `calc(100% + ${marginCompensation}px)`;
+          // Position container to follow viewport
+          menuContainer.style.left = `${viewport.offsetLeft}px`;
+          menuContainer.style.top = `${viewport.offsetTop}px`;
           
           // Re-enable transitions after a brief delay
           requestAnimationFrame(() => {
@@ -248,16 +268,33 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       }
 
       function renderMenuButton(item) {
-        const itemElement = document.createElement("button");
+        let itemElement;
+        
+        if (item.isTitle) {
+          itemElement = document.createElement("div");
+          itemElement.classList.add(item.className);
+          itemElement.textContent = item.itemLabel;
+        } else if (item.isSeparator) {
+          itemElement = document.createElement("div");
+          itemElement.classList.add(item.className);
+        } else {
+          itemElement = document.createElement("button");
+          itemElement.onclick = item.itemClickHandler;
+          itemElement.classList.add(item.className);
+          
+          // Add icon if present
+          if (item.icon) {
+            itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
+          }
+        }
+        
         item.dom = itemElement;
-        itemElement.onclick = item.itemClickHandler;
-        itemElement.classList.add(item.className);
         return itemElement;
       }
     }
 
-    menuItems.forEach(({ itemLabel, customLabel, dom }) => {
-      if (itemLabel) {
+    menuItems.forEach(({ itemLabel, customLabel, dom, isSeparator }) => {
+      if (itemLabel && !isSeparator) {
         if (customLabel) {
           customLabel(dom, itemLabel);
         } else {
