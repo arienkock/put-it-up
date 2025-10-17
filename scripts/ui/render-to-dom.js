@@ -203,7 +203,43 @@ export function mount(board, root, Observer, store) {
   // Expose menu render to allow selection-driven UI updates
   window.menuRenderCallback = renderMenu;
   
+  // Function to center the board scroll position
+  function centerBoardScroll() {
+    if (!board.isReadyForUse()) {
+      return;
+    }
+    
+    const size = board.getBoardSize();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || zoomScale[zoomScale.length - 1];
+    
+    // Calculate the center of the board in pixels
+    const boardCenterX = (size.width * boardScale) / 2;
+    const boardCenterY = (size.height * boardScale) / 2;
+    
+    // Calculate the viewport center
+    const viewportCenterX = window.innerWidth / 2;
+    const viewportCenterY = window.innerHeight / 2;
+    
+    // Calculate the scroll position needed to center the board
+    const scrollX = boardCenterX - viewportCenterX;
+    const scrollY = boardCenterY - viewportCenterY;
+    
+    // Apply the scroll position
+    window.scrollTo({
+      left: Math.max(0, scrollX),
+      top: Math.max(0, scrollY),
+      behavior: 'smooth'
+    });
+  }
+  
   render();
+  
+  // Center the board scroll position after initial render
+  requestAnimationFrame(() => {
+    centerBoardScroll();
+  });
+  
   return {
     render,
     observer,
