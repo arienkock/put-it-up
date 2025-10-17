@@ -25,11 +25,30 @@ export function setConnectorStyles(
 ) {
   const arrowHeadType = connector.arrowHead || "filled";
   
+  // Validate inputs to prevent NaN errors
+  if (!boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' || 
+      isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+    console.warn('Invalid boardOrigin:', boardOrigin);
+    return; // Skip rendering if board origin is invalid
+  }
+  
+  if (typeof stickySize !== 'number' || isNaN(stickySize) || stickySize <= 0) {
+    console.warn('Invalid stickySize:', stickySize);
+    return; // Skip rendering if sticky size is invalid
+  }
+  
   // Calculate start and end points
   let startPoint, endPoint;
   
   if (originSticky) {
     // Connected to sticky
+    // Validate sticky location coordinates
+    if (!originSticky.location || typeof originSticky.location.x !== 'number' || typeof originSticky.location.y !== 'number' ||
+        isNaN(originSticky.location.x) || isNaN(originSticky.location.y)) {
+      console.warn('Invalid origin sticky location:', originSticky.location);
+      return; // Skip rendering if sticky location is invalid
+    }
+    
     const originSizeX = (originSticky.size && originSticky.size.x) || 1;
     const originSizeY = (originSticky.size && originSticky.size.y) || 1;
     const originCenter = {
@@ -39,6 +58,13 @@ export function setConnectorStyles(
     
     if (destSticky) {
       // Both endpoints connected to stickies
+      // Validate destination sticky location coordinates
+      if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
+          isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
+        console.warn('Invalid destination sticky location:', destSticky.location);
+        return; // Skip rendering if sticky location is invalid
+      }
+      
       const destSizeX = (destSticky.size && destSticky.size.x) || 1;
       const destSizeY = (destSticky.size && destSticky.size.y) || 1;
       const destCenter = {
@@ -64,6 +90,14 @@ export function setConnectorStyles(
     } else {
       // Origin connected, destination unconnected
       const destPoint = connector.destinationPoint || { x: 0, y: 0 };
+      
+      // Validate destination point coordinates
+      if (typeof destPoint.x !== 'number' || typeof destPoint.y !== 'number' || 
+          isNaN(destPoint.x) || isNaN(destPoint.y)) {
+        console.warn('Invalid destination point:', destPoint);
+        return; // Skip rendering if destination point is invalid
+      }
+      
       const destCenter = {
         x: destPoint.x - boardOrigin.x,
         y: destPoint.y - boardOrigin.y,
@@ -82,6 +116,14 @@ export function setConnectorStyles(
   } else {
     // Origin unconnected
     const originPoint = connector.originPoint || { x: 0, y: 0 };
+    
+    // Validate origin point coordinates
+    if (typeof originPoint.x !== 'number' || typeof originPoint.y !== 'number' || 
+        isNaN(originPoint.x) || isNaN(originPoint.y)) {
+      console.warn('Invalid origin point:', originPoint);
+      return; // Skip rendering if origin point is invalid
+    }
+    
     startPoint = {
       x: originPoint.x - boardOrigin.x,
       y: originPoint.y - boardOrigin.y,
@@ -89,6 +131,13 @@ export function setConnectorStyles(
     
     if (destSticky) {
       // Origin unconnected, destination connected
+      // Validate destination sticky location coordinates
+      if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
+          isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
+        console.warn('Invalid destination sticky location:', destSticky.location);
+        return; // Skip rendering if sticky location is invalid
+      }
+      
       const destSizeX = (destSticky.size && destSticky.size.x) || 1;
       const destSizeY = (destSticky.size && destSticky.size.y) || 1;
       const destCenter = {
@@ -106,6 +155,14 @@ export function setConnectorStyles(
     } else {
       // Both endpoints unconnected
       const destPoint = connector.destinationPoint || { x: 0, y: 0 };
+      
+      // Validate destination point coordinates
+      if (typeof destPoint.x !== 'number' || typeof destPoint.y !== 'number' || 
+          isNaN(destPoint.x) || isNaN(destPoint.y)) {
+        console.warn('Invalid destination point:', destPoint);
+        return; // Skip rendering if destination point is invalid
+      }
+      
       endPoint = {
         x: destPoint.x - boardOrigin.x,
         y: destPoint.y - boardOrigin.y,

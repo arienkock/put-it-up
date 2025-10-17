@@ -27,6 +27,20 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
     const point = {
       x: event.clientX - rect.left + boardOrigin.x,
       y: event.clientY - rect.top + boardOrigin.y
@@ -105,6 +119,20 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during drag:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
     const point = {
       x: event.clientX - rect.left + boardOrigin.x,
       y: event.clientY - rect.top + boardOrigin.y
@@ -119,6 +147,20 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during drag end:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
     const point = {
       x: event.clientX - rect.left + boardOrigin.x,
       y: event.clientY - rect.top + boardOrigin.y
@@ -165,6 +207,20 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during handle drag:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
     const point = {
       x: event.clientX - rect.left + boardOrigin.x,
       y: event.clientY - rect.top + boardOrigin.y
@@ -179,6 +235,20 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during handle drag end:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
     const point = {
       x: event.clientX - rect.left + boardOrigin.x,
       y: event.clientY - rect.top + boardOrigin.y

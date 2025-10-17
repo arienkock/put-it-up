@@ -54,6 +54,15 @@ export function removePx(s) {
  * @returns {Object} {x, y} coordinates of intersection point
  */
 export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickySize) {
+  // Validate inputs to prevent NaN results
+  if (typeof centerX !== 'number' || typeof centerY !== 'number' || 
+      typeof targetX !== 'number' || typeof targetY !== 'number' || 
+      typeof stickySize !== 'number' ||
+      isNaN(centerX) || isNaN(centerY) || isNaN(targetX) || isNaN(targetY) || isNaN(stickySize)) {
+    console.warn('Invalid inputs to calculateEdgePoint:', { centerX, centerY, targetX, targetY, stickySize });
+    return { x: centerX || 0, y: centerY || 0 }; // Return center point as fallback
+  }
+  
   const halfSize = stickySize / 2;
   const dx = targetX - centerX;
   const dy = targetY - centerY;
@@ -73,5 +82,12 @@ export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickySiz
   const scale = Math.min(scaleX, scaleY);
   const x = centerX + dx * scale;
   const y = centerY + dy * scale;
+  
+  // Validate result to ensure no NaN values
+  if (isNaN(x) || isNaN(y)) {
+    console.warn('calculateEdgePoint returned NaN:', { x, y, centerX, centerY, targetX, targetY, stickySize });
+    return { x: centerX, y: centerY }; // Return center point as fallback
+  }
+  
   return { x, y };
 }
