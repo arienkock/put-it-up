@@ -191,6 +191,16 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       }
     }
     
+    // Sync color selector with selected connector
+    if (selectedConnectors.hasItems() && selectedConnectors.size() === 1) {
+      let selectedConnectorId;
+      selectedConnectors.forEach((id) => (selectedConnectorId = id));
+      const connector = board.getConnectorSafe(selectedConnectorId);
+      if (connector && connector.color) {
+        appState.ui.currentColor = connector.color;
+      }
+    }
+    
     // Sync arrow head selector with selected connector
     if (selectedConnectors.hasItems() && selectedConnectors.size() === 1) {
       let selectedConnectorId;
