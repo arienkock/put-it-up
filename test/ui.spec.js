@@ -439,63 +439,6 @@ describe("Board UI", () => {
     });
     expect(selectedZIndex).toBe("1");
   });
-
-  it("can get more space by growing board size", async () => {
-    await page.goto(pageWithBasicContentOnALocalBoard());
-    const cases = [
-      [".left", "ArrowLeft", { x: -100, y: 200 }],
-      [".top", "ArrowUp", { x: 300, y: -100 }],
-      [".right", "ArrowRight", { x: 2400, y: 200 }],
-      [".bottom", "ArrowDown", { x: 500, y: 1350 }],
-    ];
-    for (let i = 0; i < cases.length; i++) {
-      const [className, arrow, finalLocation] = cases[i];
-      await page.click(".board-action-menu .board-size");
-      await page.click(".grow-arrows " + className);
-      await page.click(".board-action-menu .board-size");
-      const id = i + 1;
-      await setSelected(id, true);
-      let current = await page.evaluate(
-        (id) => board.getSticky(id).location,
-        id
-      );
-      let previous;
-      let iterations = 0;
-      const tooMany = 200;
-      do {
-        iterations++;
-        await page.keyboard.press(arrow);
-        previous = current;
-        current = await page.evaluate((id) => board.getSticky(id).location, id);
-      } while (
-        !(current.x === previous.x && current.y === previous.y) ||
-        iterations > tooMany
-      );
-      expect(current).toBeInTheVicinityOf(finalLocation, 0);
-      await setSelected(id, false);
-    }
-    await page.click(".board-action-menu .board-size");
-    await page.click("#Shrink");
-    await page.click(".grow-arrows .top");
-    await page.click(".grow-arrows .right");
-    await page.click(".grow-arrows .bottom");
-    await page.click(".grow-arrows .left");
-    await page.click(".board-action-menu .board-size");
-    // await jestPuppeteer.debug();
-    const newExpectedLocations = [
-      [1, { x: 0, y: 200 }],
-      [2, { x: 300, y: 0 }],
-      [3, { x: 2300, y: 200 }],
-      [4, { x: 500, y: 1250 }],
-    ];
-    for (let i = 0; i < newExpectedLocations.length; i++) {
-      let location = await page.evaluate(
-        (id) => board.getSticky(id).location,
-        newExpectedLocations[i][0]
-      );
-      expect(location).toBeInTheVicinityOf(newExpectedLocations[i][1], 0);
-    }
-  });
 });
 
 function pageWithEmptyLocalBoard() {

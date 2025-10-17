@@ -77,8 +77,8 @@ it("getState and setState preserve board state", () => {
 it("getBoardSize returns correct dimensions", () => {
   const b = new Board(new LocalDatastore());
   const size = b.getBoardSize();
-  expect(size.width).toBe(2400);
-  expect(size.height).toBe(1350);
+  expect(size.width).toBe(12000);
+  expect(size.height).toBe(6750);
 });
 
 it("getOrigin returns board origin", () => {
@@ -86,28 +86,6 @@ it("getOrigin returns board origin", () => {
   const origin = b.getOrigin();
   expect(origin.x).toBe(0);
   expect(origin.y).toBe(0);
-});
-
-it("changeSize increases board dimensions when growing", () => {
-  const b = new Board(new LocalDatastore());
-  const originalSize = b.getBoardSize();
-  
-  b.changeSize(true, "right");
-  expect(b.getBoardSize().width).toBe(originalSize.width + 100);
-  
-  b.changeSize(true, "bottom");
-  expect(b.getBoardSize().height).toBe(originalSize.height + 100);
-});
-
-it("changeSize modifies origin when growing top/left", () => {
-  const b = new Board(new LocalDatastore());
-  const originalOrigin = b.getOrigin();
-  
-  b.changeSize(true, "left");
-  expect(b.getOrigin().x).toBe(originalOrigin.x - 100);
-  
-  b.changeSize(true, "top");
-  expect(b.getOrigin().y).toBe(originalOrigin.y - 100);
 });
 
 it("removes newlines from text", () => {

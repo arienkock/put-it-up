@@ -1,12 +1,11 @@
 const DEFAULT_BOARD = {
   origin: { x: 0, y: 0 },
-  limit: { x: 2400, y: 1350 },
+  limit: { x: 12000, y: 6750 },
 };
 
 export function Board(aStore) {
   let store = aStore;
   let gridSize = 25;
-  const sizeIncrements = { x: 100, y: 100 };
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
@@ -59,6 +58,7 @@ export function Board(aStore) {
     sticky.text = sticky.text || "";
     sticky.text = removeNewlines(sticky.text);
     const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
+    const sizeIncrements = { x: 100, y: 100 };
     const widthPx = sizeIncrements.x * sizeUnits.x;
     const heightPx = sizeIncrements.y * sizeUnits.y;
     sticky.location = snapLocationWithSize(
@@ -91,30 +91,6 @@ export function Board(aStore) {
     return text;
   };
 
-  this.changeSize = (isGrow, side) => {
-    const { origin, limit } = getBoardInternal();
-    const factor = isGrow ? 1 : -1;
-    switch (side) {
-      case "top":
-        origin.y += sizeIncrements.y * -factor;
-        break;
-      case "bottom":
-        limit.y += sizeIncrements.y * factor;
-        break;
-      case "left":
-        origin.x += sizeIncrements.x * -factor;
-        break;
-      case "right":
-        limit.x += sizeIncrements.x * factor;
-      default:
-        break;
-    }
-    this.moveInBounds({ origin, limit });
-    store.updateBoard({
-      origin,
-      limit,
-    });
-  };
 
   this.updateColor = (id, color) => {
     store.updateColor(id, color);
@@ -128,6 +104,7 @@ export function Board(aStore) {
     const { origin, limit } = getBoardInternal();
     const sticky = store.getSticky(id);
     const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
+    const sizeIncrements = { x: 100, y: 100 };
     const widthPx = sizeIncrements.x * sizeUnits.x;
     const heightPx = sizeIncrements.y * sizeUnits.y;
     newLocation = snapLocationWithSize(
@@ -185,6 +162,7 @@ export function Board(aStore) {
     const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
     const location = { x: sticky.location.x, y: sticky.location.y };
     const factor = isGrow ? 1 : -1;
+    const sizeIncrements = { x: 100, y: 100 };
     let changed = false;
     switch (side) {
       case "left":

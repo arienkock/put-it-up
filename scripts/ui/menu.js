@@ -1,6 +1,5 @@
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor } from "./color-management.js";
-import { createBoardSizeControls } from "./board-size-controls.js";
 import { createStickySizeControls } from "./sticky-size-controls.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
 
@@ -149,13 +148,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
       customLabel: (dom, label) => {
         dom.textContent = `${label}: ${appState.ui.currentArrowHead}`;
-      },
-    },
-    {
-      itemLabel: "Board size",
-      className: "board-size",
-      itemClickHandler: (activatingEvent) => {
-        createBoardSizeControls(board, root, activatingEvent);
       },
     },
     {
