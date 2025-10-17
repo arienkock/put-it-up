@@ -1,6 +1,6 @@
 import { calculateEdgePoint } from "./connector-dom.js";
 
-export const ARROW_HEAD_TYPES = ["line", "hollow", "filled"];
+export const ARROW_HEAD_TYPES = ["none", "line", "hollow", "filled"];
 
 /**
  * Sets the styles and position of a connector
@@ -212,7 +212,14 @@ export function setConnectorStyles(
   // Draw the path
   const pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
   container.path.setAttribute("d", pathData);
-  container.path.setAttribute("marker-end", `url(#${markerId})`);
+  
+  // Only apply marker-end if arrow head is not "none"
+  if (arrowHeadType !== "none") {
+    container.path.setAttribute("marker-end", `url(#${markerId})`);
+  } else {
+    container.path.removeAttribute("marker-end");
+  }
+  
   container.path.style.pointerEvents = "all"; // Allow clicks on the path
   
   // Add handles for unconnected endpoints
@@ -316,6 +323,10 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected, connectorColor, 
   
   // Create arrow head based on type
   switch (arrowHeadType) {
+    case "none": {
+      // No arrow head - marker remains empty
+      break;
+    }
     case "line": {
       // Simple line arrow (two lines forming a V)
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
