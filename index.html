@@ -22,10 +22,19 @@
       import { BufferedObserver } from "./scripts/ui/buffered-observer.js";
       // import { FirestoreStore } from "./scripts/network/network-firestore.js";
       import { LocalDatastore } from "./scripts/board/local-datastore.js";
+      import { LocalStoragePersistence } from "./scripts/board/local-storage-persistence.js";
       
 
       // const store = new FirestoreStore();
       const store = new LocalDatastore();
+      const persistence = new LocalStoragePersistence();
+      
+      // Initialize app state from LocalStorage
+      persistence.initializeAppState();
+      
+      // Add persistence as an observer to the store
+      store.addObserver(persistence);
+      
       const board = new Board(store);
       mount(board, document.querySelector(".app"), BufferedObserver, store);
       store.connect();
