@@ -177,9 +177,37 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
   }
 
   /**
+   * Syncs the current color and arrow head with selected items
+   */
+  function syncSelectorsWithSelection() {
+    // Sync color selector with selected sticky
+    if (selectedStickies.hasItems() && selectedStickies.size() === 1) {
+      let selectedStickyId;
+      selectedStickies.forEach((id) => (selectedStickyId = id));
+      const sticky = board.getStickySafe(selectedStickyId);
+      if (sticky && sticky.color) {
+        appState.ui.currentColor = sticky.color;
+      }
+    }
+    
+    // Sync arrow head selector with selected connector
+    if (selectedConnectors.hasItems() && selectedConnectors.size() === 1) {
+      let selectedConnectorId;
+      selectedConnectors.forEach((id) => (selectedConnectorId = id));
+      const connector = board.getConnectorSafe(selectedConnectorId);
+      if (connector && connector.arrowHead) {
+        appState.ui.currentArrowHead = connector.arrowHead;
+      }
+    }
+  }
+
+  /**
    * Renders the menu element
    */
   function renderMenu() {
+    // Sync selectors with current selection before rendering
+    syncSelectorsWithSelection();
+    
     if (!menuElement) {
       // Create container wrapper
       const menuContainer = document.createElement("div");
