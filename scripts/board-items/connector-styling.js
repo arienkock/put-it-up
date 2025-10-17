@@ -20,7 +20,8 @@ export function setConnectorStyles(
   destSticky,
   isSelected,
   boardOrigin,
-  stickySize
+  stickySize,
+  connectorId
 ) {
   const arrowHeadType = connector.arrowHead || "filled";
   
@@ -148,7 +149,8 @@ export function setConnectorStyles(
   const localEndY = endPoint.y - minY + padding;
   
   // Update arrow head marker
-  const markerId = updateArrowHeadMarker(container.defs, arrowHeadType, isSelected);
+  const connectorColor = connector.color || "#444";
+  const markerId = updateArrowHeadMarker(container.defs, arrowHeadType, isSelected, connectorColor, connectorId);
   
   // Draw the path
   const pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
@@ -159,14 +161,14 @@ export function setConnectorStyles(
   // Add handles for unconnected endpoints
   updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected);
   
-  // Update selection state
+  // Update selection state and color
   if (isSelected) {
     container.classList.add("selected");
     container.path.setAttribute("stroke", "#4646d8");
     container.path.setAttribute("stroke-width", "4");
   } else {
     container.classList.remove("selected");
-    container.path.setAttribute("stroke", "#444");
+    container.path.setAttribute("stroke", connectorColor);
     container.path.setAttribute("stroke-width", "4");
   }
 }
@@ -222,13 +224,21 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
  * @param {HTMLElement} defs - SVG defs element
  * @param {string} arrowHeadType - Type of arrow head (line, hollow, filled)
  * @param {boolean} isSelected - Whether the connector is selected
+ * @param {string} connectorColor - The color of the connector
+ * @param {string} connectorId - The unique ID of the connector
  * @returns {string} The marker ID
  */
-function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
-  const markerId = `arrowhead-${arrowHeadType}-${isSelected ? 'selected' : 'unselected'}`;
+function updateArrowHeadMarker(defs, arrowHeadType, isSelected, connectorColor, connectorId) {
+  const markerId = `arrowhead-${connectorId}-${arrowHeadType}-${isSelected ? 'selected' : 'unselected'}`;
   let marker = defs.querySelector(`#${markerId}`);
   
-  // Filled arrows need slightly different refX to account for no stroke
+  // Clean up old markers for this connector (different selection states or arrow types)
+  const oldMarkers = defs.querySelectorAll(`[id^="arrowhead-${connectorId}-"]`);
+  oldMarkers.forEach(oldMarker => {
+    if (oldMarker.id !== markerId) {
+      oldMarker.remove();
+    }
+  });
   
   if (!marker) {
     marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
@@ -245,7 +255,7 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
   // Clear existing content
   marker.innerHTML = "";
   
-  const color = isSelected ? "#4646d8" : "#444";
+  const color = isSelected ? "#4646d8" : connectorColor;
   
   // Create arrow head based on type
   switch (arrowHeadType) {

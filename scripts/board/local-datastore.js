@@ -90,6 +90,19 @@ export class LocalDatastore {
     this.notifyConnectorChange(id);
   };
 
+  updateConnectorColor = (id, color) => {
+    this.getConnector(id).color = color;
+    this.notifyConnectorChange(id);
+  };
+
+  // Ensure connector has a default color if none exists
+  ensureConnectorHasColor = (id) => {
+    const connector = this.getConnector(id);
+    if (!connector.color) {
+      connector.color = "#444"; // Default connector color
+    }
+  };
+
   updateConnectorEndpoint = (id, endpoint, data) => {
     const connector = this.getConnector(id);
     if (endpoint === 'origin') {

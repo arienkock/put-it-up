@@ -49,6 +49,14 @@ export function Board(aStore) {
     store.updateArrowHead(id, arrowHead);
   };
 
+  this.updateConnectorColor = (id, color) => {
+    store.updateConnectorColor(id, color);
+  };
+
+  this.ensureConnectorHasColor = (id) => {
+    store.ensureConnectorHasColor(id);
+  };
+
   this.updateConnectorEndpoint = (id, endpoint, data) => {
     store.updateConnectorEndpoint(id, endpoint, data);
   };

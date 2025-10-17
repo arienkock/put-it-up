@@ -21,6 +21,9 @@ export const createRenderer = (
     );
     
     if (connectorElement) {
+      // Ensure connector has a color
+      board.ensureConnectorHasColor(connectorId);
+      
       const originSticky = connector.originId ? board.getStickySafe(connector.originId) : null;
       const destSticky = connector.destinationId ? board.getStickySafe(connector.destinationId) : null;
       
@@ -37,7 +40,8 @@ export const createRenderer = (
         destSticky,
         connectorIsSelected,
         board.getOrigin(),
-        board.getStickyBaseSize()
+        board.getStickyBaseSize(),
+        connectorId
       );
     }
   };

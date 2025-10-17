@@ -17,6 +17,7 @@ import { changeColor } from "./color-management.js";
 export function setupKeyboardHandlers(
   board,
   selectedStickies,
+  selectedConnectors,
   appState,
   callbacks
 ) {
@@ -46,6 +47,7 @@ export function setupKeyboardHandlers(
       const newColor = changeColor(
         board,
         selectedStickies,
+        selectedConnectors,
         appState.ui.currentColor,
         event.shiftKey
       );

@@ -24,7 +24,6 @@ export function createConnectorDOM(connectorIdClass, id, selectedConnectors) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.classList.add("connector-path");
   path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "#444");
   path.setAttribute("stroke-width", "4");
   svg.appendChild(path);
   

@@ -50,6 +50,7 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     const connectorData = {
       destinationPoint: point,
       arrowHead: appState.ui.currentArrowHead,
+      color: appState.ui.currentColor,
     };
     
     if (originStickyId) {

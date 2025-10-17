@@ -87,6 +87,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         const newColor = changeColor(
           board,
           selectedStickies,
+          selectedConnectors,
           appState.ui.currentColor,
           event.shiftKey
         );

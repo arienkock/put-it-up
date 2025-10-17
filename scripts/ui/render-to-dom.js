@@ -179,7 +179,7 @@ export function mount(board, root, Observer, store) {
   };
 
   // Set up keyboard handlers
-  setupKeyboardHandlers(board, selectedStickies, appState, {
+  setupKeyboardHandlers(board, selectedStickies, selectedConnectors, appState, {
     onZoomChange: () => render(),
     onColorChange: () => renderMenu(),
     onNewStickyRequest: () => renderBoard(),
