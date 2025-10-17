@@ -148,12 +148,12 @@ export function setConnectorStyles(
   const localEndY = endPoint.y - minY + padding;
   
   // Update arrow head marker
-  updateArrowHeadMarker(container.defs, arrowHeadType, isSelected);
+  const markerId = updateArrowHeadMarker(container.defs, arrowHeadType, isSelected);
   
   // Draw the path
   const pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
   container.path.setAttribute("d", pathData);
-  container.path.setAttribute("marker-end", `url(#arrowhead-${arrowHeadType})`);
+  container.path.setAttribute("marker-end", `url(#${markerId})`);
   container.path.style.pointerEvents = "all"; // Allow clicks on the path
   
   // Add handles for unconnected endpoints
@@ -219,9 +219,13 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
 
 /**
  * Updates or creates the arrow head marker in the SVG defs
+ * @param {HTMLElement} defs - SVG defs element
+ * @param {string} arrowHeadType - Type of arrow head (line, hollow, filled)
+ * @param {boolean} isSelected - Whether the connector is selected
+ * @returns {string} The marker ID
  */
 function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
-  const markerId = `arrowhead-${arrowHeadType}`;
+  const markerId = `arrowhead-${arrowHeadType}-${isSelected ? 'selected' : 'unselected'}`;
   let marker = defs.querySelector(`#${markerId}`);
   
   // Filled arrows need slightly different refX to account for no stroke
@@ -282,4 +286,6 @@ function updateArrowHeadMarker(defs, arrowHeadType, isSelected) {
       break;
     }
   }
+  
+  return markerId;
 }
