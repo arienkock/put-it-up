@@ -165,6 +165,8 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
 
       // Handle viewport zoom to keep menu visible and at constant size
       if (window.visualViewport) {
+        let debounceTimeout;
+        
         function updateMenuForViewportZoom() {
           const viewport = window.visualViewport;
           const scale = viewport.scale;
@@ -188,9 +190,21 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
           menuElement.style.width = `calc(100% + ${marginCompensation}px)`;
         }
         
-        window.visualViewport.addEventListener('resize', updateMenuForViewportZoom);
-        window.visualViewport.addEventListener('scroll', updateMenuForViewportZoom);
-        updateMenuForViewportZoom(); // Initial call
+        function debouncedUpdateMenuForViewportZoom() {
+          // Clear any existing timeout
+          if (debounceTimeout) {
+            clearTimeout(debounceTimeout);
+          }
+          
+          // Set a new timeout for 500ms
+          debounceTimeout = setTimeout(() => {
+            updateMenuForViewportZoom();
+          }, 200);
+        }
+        
+        window.visualViewport.addEventListener('resize', debouncedUpdateMenuForViewportZoom);
+        window.visualViewport.addEventListener('scroll', debouncedUpdateMenuForViewportZoom);
+        updateMenuForViewportZoom(); // Initial call (no debounce for initial setup)
       }
 
       function renderMenuButton(item) {

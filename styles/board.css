@@ -133,6 +133,7 @@ body {
   margin: 0; /* Remove margin - handled in JS */
   z-index: 1;
   will-change: transform; /* Optimize for frequent transforms */
+  transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
 }
 
 .board-action-menu button {
