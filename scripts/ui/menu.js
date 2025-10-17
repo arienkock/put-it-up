@@ -63,7 +63,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     {
       itemLabel: "Zoom",
       className: "change-zoom",
-      icon: "🔍",
+      icon: "images/zoom-in-icon.svg",
       itemClickHandler: (event) => {
         const newScale = changeZoomLevel(appState.ui.boardScale, event.shiftKey);
         appState.ui.boardScale = newScale;
@@ -71,9 +71,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
       customLabel: (dom, label) => {
         if (!appState.ui.boardScale) {
-          dom.textContent = `🔍 ${label}`;
+          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"> ${label}`;
         } else {
-          dom.textContent = `🔍 ${(appState.ui.boardScale * 100).toFixed(0)}%`;
+          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"> ${(appState.ui.boardScale * 100).toFixed(0)}%`;
         }
       },
     },
@@ -177,7 +177,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       if (item.icon) {
         if (item.icon.endsWith('.svg')) {
           // Handle SVG icons
-          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" style="width: 24px; height: 24px; margin-right: 4px; vertical-align: middle;"> ${item.itemLabel}`;
+          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"> ${item.itemLabel}`;
         } else {
           // Handle emoji/text icons
           itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
