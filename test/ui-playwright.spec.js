@@ -1,23 +1,12 @@
-const pti = require("puppeteer-to-istanbul");
-
 describe("Board UI", () => {
   beforeEach(async () => {
     await page.goto("about:blank");
-    return Promise.all([
-      page.coverage.startJSCoverage(),
-      page.coverage.startCSSCoverage(),
-    ]);
   });
-  afterEach(() =>
-    Promise.all([
-      page.coverage.stopJSCoverage(),
-      page.coverage.stopCSSCoverage(),
-    ])
-      .then(([jsCoverage, cssCoverage]) => {
-        pti.write([...jsCoverage, ...cssCoverage]);
-      })
-      .then(() => page.keyboard.up("Shift"))
-  );
+
+  afterEach(async () => {
+    // Clean up any lingering keyboard state
+    await page.keyboard.up("Shift");
+  });
 
   it("creates new sticky close to mouse position when a click happens after 'n' is pressed", async () => {
     await page.goto(pageWithEmptyLocalBoard());
@@ -34,16 +23,16 @@ describe("Board UI", () => {
     await page.keyboard.press("Escape");
     expect(await cursorOnBoard()).toBe("auto");
     await page.click(".board");
-    expect(await (await page.$$(".sticky")).length).toBe(0);
+    expect(await page.locator(".sticky").count()).toBe(0);
   });
 
   it("can create new sticky from menu button", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await page.waitForSelector(".board");
-    expect(await (await page.$$(".sticky")).length).toBe(0);
+    expect(await page.locator(".sticky").count()).toBe(0);
     await page.click(".board-action-menu .new-sticky");
     await thingsSettleDown(0);
-    expect(await (await page.$$(".sticky")).length).toBe(0);
+    expect(await page.locator(".sticky").count()).toBe(0);
     await createNewAndCheckExpectations();
   });
 
@@ -70,16 +59,15 @@ describe("Board UI", () => {
     await page.waitForSelector(".board");
     await deleteAction();
     await thingsSettleDown();
-    expect(await (await page.$$(".sticky")).length).toBe(4);
+    expect(await page.locator(".sticky").count()).toBe(4);
     await clickStickyOutsideOfText(1);
-    // await jestPuppeteer.debug();
     await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
     await deleteAction();
     await thingsSettleDown();
     await page.keyboard.up("Shift");
-    expect(await (await page.$$(".sticky-1, .sticky-2")).length).toBe(0);
-    expect(await (await page.$$(".sticky")).length).toBe(2);
+    expect(await page.locator(".sticky-1, .sticky-2").count()).toBe(0);
+    expect(await page.locator(".sticky").count()).toBe(2);
   }
 
   it("creates new sticky close to mouse when zoomed", async () => {
@@ -99,16 +87,17 @@ describe("Board UI", () => {
 
   it("moves with drag and drop", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
-    await expect(page).toMatchElement(".sticky-1 .sticky");
+    await page.waitForSelector(".sticky-1 .sticky");
     const dragDestination = { x: 205, y: 355 };
-    await dragAndDrop(".sticky-1 .sticky", ".board", page, {
+    await dragAndDrop(".sticky-1 .sticky", ".board", {
       x: 10,
       y: 140,
       height: 0,
       width: 0,
     });
     await thingsSettleDown(5);
-    const sticky = await expect(page).toMatchElement(".sticky-1 .sticky");
+    const sticky = page.locator(".sticky-1 .sticky");
+    await page.waitForSelector(".sticky-1 .sticky");
     const stickyLocation = await sticky.boundingBox();
     expect(stickyLocation).toBeInTheVicinityOf(
       dragDestination,
@@ -118,7 +107,8 @@ describe("Board UI", () => {
 
   it("moves sticky with arrow keys when selected", async () => {
     await page.goto(pageWithBasicContentOnALocalBoard());
-    const sticky = await expect(page).toMatchElement(".sticky-1 .sticky");
+    const sticky = page.locator(".sticky-1 .sticky");
+    await page.waitForSelector(".sticky-1 .sticky");
     const stickyStartLocation = await sticky.boundingBox();
     await page.mouse.click(
       stickyStartLocation.x + 3,
@@ -135,7 +125,6 @@ describe("Board UI", () => {
       x: stickyStartLocation.x + 25,
       y: stickyStartLocation.y + 25,
     };
-    // TIMING
     const stickyEndLocation = await sticky.boundingBox();
     expect(stickyEndLocation).toBeInTheVicinityOf(expectedDestination, 2);
   });
@@ -148,7 +137,7 @@ describe("Board UI", () => {
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
-    await page.type(".sticky-1 .sticky .text-input", "Testing");
+    await page.fill(".sticky-1 .sticky .text-input", "Testing");
     const textOnBoard = await page.evaluate(() => board.getSticky(1).text);
     expect(textOnBoard).toBe("Testing");
   });
@@ -178,17 +167,14 @@ describe("Board UI", () => {
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
-    await page.type(".sticky-1 .sticky .text-input", "Testing");
-    // Font size may or may not change depending on initial text length
-    // Main test is that rows increase with more text
+    await page.fill(".sticky-1 .sticky .text-input", "Testing");
     expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(1);
-    await page.type(".sticky-1 .sticky .text-input", " sizing");
+    await page.fill(".sticky-1 .sticky .text-input", "Testing sizing");
     expect(await numTextAreaRows(".sticky-1 .text-input")).toBe(2);
-    await page.type(
+    await page.fill(
       ".sticky-1 .sticky .text-input",
-      " more more more more more more more more more more more more more"
+      "Testing sizing more more more more more more more more more more more more more"
     );
-    // Browser rendering differences: CI renders 6 rows, local may render 7
     const finalRows = await numTextAreaRows(".sticky-1 .text-input");
     expect(finalRows).toBeGreaterThanOrEqual(6);
     expect(finalRows).toBeLessThanOrEqual(7);
@@ -245,28 +231,24 @@ describe("Board UI", () => {
 
   async function cycleZoom(zoomAction, reverseZoomAction) {
     for (let i = 0; i < 2; i++) {
-      const boardBox = await (await page.waitForSelector(".board")).boundingBox();
-      const stickyBox = await (await page.waitForSelector(".sticky")).boundingBox();
+      const boardBox = await page.locator(".board").boundingBox();
+      const stickyBox = await page.locator(".sticky").first().boundingBox();
       await reverseZoomAction();
       await thingsSettleDown();
-      const boardBoxAfter = await (await page.waitForSelector(".board")).boundingBox();
-      const stickyBoxAfter = await (
-        await page.waitForSelector(".sticky")
-      ).boundingBox();
+      const boardBoxAfter = await page.locator(".board").boundingBox();
+      const stickyBoxAfter = await page.locator(".sticky").first().boundingBox();
       expect(boardBoxAfter.width).toBeLessThan(boardBox.width);
       expect(boardBoxAfter.height).toBeLessThan(boardBox.height);
       expect(stickyBoxAfter.width).toBeLessThan(stickyBox.width);
       expect(stickyBoxAfter.height).toBeLessThan(stickyBox.height);
     }
     for (let i = 0; i < 2; i++) {
-      const boardBox = await (await page.waitForSelector(".board")).boundingBox();
-      const stickyBox = await (await page.waitForSelector(".sticky")).boundingBox();
+      const boardBox = await page.locator(".board").boundingBox();
+      const stickyBox = await page.locator(".sticky").first().boundingBox();
       await zoomAction();
       await thingsSettleDown();
-      const boardBoxAfter = await (await page.waitForSelector(".board")).boundingBox();
-      const stickyBoxAfter = await (
-        await page.waitForSelector(".sticky")
-      ).boundingBox();
+      const boardBoxAfter = await page.locator(".board").boundingBox();
+      const stickyBoxAfter = await page.locator(".sticky").first().boundingBox();
       expect(boardBoxAfter.width).toBeGreaterThan(boardBox.width);
       expect(boardBoxAfter.height).toBeGreaterThan(boardBox.height);
       expect(stickyBoxAfter.width).toBeGreaterThan(stickyBox.width);
@@ -281,7 +263,6 @@ describe("Board UI", () => {
     expect(await isStickySelected(1)).toBe(true);
     const s2bb = await stickyBoundingBox(1);
     await page.mouse.click(s2bb.x - 10, s2bb.y - 10);
-    // await jestPuppeteer.debug();
     expect(await isStickySelected(1)).toBe(false);
     await page.keyboard.down("Shift");
     await page.click(".sticky-2 .sticky");
@@ -317,7 +298,7 @@ describe("Board UI", () => {
       { x: 501, y: 226 },
       0
     );
-    await dragAndDrop(".sticky-3 .sticky", ".board", page, {
+    await dragAndDrop(".sticky-3 .sticky", ".board", {
       x: 300,
       y: 500,
       height: 0,
@@ -345,7 +326,7 @@ describe("Board UI", () => {
   it("has a menu item to change colors", async () => {
     await page.goto(pageWithEmptyLocalBoard());
     await press("n");
-    const boardBox = await (await page.waitForSelector(".board")).boundingBox();
+    const boardBox = await page.locator(".board").boundingBox();
     await page.mouse.click(boardBox.x + 50, boardBox.y + 50);
     let firstColor = await getComputedColor(".sticky-1 .sticky");
     await setSelected(1, false);
@@ -413,7 +394,6 @@ describe("Board UI", () => {
         (el) => el.className
       );
     });
-    // console.log(classNames);
     expect(classNames).toEqual([
       "sticky-1 sticky-container animate-move",
       "sticky-2 sticky-container animate-move",
@@ -451,8 +431,8 @@ describe("Board UI", () => {
     await thingsSettleDown();
     
     // Verify connector was created and is selected
-    const connectors = await page.$$(".connector-container");
-    expect(connectors.length).toBeGreaterThan(0);
+    const connectors = await page.locator(".connector-container").count();
+    expect(connectors).toBeGreaterThan(0);
     const connectorSelected = await page.evaluate(() => {
       const connector = document.querySelector(".connector-container");
       return connector ? connector.classList.contains("selected") : false;
@@ -577,47 +557,52 @@ async function setSelected(id, selected) {
 
 async function clickStickyOutsideOfText(id) {
   await page.hover(`.sticky-${id} .sticky`);
-  const sticky = await page.waitForSelector(`.sticky-${id} .sticky`);
+  const sticky = page.locator(`.sticky-${id} .sticky`);
   await thingsSettleDown();
   const stickyBox = await sticky.boundingBox();
   return page.mouse.click(stickyBox.x + stickyBox.width / 2, stickyBox.y + 5);
 }
+
 async function clickToCreateSticky(clickLocation) {
   await page.mouse.click(clickLocation.x, clickLocation.y);
   await thingsSettleDown();
-  let stickyBox = await (await page.waitForSelector(".sticky")).boundingBox();
+  let stickyBox = await page.locator(".sticky").first().boundingBox();
   return {
     x: stickyBox.x + stickyBox.width / 2,
     y: stickyBox.y + stickyBox.height / 2,
   };
 }
+
 async function locationInsideBoard() {
-  let box = await (await page.$(".board")).boundingBox();
+  let box = await page.locator(".board").boundingBox();
   return {
     x: box.x + 200,
     y: box.y + 200,
   };
 }
+
 async function withinGridUnit() {
   return page.evaluate(() => board.getGridUnit());
 }
+
 function press(letter) {
-  return page.type(".board", letter);
+  return page.keyboard.type(letter);
 }
+
 async function thingsSettleDown(
   expectedScheduledTasksCount,
   expectedNumErrors
 ) {
   const errMsg = await page.evaluate(
-    (expectedScheduledTasksCount, expectedNumErrors) =>
+    ({ expectedScheduledTasksCount, expectedNumErrors }) =>
       waitForThingsToSettleDown(expectedScheduledTasksCount, expectedNumErrors),
-    expectedScheduledTasksCount,
-    expectedNumErrors
+    { expectedScheduledTasksCount, expectedNumErrors }
   );
   if (errMsg !== undefined) {
     throw new Error(errMsg);
   }
 }
+
 async function scrollBoardIntoView() {
   return page.evaluate(() => {
     document
@@ -629,10 +614,9 @@ async function scrollBoardIntoView() {
 async function dragAndDrop(
   sourceSelector,
   destinationSelector,
-  page,
   destinationBox
 ) {
-  const sourceElement = await page.waitForSelector(sourceSelector);
+  const sourceElement = page.locator(sourceSelector);
   const sourceBox = await sourceElement.boundingBox();
 
   await page.evaluate(
@@ -755,7 +739,7 @@ async function isStickySelected(id) {
 }
 
 async function stickyBoundingBox(id) {
-  const sticky = await page.waitForSelector(`.sticky-${id}`);
+  const sticky = page.locator(`.sticky-${id}`);
   return sticky.boundingBox();
 }
 
