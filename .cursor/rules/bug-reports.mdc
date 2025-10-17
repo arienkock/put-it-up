@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+If a bug gets reported by the user, you should create a bug report markdown file in `/bug-reports` and update it with details about the bug, including: 
+
+- root cause
+- fix
+- files, classes, functions and code snippets involved in the bug
