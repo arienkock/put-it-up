@@ -149,7 +149,7 @@ export function setConnectorStyles(
   const localEndY = endPoint.y - minY + padding;
   
   // Update arrow head marker
-  const connectorColor = connector.color || "#444";
+  const connectorColor = connector.color || "#000000";
   const markerId = updateArrowHeadMarker(container.defs, arrowHeadType, isSelected, connectorColor, connectorId);
   
   // Draw the path
@@ -184,7 +184,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   existingHandles.forEach(handle => handle.remove());
   
   const handleSize = 8;
-  const color = isSelected ? "#4646d8" : "#444";
+  const color = isSelected ? "#4646d8" : "#000000";
   
   // Add handle for unconnected origin
   if (!connector.originId) {

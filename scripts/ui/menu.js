@@ -1,5 +1,5 @@
 import { changeZoomLevel } from "./zoom.js";
-import { changeColor } from "./color-management.js";
+import { changeColor, stickyColorPalette, connectorColorPalette } from "./color-management.js";
 import { createStickySizeControls } from "./sticky-size-controls.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
 
@@ -95,9 +95,24 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         renderMenu();
       },
       customLabel: (dom, label) => {
-        dom.innerHTML = 'text<div class="color-preview"></div>';
-        dom.firstChild.textContent = label;
+        // Determine which palette is active based on selection
+        const hasStickiesSelected = selectedStickies.hasItems();
+        const hasConnectorsSelected = selectedConnectors.hasItems();
+        const isConnectorPalette = hasConnectorsSelected && !hasStickiesSelected;
+        
+        const paletteLabel = isConnectorPalette ? "Connector" : "Sticky";
+        const palette = isConnectorPalette ? connectorColorPalette : stickyColorPalette;
+        
+        dom.innerHTML = `${paletteLabel} ${label}<div class="color-preview"></div>`;
         dom.lastChild.style.backgroundColor = appState.ui.currentColor;
+        
+        // Add a small indicator showing palette type
+        const paletteIndicator = document.createElement('span');
+        paletteIndicator.className = 'palette-indicator';
+        paletteIndicator.textContent = isConnectorPalette ? '🔗' : '📄';
+        paletteIndicator.style.fontSize = '0.8em';
+        paletteIndicator.style.marginLeft = '0.3em';
+        dom.appendChild(paletteIndicator);
       },
     },
     {

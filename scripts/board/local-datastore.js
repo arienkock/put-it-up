@@ -99,7 +99,7 @@ export class LocalDatastore {
   ensureConnectorHasColor = (id) => {
     const connector = this.getConnector(id);
     if (!connector.color) {
-      connector.color = "#444"; // Default connector color
+      connector.color = "#000000"; // Default connector color (black)
     }
   };
 
