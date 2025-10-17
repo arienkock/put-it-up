@@ -1,5 +1,6 @@
 import { fitContentInSticky } from "./text-fitting.js";
 import { STICKY_TYPE } from "./sticky.js";
+import { SelectionManager } from "../ui/selection-manager.js";
 
 /**
  * Sets up all event handlers for a sticky note
@@ -8,7 +9,7 @@ import { STICKY_TYPE } from "./sticky.js";
  * @param {string} id - Sticky ID
  * @param {Function} updateTextById - Function to update sticky text
  * @param {Function} getStickyLocation - Function to get sticky location
- * @param {Object} selectedStickies - Selection management object
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Object} store - Store instance for state access
  * @returns {Object} Object with cleanup functions if needed
  */
@@ -17,7 +18,7 @@ export function setupStickyEvents(
   id,
   updateTextById,
   getStickyLocation,
-  selectedStickies,
+  selectionManager,
   store
 ) {
   const appState = store.getAppState();
@@ -32,7 +33,8 @@ export function setupStickyEvents(
     const { pageX: x, pageY: y } = event;
     let originalLocations = {};
     
-    if (selectedStickies.isSelected(id)) {
+    const selectedStickies = selectionManager.getSelection('stickies');
+    if (selectedStickies && selectedStickies.isSelected(id)) {
       selectedStickies.forEach((sid) => {
         originalLocations[sid] = getStickyLocation(sid);
       });
@@ -116,17 +118,17 @@ export function setupStickyEvents(
     
     moveToFront();
     
-    if (event.shiftKey) {
-      selectedStickies.toggleSelected(id);
+    // Use selection manager to handle cross-type selection clearing
+    selectionManager.selectItem('stickies', id, {
+      addToSelection: event.shiftKey
+    });
+    
+    if (!event.shiftKey) {
       setEditable(false);
-      if (window.menuRenderCallback) {
-        window.menuRenderCallback();
-      }
-    } else {
-      selectedStickies.replaceSelection(id);
-      if (window.menuRenderCallback) {
-        window.menuRenderCallback();
-      }
+    }
+    
+    if (window.menuRenderCallback) {
+      window.menuRenderCallback();
     }
   };
 

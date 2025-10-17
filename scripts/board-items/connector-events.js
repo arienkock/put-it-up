@@ -1,13 +1,15 @@
+import { SelectionManager } from "../ui/selection-manager.js";
+
 /**
  * Sets up connector creation and interaction events
  * 
  * @param {HTMLElement} boardElement - The board DOM element
  * @param {Object} board - Board instance
- * @param {Object} selectedConnectors - Selection management object
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Function} renderCallback - Callback to trigger re-rendering
  * @param {Object} store - Store instance for state access
  */
-export function setupConnectorEvents(boardElement, board, selectedConnectors, renderCallback, store) {
+export function setupConnectorEvents(boardElement, board, selectionManager, renderCallback, store) {
   const appState = store.getAppState();
   let isDraggingConnector = false;
   let dragStartPoint = null;
@@ -227,11 +229,11 @@ export function setupConnectorEvents(boardElement, board, selectedConnectors, re
     const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
     
     if (connectorId) {
-      if (event.shiftKey) {
-        selectedConnectors.toggleSelected(connectorId);
-      } else {
-        selectedConnectors.replaceSelection(connectorId);
-      }
+      // Use selection manager to handle cross-type selection clearing
+      selectionManager.selectItem('connectors', connectorId, {
+        addToSelection: event.shiftKey
+      });
+      
       // Trigger full render to update menu
       renderCallback();
     }

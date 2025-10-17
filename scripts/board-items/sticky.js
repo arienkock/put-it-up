@@ -9,19 +9,19 @@ export { DEFAULT_STICKY_COLOR };
 export const createRenderer = (
   board,
   domElement,
-  getSelectedStickies,
+  selectionManager,
   stickiesMovedByDragging,
   store
 ) =>
   function renderSticky(stickyId, sticky) {
-    const selectedStickies = getSelectedStickies();
+    const selectedStickies = selectionManager.getSelection('stickies');
     const shouldDelete = sticky === undefined;
     const container = getStickyElement(
       domElement,
       stickyId,
       board.updateText,
       board.getStickyLocation,
-      selectedStickies,
+      selectionManager,
       shouldDelete,
       store
     );
@@ -78,7 +78,7 @@ function getStickyElement(
   id,
   updateTextById,
   getStickyLocation,
-  selectedStickies,
+  selectionManager,
   shouldDelete = false,
   store
 ) {
@@ -99,7 +99,7 @@ function getStickyElement(
       id,
       updateTextById,
       getStickyLocation,
-      selectedStickies,
+      selectionManager,
       store
     );
   }

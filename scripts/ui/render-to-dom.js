@@ -64,6 +64,7 @@ import {
 } from "../board-items/connector.js";
 import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { Selection } from "./selection.js";
+import { SelectionManager } from "./selection-manager.js";
 import { createMenu } from "./menu.js";
 import { setupKeyboardHandlers } from "./keyboard-handlers.js";
 import { zoomScale, applyZoomToBoard } from "./zoom.js";
@@ -79,10 +80,20 @@ export function mount(board, root, Observer, store) {
   const appState = store.getAppState();
   // Use globally stored UI state
   let stickiesMovedByDragging = appState.ui.stickiesMovedByDragging;
+  
+  // Create selections first
+  const selectedStickies = new Selection(null, "selection", "onStickyChange", store);
+  const selectedConnectors = new Selection(null, "connectorSelection", "onConnectorChange", store);
+  
+  // Create selection manager and register both selection types
+  const selectionManager = new SelectionManager();
+  selectionManager.registerSelection('stickies', selectedStickies);
+  selectionManager.registerSelection('connectors', selectedConnectors);
+  
   const renderSticky = createRenderer(
     board,
     domElement,
-    getSelectedStickies,
+    selectionManager,
     stickiesMovedByDragging,
     store
   );
@@ -91,12 +102,17 @@ export function mount(board, root, Observer, store) {
     domElement,
     getSelectedConnectors
   );
-  appState.ui.currentColor = appState.ui.currentColor || colorPalette[0];
-  appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
+  
+  // Now create observer with the render functions
   const observer = new Observer(board, render, renderSticky, renderConnector);
   board.addObserver(observer);
-  const selectedStickies = new Selection(observer, "selection", "onStickyChange", store);
-  const selectedConnectors = new Selection(observer, "connectorSelection", "onConnectorChange", store);
+  
+  // Update the selections with the observer
+  selectedStickies.observer = observer;
+  selectedConnectors.observer = observer;
+  
+  appState.ui.currentColor = appState.ui.currentColor || colorPalette[0];
+  appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
   function getSelectedStickies() {
     return selectedStickies;
   }
@@ -171,7 +187,7 @@ export function mount(board, root, Observer, store) {
   });
 
   // Set up connector events
-  const connectorEvents = setupConnectorEvents(domElement, board, selectedConnectors, render, store);
+  const connectorEvents = setupConnectorEvents(domElement, board, selectionManager, render, store);
   domElement.onclick = (event) => {
     if (appState.ui.nextClickCreatesNewSticky) {
       appState.ui.nextClickCreatesNewSticky = false;
@@ -191,8 +207,7 @@ export function mount(board, root, Observer, store) {
       selectedStickies.replaceSelection(id);
       renderBoard();
     } else if (event.target === domElement && !event.shiftKey && !appState.ui.nextClickCreatesConnector) {
-      selectedStickies.clearSelection();
-      selectedConnectors.clearSelection();
+      selectionManager.clearAllSelections();
       // Ensure menu reflects empty selection state
       renderMenu();
     }

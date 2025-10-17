@@ -439,6 +439,96 @@ describe("Board UI", () => {
     });
     expect(selectedZIndex).toBe("1");
   });
+
+  it("clears connector selection when selecting sticky without shift", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitForSelector(".sticky-1 .sticky");
+    
+    // First create a connector between two stickies
+    await page.click(".sticky-1 .sticky");
+    await page.keyboard.press("c"); // Enter connector creation mode
+    await page.click(".sticky-2 .sticky");
+    await thingsSettleDown();
+    
+    // Verify connector was created and is selected
+    const connectors = await page.$$(".connector-container");
+    expect(connectors.length).toBeGreaterThan(0);
+    const connectorSelected = await page.evaluate(() => {
+      const connector = document.querySelector(".connector-container");
+      return connector ? connector.classList.contains("selected") : false;
+    });
+    expect(connectorSelected).toBe(true);
+    
+    // Click on a sticky without shift - should clear connector selection
+    await page.click(".sticky-3 .sticky");
+    await thingsSettleDown();
+    
+    // Verify sticky is selected and connector is not
+    expect(await isStickySelected(3)).toBe(true);
+    const connectorStillSelected = await page.evaluate(() => {
+      const connector = document.querySelector(".connector-container");
+      return connector ? connector.classList.contains("selected") : false;
+    });
+    expect(connectorStillSelected).toBe(false);
+  });
+
+  it("clears sticky selection when selecting connector without shift", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitForSelector(".sticky-1 .sticky");
+    
+    // Select a sticky first
+    await page.click(".sticky-1 .sticky");
+    expect(await isStickySelected(1)).toBe(true);
+    
+    // Create a connector
+    await page.keyboard.press("c"); // Enter connector creation mode
+    await page.click(".sticky-2 .sticky");
+    await thingsSettleDown();
+    
+    // Verify connector is selected and sticky is not
+    const connectorSelected = await page.evaluate(() => {
+      const connector = document.querySelector(".connector-container");
+      return connector ? connector.classList.contains("selected") : false;
+    });
+    expect(connectorSelected).toBe(true);
+    expect(await isStickySelected(1)).toBe(false);
+  });
+
+  it("allows selecting both stickies and connectors with shift-click", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitForSelector(".sticky-1 .sticky");
+    
+    // Select a sticky first
+    await page.click(".sticky-1 .sticky");
+    expect(await isStickySelected(1)).toBe(true);
+    
+    // Create a connector
+    await page.keyboard.press("c"); // Enter connector creation mode
+    await page.click(".sticky-2 .sticky");
+    await thingsSettleDown();
+    
+    // Verify connector is selected and sticky is not (normal behavior)
+    const connectorSelected = await page.evaluate(() => {
+      const connector = document.querySelector(".connector-container");
+      return connector ? connector.classList.contains("selected") : false;
+    });
+    expect(connectorSelected).toBe(true);
+    expect(await isStickySelected(1)).toBe(false);
+    
+    // Shift-click on the sticky - should add it to selection
+    await page.keyboard.down("Shift");
+    await page.click(".sticky-1 .sticky");
+    await page.keyboard.up("Shift");
+    await thingsSettleDown();
+    
+    // Verify both are selected
+    expect(await isStickySelected(1)).toBe(true);
+    const connectorStillSelected = await page.evaluate(() => {
+      const connector = document.querySelector(".connector-container");
+      return connector ? connector.classList.contains("selected") : false;
+    });
+    expect(connectorStillSelected).toBe(true);
+  });
 });
 
 function pageWithEmptyLocalBoard() {
