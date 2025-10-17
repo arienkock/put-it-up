@@ -41,7 +41,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     {
       itemLabel: "New Sticky",
       className: "new-sticky",
-      icon: "📄",
+      icon: "images/new-sticky-icon.svg",
       itemClickHandler: () => {
         appState.ui.nextClickCreatesNewSticky = true;
         appState.ui.nextClickCreatesConnector = false;
@@ -52,7 +52,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     {
       itemLabel: "Connector",
       className: "new-connector",
-      icon: "—",
+      icon: "images/new-connector-icon.svg",
       itemClickHandler: () => {
         appState.ui.nextClickCreatesConnector = true;
         appState.ui.nextClickCreatesNewSticky = false;
@@ -109,7 +109,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     {
       itemLabel: "Delete",
       className: "delete",
-      icon: "🗑️",
+      icon: "images/delete-icon.svg",
       itemClickHandler: () => {
         selectedStickies.forEach((id) => {
           board.deleteSticky(id);
@@ -175,7 +175,13 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       
       // Add icon if present
       if (item.icon) {
-        itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
+        if (item.icon.endsWith('.svg')) {
+          // Handle SVG icons
+          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" style="width: 24px; height: 24px; margin-right: 4px; vertical-align: middle;"> ${item.itemLabel}`;
+        } else {
+          // Handle emoji/text icons
+          itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
+        }
       }
     }
     
@@ -372,13 +378,15 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       }
     }
     
-    allItems.forEach(({ itemLabel, customLabel, dom, isSeparator }) => {
+    allItems.forEach(({ itemLabel, customLabel, dom, isSeparator, icon }) => {
       if (itemLabel && !isSeparator) {
         if (customLabel) {
           customLabel(dom, itemLabel);
-        } else {
+        } else if (!icon) {
+          // Only set textContent if there's no icon (to avoid overwriting icon HTML)
           dom.textContent = itemLabel;
         }
+        // If there's an icon, the innerHTML was already set in renderMenuButton
       }
     });
   }
