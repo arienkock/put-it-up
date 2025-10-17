@@ -203,27 +203,81 @@ export function mount(board, root, Observer, store) {
   // Expose menu render to allow selection-driven UI updates
   window.menuRenderCallback = renderMenu;
   
-  // Function to center the board scroll position
+  // Function to check if board has any content
+  function hasBoardContent() {
+    const state = store.getState();
+    const hasStickies = Object.keys(state.stickies || {}).length > 0;
+    const hasConnectors = Object.keys(state.connectors || {}).length > 0;
+    return hasStickies || hasConnectors;
+  }
+
+  // Function to find the top-leftmost content position
+  function getTopLeftmostContentPosition() {
+    const state = store.getState();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || zoomScale[zoomScale.length - 1];
+    const origin = board.getOrigin();
+    
+    let minX = Infinity;
+    let minY = Infinity;
+    
+    // Check all stickies
+    Object.values(state.stickies || {}).forEach(sticky => {
+      if (sticky.location) {
+        minX = Math.min(minX, sticky.location.x);
+        minY = Math.min(minY, sticky.location.y);
+      }
+    });
+    
+    // Check all connectors (they might have standalone points)
+    Object.values(state.connectors || {}).forEach(connector => {
+      if (connector.originPoint) {
+        minX = Math.min(minX, connector.originPoint.x);
+        minY = Math.min(minY, connector.originPoint.y);
+      }
+      if (connector.destinationPoint) {
+        minX = Math.min(minX, connector.destinationPoint.x);
+        minY = Math.min(minY, connector.destinationPoint.y);
+      }
+    });
+    
+    // Convert to pixel coordinates and adjust for origin
+    const pixelX = (minX - origin.x) * boardScale;
+    const pixelY = (minY - origin.y) * boardScale;
+    
+    return { x: pixelX, y: pixelY };
+  }
+
+  // Function to center the board scroll position or focus on content
   function centerBoardScroll() {
     if (!board.isReadyForUse()) {
       return;
     }
     
-    const size = board.getBoardSize();
     const appState = store.getAppState();
     const boardScale = appState.ui.boardScale || zoomScale[zoomScale.length - 1];
     
-    // Calculate the center of the board in pixels
-    const boardCenterX = (size.width * boardScale) / 2;
-    const boardCenterY = (size.height * boardScale) / 2;
+    let targetX, targetY;
+    
+    if (hasBoardContent()) {
+      // Focus on top-leftmost content
+      const contentPos = getTopLeftmostContentPosition();
+      targetX = contentPos.x;
+      targetY = contentPos.y;
+    } else {
+      // Center the board when no content
+      const size = board.getBoardSize();
+      targetX = (size.width * boardScale) / 2;
+      targetY = (size.height * boardScale) / 2;
+    }
     
     // Calculate the viewport center
     const viewportCenterX = window.innerWidth / 2;
     const viewportCenterY = window.innerHeight / 2;
     
-    // Calculate the scroll position needed to center the board
-    const scrollX = boardCenterX - viewportCenterX;
-    const scrollY = boardCenterY - viewportCenterY;
+    // Calculate the scroll position needed to center the target
+    const scrollX = targetX - viewportCenterX;
+    const scrollY = targetY - viewportCenterY;
     
     // Apply the scroll position
     window.scrollTo({
