@@ -185,7 +185,8 @@ describe("Board UI", () => {
     await press("n");
     await page.click(".board");
     const firstColor = await getComputedColor(".sticky-1 .sticky");
-    await press("c");
+    // Use menu button for color change since 'c' is now for connector creation
+    await page.click(".board-action-menu .change-color");
     await press("n");
     await page.click(".board");
     const secondColor = await getComputedColor(".sticky-2 .sticky");
@@ -197,11 +198,12 @@ describe("Board UI", () => {
     await press("n");
     await page.click(".board");
     const firstColor = await getComputedColor(".sticky-1 .sticky");
-    await press("c");
-    await press("c");
+    // Use menu button for color change since 'c' is now for connector creation
+    await page.click(".board-action-menu .change-color");
+    await page.click(".board-action-menu .change-color");
     await page.keyboard.down("Shift");
-    await press("C");
-    await press("C");
+    await page.click(".board-action-menu .change-color");
+    await page.click(".board-action-menu .change-color");
     await page.keyboard.up("Shift");
     await press("n");
     await page.click(".board");
@@ -620,7 +622,7 @@ async function dragAndDrop(
   const sourceBox = await sourceElement.boundingBox();
 
   await page.evaluate(
-    (ss, ds, sb, db) => {
+    ({ ss, ds, sb, db }) => {
       const source = document.querySelector(ss);
       const destination = document.querySelector(ds);
 
@@ -692,10 +694,7 @@ async function dragAndDrop(
         })
       );
     },
-    sourceSelector,
-    destinationSelector,
-    sourceBox,
-    destinationBox
+    { ss: sourceSelector, ds: destinationSelector, sb: sourceBox, db: destinationBox }
   );
 }
 

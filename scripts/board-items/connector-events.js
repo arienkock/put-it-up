@@ -75,11 +75,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     currentConnectorId = board.putConnector(connectorData);
     
-    // Select the newly created connector
-    const selectedConnectors = selectionManager.getSelection('connectors');
-    if (selectedConnectors) {
-      selectedConnectors.replaceSelection(currentConnectorId);
-    }
+    // Select the newly created connector using selection manager
+    selectionManager.selectItem('connectors', currentConnectorId);
     
     // Trigger menu update to show connector-specific items
     if (window.menuRenderCallback) {

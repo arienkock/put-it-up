@@ -42,29 +42,21 @@ export function setupKeyboardHandlers(
         callbacks.onCancelAction();
       }
     }
-    // Change color with 'c' or 'C' (shift)
-    else if (event.key === "c" || event.key === "C") {
-      const newColor = changeColor(
-        board,
-        selectedStickies,
-        selectedConnectors,
-        appState.ui.currentColor,
-        event.shiftKey
-      );
-      appState.ui.currentColor = newColor;
-      callbacks.onColorChange();
+    // Create connector with 'c'
+    else if (event.key === "c") {
+      appState.ui.nextClickCreatesConnector = true;
+      appState.ui.nextClickCreatesNewSticky = false;
+      appState.ui.connectorOriginId = null;
+      callbacks.onConnectorRequest();
     }
     // Delete selected stickies and connectors with Delete key
     else if (event.key === "Delete") {
       selectedStickies.forEach((id) => {
         board.deleteSticky(id);
       });
-      // Also delete connectors if they exist
-      if (appState.ui.connectorSelection) {
-        Object.keys(appState.ui.connectorSelection).forEach((id) => {
-          board.deleteConnector(id);
-        });
-      }
+      selectedConnectors.forEach((id) => {
+        board.deleteConnector(id);
+      });
     }
     // Move selection with arrow keys
     else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {

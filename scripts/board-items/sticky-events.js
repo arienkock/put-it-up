@@ -69,7 +69,10 @@ export function setupStickyEvents(
   };
   
   container.inputElement.onkeydown = (event) => {
-    event.stopPropagation();
+    // Don't stop propagation for Delete key so it reaches the global handler
+    if (event.key !== "Delete") {
+      event.stopPropagation();
+    }
     if (event.key === "Escape") {
       setEditable(false);
     }

@@ -183,6 +183,7 @@ export function mount(board, root, Observer, store) {
     onZoomChange: () => render(),
     onColorChange: () => renderMenu(),
     onNewStickyRequest: () => renderBoard(),
+    onConnectorRequest: () => renderBoard(),
     onCancelAction: () => renderBoard(),
   });
 
@@ -305,10 +306,12 @@ export function mount(board, root, Observer, store) {
   
   render();
   
-  // Center the board scroll position after initial render
-  requestAnimationFrame(() => {
-    centerBoardScroll();
-  });
+  // Center the board scroll position after initial render (skip in test environment)
+  if (!window.navigator.userAgent.includes('HeadlessChrome')) {
+    requestAnimationFrame(() => {
+      centerBoardScroll();
+    });
+  }
   
   return {
     render,

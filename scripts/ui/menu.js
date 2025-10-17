@@ -332,14 +332,44 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     const hasConnectorsSelected = selectedConnectors.hasItems();
     const hasAnySelection = hasStickiesSelected || hasConnectorsSelected;
     
+    // Always show Color and Delete buttons
+    const colorItem = selectionDependentItems.find(item => item.className === "change-color");
+    const deleteItem = selectionDependentItems.find(item => item.className === "delete");
+    
+    if (colorItem) {
+      const btn = renderMenuButton(colorItem);
+      if (!hasAnySelection) {
+        btn.classList.add('disabled');
+        // Don't disable the button, just make it have no effect
+        const originalHandler = btn.onclick;
+        btn.onclick = (event) => {
+          if (!hasAnySelection) {
+            event.preventDefault();
+            return;
+          }
+          if (originalHandler) originalHandler(event);
+        };
+      }
+      menuElement.appendChild(btn);
+    }
+    if (deleteItem) {
+      const btn = renderMenuButton(deleteItem);
+      if (!hasAnySelection) {
+        btn.classList.add('disabled');
+        // Don't disable the button, just make it have no effect
+        const originalHandler = btn.onclick;
+        btn.onclick = (event) => {
+          if (!hasAnySelection) {
+            event.preventDefault();
+            return;
+          }
+          if (originalHandler) originalHandler(event);
+        };
+      }
+      menuElement.appendChild(btn);
+    }
+    
     if (hasAnySelection) {
-      // Always show Color and Delete when any items are selected
-      const colorItem = selectionDependentItems.find(item => item.className === "change-color");
-      const deleteItem = selectionDependentItems.find(item => item.className === "delete");
-      
-      if (colorItem) menuElement.appendChild(renderMenuButton(colorItem));
-      if (deleteItem) menuElement.appendChild(renderMenuButton(deleteItem));
-      
       // Show Arrow head only when connectors are selected
       if (hasConnectorsSelected) {
         const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
@@ -356,14 +386,11 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     // Update custom labels for all rendered items
     const allItems = [...alwaysRelevantItems];
     
-    // Add the items that were actually rendered (same logic as above)
+    // Add the items that were actually rendered (Color and Delete are always rendered)
+    if (colorItem) allItems.push(colorItem);
+    if (deleteItem) allItems.push(deleteItem);
+    
     if (hasAnySelection) {
-      const colorItem = selectionDependentItems.find(item => item.className === "change-color");
-      const deleteItem = selectionDependentItems.find(item => item.className === "delete");
-      
-      if (colorItem) allItems.push(colorItem);
-      if (deleteItem) allItems.push(deleteItem);
-      
       if (hasConnectorsSelected) {
         const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
         if (arrowHeadItem) allItems.push(arrowHeadItem);
