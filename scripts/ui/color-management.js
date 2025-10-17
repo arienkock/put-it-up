@@ -61,9 +61,14 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
   function nextColor() {
     const delta = reverse ? -1 : 1;
     const palette = getCurrentPalette();
-    let index =
-      (palette.findIndex((c) => c === currentColor) + delta) %
-      palette.length;
+    let currentIndex = palette.findIndex((c) => c === currentColor);
+    
+    // If currentColor is not found in the palette, start from the beginning
+    if (currentIndex === -1) {
+      currentIndex = reverse ? palette.length - 1 : 0;
+    }
+    
+    let index = (currentIndex + delta) % palette.length;
     if (index < 0) {
       index += palette.length;
     }
