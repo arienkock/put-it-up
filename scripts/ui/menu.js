@@ -107,19 +107,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
     },
     {
-      itemLabel: "Delete",
-      className: "delete",
-      icon: "images/delete-icon.svg",
-      itemClickHandler: () => {
-        selectedStickies.forEach((id) => {
-          board.deleteSticky(id);
-        });
-        selectedConnectors.forEach((id) => {
-          board.deleteConnector(id);
-        });
-      },
-    },
-    {
       itemLabel: "Arrow head",
       className: "change-arrow-head",
       itemClickHandler: (event) => {
@@ -135,7 +122,28 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         renderMenu();
       },
       customLabel: (dom, label) => {
-        dom.textContent = `${label}: ${appState.ui.currentArrowHead}`;
+        // Get the appropriate icon for the current arrow head type
+        const arrowHeadIcons = {
+          "none": "images/arrow-none-icon.svg",
+          "line": "images/arrow-line-icon.svg", 
+          "hollow": "images/arrow-hollow-icon.svg",
+          "filled": "images/arrow-filled-icon.svg"
+        };
+        const currentIcon = arrowHeadIcons[appState.ui.currentArrowHead];
+        dom.innerHTML = `<img src="${currentIcon}" alt="${label}" style="width: 20px; height: 20px; vertical-align: text-bottom;">`;
+      },
+    },
+    {
+      itemLabel: "Delete",
+      className: "delete",
+      icon: "images/delete-icon.svg",
+      itemClickHandler: () => {
+        selectedStickies.forEach((id) => {
+          board.deleteSticky(id);
+        });
+        selectedConnectors.forEach((id) => {
+          board.deleteConnector(id);
+        });
       },
     },
     {
@@ -336,15 +344,15 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         if (colorItem) menuElement.appendChild(renderMenuButton(colorItem));
       }
       
-      // Show Delete button when items are selected
-      const deleteItem = selectionDependentItems.find(item => item.className === "delete");
-      if (deleteItem) menuElement.appendChild(renderMenuButton(deleteItem));
-      
       // Show Arrow head only when connectors are selected
       if (hasConnectorsSelected) {
         const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
         if (arrowHeadItem) menuElement.appendChild(renderMenuButton(arrowHeadItem));
       }
+      
+      // Show Delete button when items are selected
+      const deleteItem = selectionDependentItems.find(item => item.className === "delete");
+      if (deleteItem) menuElement.appendChild(renderMenuButton(deleteItem));
       
       // Show Sticky size only when stickies are selected
       if (hasStickiesSelected) {
