@@ -333,9 +333,11 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     const hasAnySelection = hasStickiesSelected || hasConnectorsSelected;
     
     if (hasAnySelection) {
-      // Show Color button when items are selected
-      const colorItem = selectionDependentItems.find(item => item.className === "change-color");
-      if (colorItem) menuElement.appendChild(renderMenuButton(colorItem));
+      // Show Color button only when a single type is selected (not mixed)
+      if (!(hasStickiesSelected && hasConnectorsSelected)) {
+        const colorItem = selectionDependentItems.find(item => item.className === "change-color");
+        if (colorItem) menuElement.appendChild(renderMenuButton(colorItem));
+      }
       
       // Show Delete button when items are selected
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
@@ -359,8 +361,11 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
     
     // Add the items that were actually rendered
     if (hasAnySelection) {
-      const colorItem = selectionDependentItems.find(item => item.className === "change-color");
-      if (colorItem) allItems.push(colorItem);
+      // Add color item only if it was rendered (single type selection)
+      if (!(hasStickiesSelected && hasConnectorsSelected)) {
+        const colorItem = selectionDependentItems.find(item => item.className === "change-color");
+        if (colorItem) allItems.push(colorItem);
+      }
       
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
       if (deleteItem) allItems.push(deleteItem);
