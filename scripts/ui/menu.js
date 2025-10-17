@@ -31,18 +31,12 @@ function changeArrowHead(currentArrowHead, reverse = false) {
 export function createMenu(board, selectedStickies, selectedConnectors, root, appState, renderCallback) {
   let menuElement;
 
-  const menuItems = [
+  const alwaysRelevantItems = [
     {
       itemLabel: "Whiteboard",
       className: "menu-title",
       itemClickHandler: null,
       isTitle: true,
-    },
-    {
-      itemLabel: "separator",
-      className: "menu-separator",
-      itemClickHandler: null,
-      isSeparator: true,
     },
     {
       itemLabel: "New Sticky",
@@ -67,11 +61,25 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       },
     },
     {
-      itemLabel: "separator",
-      className: "menu-separator",
-      itemClickHandler: null,
-      isSeparator: true,
+      itemLabel: "Zoom",
+      className: "change-zoom",
+      icon: "🔍",
+      itemClickHandler: (event) => {
+        const newScale = changeZoomLevel(appState.ui.boardScale, event.shiftKey);
+        appState.ui.boardScale = newScale;
+        renderCallback();
+      },
+      customLabel: (dom, label) => {
+        if (!appState.ui.boardScale) {
+          dom.textContent = `🔍 ${label}`;
+        } else {
+          dom.textContent = `🔍 ${(appState.ui.boardScale * 100).toFixed(0)}%`;
+        }
+      },
     },
+  ];
+
+  const selectionDependentItems = [
     {
       itemLabel: "Color",
       className: "change-color",
@@ -102,33 +110,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         selectedConnectors.forEach((id) => {
           board.deleteConnector(id);
         });
-      },
-      customLabel: (dom, label) => {
-        const hasSelection = selectedStickies.hasItems() || selectedConnectors.hasItems();
-        dom.innerHTML = `🗑️ ${label}`;
-        dom.disabled = !hasSelection;
-        if (!hasSelection) {
-          dom.classList.add('disabled');
-        } else {
-          dom.classList.remove('disabled');
-        }
-      },
-    },
-    {
-      itemLabel: "Zoom",
-      className: "change-zoom",
-      icon: "🔍",
-      itemClickHandler: (event) => {
-        const newScale = changeZoomLevel(appState.ui.boardScale, event.shiftKey);
-        appState.ui.boardScale = newScale;
-        renderCallback();
-      },
-      customLabel: (dom, label) => {
-        if (!appState.ui.boardScale) {
-          dom.textContent = `🔍 ${label}`;
-        } else {
-          dom.textContent = `🔍 ${(appState.ui.boardScale * 100).toFixed(0)}%`;
-        }
       },
     },
     {
@@ -162,16 +143,38 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         }
       },
       customLabel: (dom, label) => {
-        if (selectedStickies.size() === 1) {
-          dom.textContent = label;
-          dom.disabled = false;
-        } else {
-          dom.textContent = `${label} (select 1)`;
-          dom.disabled = true;
-        }
+        dom.textContent = label;
       },
     },
   ];
+
+  /**
+   * Renders a single menu button/item
+   */
+  function renderMenuButton(item) {
+    let itemElement;
+    
+    if (item.isTitle) {
+      itemElement = document.createElement("div");
+      itemElement.classList.add(item.className);
+      itemElement.textContent = item.itemLabel;
+    } else if (item.isSeparator) {
+      itemElement = document.createElement("div");
+      itemElement.classList.add(item.className);
+    } else {
+      itemElement = document.createElement("button");
+      itemElement.onclick = item.itemClickHandler;
+      itemElement.classList.add(item.className);
+      
+      // Add icon if present
+      if (item.icon) {
+        itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
+      }
+    }
+    
+    item.dom = itemElement;
+    return itemElement;
+  }
 
   /**
    * Renders the menu element
@@ -185,9 +188,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       // Create menu element
       menuElement = document.createElement("div");
       menuElement.classList.add("board-action-menu");
-      menuItems.forEach((item) => {
-        menuElement.appendChild(renderMenuButton(item));
-      });
       
       // Add menu to container and container to root
       menuContainer.appendChild(menuElement);
@@ -258,34 +258,70 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         
         updateMenuForViewportZoom(); // Initial call (no debounce for initial setup)
       }
+    }
 
-      function renderMenuButton(item) {
-        let itemElement;
-        
-        if (item.isTitle) {
-          itemElement = document.createElement("div");
-          itemElement.classList.add(item.className);
-          itemElement.textContent = item.itemLabel;
-        } else if (item.isSeparator) {
-          itemElement = document.createElement("div");
-          itemElement.classList.add(item.className);
-        } else {
-          itemElement = document.createElement("button");
-          itemElement.onclick = item.itemClickHandler;
-          itemElement.classList.add(item.className);
-          
-          // Add icon if present
-          if (item.icon) {
-            itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
-          }
-        }
-        
-        item.dom = itemElement;
-        return itemElement;
+    // Clear existing items
+    menuElement.innerHTML = '';
+    
+    // Always render always-relevant items
+    alwaysRelevantItems.forEach((item) => {
+      menuElement.appendChild(renderMenuButton(item));
+    });
+    
+    // Add separator
+    const separator = document.createElement('div');
+    separator.classList.add('menu-separator');
+    menuElement.appendChild(separator);
+    
+    // Conditionally render selection-dependent items
+    const hasStickiesSelected = selectedStickies.hasItems();
+    const hasConnectorsSelected = selectedConnectors.hasItems();
+    const hasAnySelection = hasStickiesSelected || hasConnectorsSelected;
+    
+    if (hasAnySelection) {
+      // Always show Color and Delete when any items are selected
+      const colorItem = selectionDependentItems.find(item => item.className === "change-color");
+      const deleteItem = selectionDependentItems.find(item => item.className === "delete");
+      
+      if (colorItem) menuElement.appendChild(renderMenuButton(colorItem));
+      if (deleteItem) menuElement.appendChild(renderMenuButton(deleteItem));
+      
+      // Show Arrow head only when connectors are selected
+      if (hasConnectorsSelected) {
+        const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
+        if (arrowHeadItem) menuElement.appendChild(renderMenuButton(arrowHeadItem));
+      }
+      
+      // Show Sticky size only when stickies are selected
+      if (hasStickiesSelected) {
+        const stickySizeItem = selectionDependentItems.find(item => item.className === "sticky-size");
+        if (stickySizeItem) menuElement.appendChild(renderMenuButton(stickySizeItem));
       }
     }
 
-    menuItems.forEach(({ itemLabel, customLabel, dom, isSeparator }) => {
+    // Update custom labels for all rendered items
+    const allItems = [...alwaysRelevantItems];
+    
+    // Add the items that were actually rendered (same logic as above)
+    if (hasAnySelection) {
+      const colorItem = selectionDependentItems.find(item => item.className === "change-color");
+      const deleteItem = selectionDependentItems.find(item => item.className === "delete");
+      
+      if (colorItem) allItems.push(colorItem);
+      if (deleteItem) allItems.push(deleteItem);
+      
+      if (hasConnectorsSelected) {
+        const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
+        if (arrowHeadItem) allItems.push(arrowHeadItem);
+      }
+      
+      if (hasStickiesSelected) {
+        const stickySizeItem = selectionDependentItems.find(item => item.className === "sticky-size");
+        if (stickySizeItem) allItems.push(stickySizeItem);
+      }
+    }
+    
+    allItems.forEach(({ itemLabel, customLabel, dom, isSeparator }) => {
       if (itemLabel && !isSeparator) {
         if (customLabel) {
           customLabel(dom, itemLabel);

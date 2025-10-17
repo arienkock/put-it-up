@@ -232,6 +232,8 @@ export function setupConnectorEvents(boardElement, board, selectedConnectors, re
       } else {
         selectedConnectors.replaceSelection(connectorId);
       }
+      // Trigger full render to update menu
+      renderCallback();
     }
   });
 
