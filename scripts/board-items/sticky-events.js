@@ -126,7 +126,8 @@ export function setupStickyEvents(
       addToSelection: event.shiftKey
     });
     
-    if (!event.shiftKey) {
+    // Only exit editing mode if not clicking on the textarea
+    if (!event.shiftKey && event.target !== container.inputElement) {
       setEditable(false);
     }
     

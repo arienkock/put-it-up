@@ -509,6 +509,54 @@ describe("Board UI", () => {
     });
     expect(connectorStillSelected).toBe(true);
   });
+
+  it("maintains textarea focus when clicking inside textarea", async () => {
+    await page.goto(pageWithBasicContentOnALocalBoard());
+    await page.waitForSelector(".sticky-1 .sticky .text-input");
+    
+    // Click on the textarea to start editing
+    await page.click(".sticky-1 .sticky .text-input");
+    await thingsSettleDown();
+    
+    // Verify the textarea is focused and in editing mode
+    const isTextareaFocused = await page.evaluate(() => {
+      const textarea = document.querySelector(".sticky-1 .text-input");
+      return document.activeElement === textarea;
+    });
+    expect(isTextareaFocused).toBe(true);
+    
+    const isEditingMode = await page.evaluate(() => {
+      const container = document.querySelector(".sticky-1");
+      return container.classList.contains("editing");
+    });
+    expect(isEditingMode).toBe(true);
+    
+    // Click inside the textarea again (simulating user clicking to position cursor)
+    const textareaBox = await page.locator(".sticky-1 .text-input").boundingBox();
+    await page.mouse.click(textareaBox.x + textareaBox.width / 2, textareaBox.y + textareaBox.height / 2);
+    await thingsSettleDown();
+    
+    // Verify the textarea is still focused and in editing mode
+    const isStillFocused = await page.evaluate(() => {
+      const textarea = document.querySelector(".sticky-1 .text-input");
+      return document.activeElement === textarea;
+    });
+    expect(isStillFocused).toBe(true);
+    
+    const isStillEditing = await page.evaluate(() => {
+      const container = document.querySelector(".sticky-1");
+      return container.classList.contains("editing");
+    });
+    expect(isStillEditing).toBe(true);
+    
+    // Verify we can still type
+    await page.keyboard.type("test");
+    const textContent = await page.evaluate(() => {
+      const textarea = document.querySelector(".sticky-1 .text-input");
+      return textarea.value;
+    });
+    expect(textContent).toContain("test");
+  });
 });
 
 function pageWithEmptyLocalBoard() {
