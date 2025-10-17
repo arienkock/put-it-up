@@ -166,6 +166,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       // Handle viewport zoom to keep menu visible and at constant size
       if (window.visualViewport) {
         let debounceTimeout;
+        let isAnimating = false;
         
         function updateMenuForViewportZoom() {
           const viewport = window.visualViewport;
@@ -190,20 +191,59 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
           menuElement.style.width = `calc(100% + ${marginCompensation}px)`;
         }
         
+        function updateMenuForViewportScroll() {
+          // For scroll events, update immediately without animation
+          const viewport = window.visualViewport;
+          const scale = viewport.scale;
+          
+          // Temporarily disable transitions for immediate positioning
+          menuElement.style.transition = 'none';
+          
+          // Counter-scale to keep menu at constant visual size
+          menuElement.style.transform = `scale(${1 / scale})`;
+          menuElement.style.transformOrigin = 'top left';
+          
+          // Position menu with consistent margin (equivalent to 1em)
+          const baseMargin = 16; // 1em equivalent in pixels
+          const scaledMargin = baseMargin / scale;
+          
+          menuElement.style.left = `${viewport.offsetLeft + scaledMargin}px`;
+          menuElement.style.top = `${viewport.offsetTop + scaledMargin}px`;
+          
+          // Compensate for button margins that get scaled down
+          const buttonMargin = parseFloat(getComputedStyle(menuElement.querySelector('button')).marginLeft) || 2.4; // 0.15em ≈ 2.4px
+          const marginCompensation = buttonMargin * (menuItems.length - 1) * (scale - 1);
+          menuElement.style.width = `calc(100% + ${marginCompensation}px)`;
+          
+          // Re-enable transitions after a brief delay
+          requestAnimationFrame(() => {
+            menuElement.style.transition = '';
+          });
+        }
+        
         function debouncedUpdateMenuForViewportZoom() {
           // Clear any existing timeout
           if (debounceTimeout) {
             clearTimeout(debounceTimeout);
           }
           
-          // Set a new timeout for 500ms
+          // Set a new timeout for smooth animation
           debounceTimeout = setTimeout(() => {
+            isAnimating = true;
             updateMenuForViewportZoom();
+            // Reset animation flag after transition completes
+            setTimeout(() => {
+              isAnimating = false;
+            }, 300); // Match CSS transition duration
           }, 200);
         }
         
+        // Handle resize events with debounced animation (for zoom changes)
         window.visualViewport.addEventListener('resize', debouncedUpdateMenuForViewportZoom);
-        window.visualViewport.addEventListener('scroll', debouncedUpdateMenuForViewportZoom);
+        
+        // Handle scroll events with immediate positioning (like fixed positioning)
+        window.visualViewport.addEventListener('scroll', updateMenuForViewportScroll);
+        
         updateMenuForViewportZoom(); // Initial call (no debounce for initial setup)
       }
 
