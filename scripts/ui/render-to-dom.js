@@ -206,6 +206,7 @@ export function mount(board, root, Observer, store) {
       const id = board.putSticky({ color: appState.ui.currentColor, location });
       selectedStickies.replaceSelection(id);
       renderBoard();
+      renderMenu();
     } else if (event.target === domElement && !event.shiftKey && !appState.ui.nextClickCreatesConnector) {
       selectionManager.clearAllSelections();
       // Ensure menu reflects empty selection state

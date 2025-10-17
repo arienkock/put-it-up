@@ -60,6 +60,17 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     currentConnectorId = board.putConnector(connectorData);
     
+    // Select the newly created connector
+    const selectedConnectors = selectionManager.getSelection('connectors');
+    if (selectedConnectors) {
+      selectedConnectors.replaceSelection(currentConnectorId);
+    }
+    
+    // Trigger menu update to show connector-specific items
+    if (window.menuRenderCallback) {
+      window.menuRenderCallback();
+    }
+    
     // Set up global mouse events
     document.addEventListener('mousemove', handleConnectorDrag);
     document.addEventListener('mouseup', handleConnectorDragEnd);
