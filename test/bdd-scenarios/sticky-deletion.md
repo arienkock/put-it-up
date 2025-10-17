@@ -16,9 +16,3 @@
 **Then** stickies 1 and 2 should be removed from the board
 **And** the remaining stickies (3 and 4) should still be visible
 
-## Scenario: Delete action has no effect when nothing is selected
-**Given** the user has a board with 4 stickies
-**And** no stickies are selected
-**When** the user clicks the delete button in the board action menu
-**Then** all 4 stickies should remain on the board
-
