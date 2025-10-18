@@ -16,7 +16,9 @@
     "@stryker-mutator/core": "^9.2.0",
     "@stryker-mutator/javascript-mutator": "^4.0.0",
     "@stryker-mutator/jest-runner": "^9.2.0",
+    "firestore-jest-mock": "^0.26.0",
     "jest": "^30.2.0",
+    "lodash": "^4.17.21",
     "node-static": "^0.7.11",
     "nyc": "^17.1.0",
     "playwright": "^1.56.1"

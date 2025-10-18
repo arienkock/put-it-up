@@ -48,6 +48,19 @@ export class FirestoreStore {
         this.notifyConnectorChange(change.doc.id);
       });
     });
+
+    this.imageRef = this.docRef.collection("images");
+    this.imageRef.onSnapshot((querySnapshot) => {
+      doBatched(querySnapshot.docChanges(), (change) => {
+        const state = getAppState();
+        if (change.type === "added" || change.type === "modified") {
+          state.images[change.doc.id] = change.doc.data();
+        } else if (change.type === "removed") {
+          delete state.images[change.doc.id];
+        }
+        this.notifyImageChange(change.doc.id);
+      });
+    });
   }
 
   isReadyForUse() {
@@ -58,7 +71,9 @@ export class FirestoreStore {
     const state = getAppState();
     if (!state.board) {
       state.board = defaults;
-      this.docRef.set(state.board);
+      if (this.docRef) {
+        this.docRef.set(state.board);
+      }
     }
     return clone(state.board);
   };
@@ -75,31 +90,69 @@ export class FirestoreStore {
     const docRef = this.stickyRef.doc();
     docRef.set(sticky, { merge: true });
     getAppState().stickies[docRef.id] = sticky;
+    this.notifyStickyChange(docRef.id);
     return docRef.id;
   };
 
   deleteSticky = (id) => {
-    this.stickyRef.doc(id).delete();
+    if (this.stickyRef) {
+      this.stickyRef.doc(id).delete();
+    }
+    // Update local state immediately
+    const state = getAppState();
+    delete state.stickies[id];
+    this.notifyStickyChange(id);
   };
 
   updateText = (id, text) => {
-    this.stickyRef.doc(id).update({ text });
+    if (this.stickyRef) {
+      this.stickyRef.doc(id).update({ text });
+    }
+    // Update local state immediately
+    const sticky = this.getSticky(id);
+    sticky.text = text;
+    this.notifyStickyChange(id);
   };
 
   updateColor = (id, color) => {
-    this.stickyRef.doc(id).update({ color });
+    if (this.stickyRef) {
+      this.stickyRef.doc(id).update({ color });
+    }
+    // Update local state immediately
+    const sticky = this.getSticky(id);
+    sticky.color = color;
+    this.notifyStickyChange(id);
   };
 
   setLocation = (id, location) => {
-    this.stickyRef.doc(id).update({ location });
+    if (this.stickyRef) {
+      this.stickyRef.doc(id).update({ location });
+    }
+    // Update local state immediately
+    const sticky = this.getSticky(id);
+    sticky.location = location;
+    this.notifyStickyChange(id);
   };
 
   updateSize = (id, size) => {
-    this.stickyRef.doc(id).update({ size });
+    if (this.stickyRef) {
+      this.stickyRef.doc(id).update({ size });
+    }
+    // Update local state immediately
+    const sticky = this.getSticky(id);
+    sticky.size = size;
+    this.notifyStickyChange(id);
   };
 
   updateBoard = (board) => {
-    this.docRef.update(board);
+    if (this.docRef) {
+      this.docRef.update(board);
+    }
+    // Also update local state for immediate access
+    const state = getAppState();
+    state.board = state.board || {};
+    Object.assign(state.board, board);
+    this.notifyBoardChange();
   };
 
   getConnector = (id) => {
@@ -110,19 +163,77 @@ export class FirestoreStore {
     return connector;
   };
 
+  getImage = (id) => {
+    const image = getAppState().images[id];
+    if (!image) {
+      throw new Error("No such image id=" + id);
+    }
+    return image;
+  };
+
   createConnector = (connector) => {
     const docRef = this.connectorRef.doc();
     docRef.set(connector, { merge: true });
     getAppState().connectors[docRef.id] = connector;
+    this.notifyConnectorChange(docRef.id);
+    return docRef.id;
+  };
+
+  createImage = (image) => {
+    const docRef = this.imageRef.doc();
+    docRef.set(image, { merge: true });
+    getAppState().images[docRef.id] = image;
+    this.notifyImageChange(docRef.id);
     return docRef.id;
   };
 
   deleteConnector = (id) => {
-    this.connectorRef.doc(id).delete();
+    if (this.connectorRef) {
+      this.connectorRef.doc(id).delete();
+    }
+    // Update local state immediately
+    const state = getAppState();
+    delete state.connectors[id];
+    this.notifyConnectorChange(id);
+  };
+
+  deleteImage = (id) => {
+    if (this.imageRef) {
+      this.imageRef.doc(id).delete();
+    }
+    // Update local state immediately
+    const state = getAppState();
+    delete state.images[id];
+    this.notifyImageChange(id);
   };
 
   updateArrowHead = (id, arrowHead) => {
-    this.connectorRef.doc(id).update({ arrowHead });
+    if (this.connectorRef) {
+      this.connectorRef.doc(id).update({ arrowHead });
+    }
+    // Update local state immediately
+    const connector = this.getConnector(id);
+    connector.arrowHead = arrowHead;
+    this.notifyConnectorChange(id);
+  };
+
+  updateConnectorColor = (id, color) => {
+    if (this.connectorRef) {
+      this.connectorRef.doc(id).update({ color });
+    }
+    // Update local state immediately
+    const connector = this.getConnector(id);
+    connector.color = color;
+    this.notifyConnectorChange(id);
+  };
+
+  // Ensure connector has a default color if none exists
+  ensureConnectorHasColor = (id) => {
+    const connector = this.getConnector(id);
+    if (!connector.color) {
+      connector.color = "#000000"; // Default connector color (black)
+      this.connectorRef.doc(id).update({ color: "#000000" });
+    }
   };
 
   updateConnectorEndpoint = (id, endpoint, data) => {
@@ -131,33 +242,74 @@ export class FirestoreStore {
       if (data.stickyId) {
         updateData.originId = data.stickyId;
         updateData.originPoint = null;
+        updateData.originImageId = null;
+      } else if (data.imageId) {
+        updateData.originImageId = data.imageId;
+        updateData.originPoint = null;
+        updateData.originId = null;
       } else if (data.point) {
         updateData.originPoint = data.point;
         updateData.originId = null;
+        updateData.originImageId = null;
       }
     } else if (endpoint === 'destination') {
       if (data.stickyId) {
         updateData.destinationId = data.stickyId;
         updateData.destinationPoint = null;
+        updateData.destinationImageId = null;
+      } else if (data.imageId) {
+        updateData.destinationImageId = data.imageId;
+        updateData.destinationPoint = null;
+        updateData.destinationId = null;
       } else if (data.point) {
         updateData.destinationPoint = data.point;
         updateData.destinationId = null;
+        updateData.destinationImageId = null;
       }
     }
-    this.connectorRef.doc(id).update(updateData);
+    if (this.connectorRef) {
+      this.connectorRef.doc(id).update(updateData);
+    }
+    // Update local state immediately
+    const connector = this.getConnector(id);
+    Object.assign(connector, updateData);
+    this.notifyConnectorChange(id);
+  };
+
+  setImageLocation = (id, location) => {
+    if (this.imageRef) {
+      this.imageRef.doc(id).update({ location });
+    }
+    // Update local state immediately
+    const image = this.getImage(id);
+    image.location = location;
+    this.notifyImageChange(id);
+  };
+
+  updateImageSize = (id, width, height) => {
+    if (this.imageRef) {
+      this.imageRef.doc(id).update({ width, height });
+    }
+    // Update local state immediately
+    const image = this.getImage(id);
+    image.width = width;
+    image.height = height;
+    this.notifyImageChange(id);
   };
 
   getState = () => {
-    const { stickies, connectors, idGen, connectorIdGen } = getAppState();
-    return clone({ stickies, connectors, idGen, connectorIdGen });
+    const { stickies, connectors, images, idGen, connectorIdGen, imageIdGen } = getAppState();
+    return clone({ stickies, connectors, images, idGen, connectorIdGen, imageIdGen });
   };
 
   setState = (state) => {
     const appState = getAppState();
     appState.stickies = state.stickies || {};
     appState.connectors = state.connectors || {};
+    appState.images = state.images || {};
     appState.idGen = state.idGen || 0;
     appState.connectorIdGen = state.connectorIdGen || 0;
+    appState.imageIdGen = state.imageIdGen || 0;
     this.notifyBoardChange();
   };
 
@@ -166,6 +318,9 @@ export class FirestoreStore {
   };
   notifyConnectorChange = (id) => {
     this.observers.forEach((o) => o.onConnectorChange && o.onConnectorChange(id));
+  };
+  notifyImageChange = (id) => {
+    this.observers.forEach((o) => o.onImageChange && o.onImageChange(id));
   };
   notifyBoardChange = () => {
     this.observers.forEach((o) => o.onBoardChange());

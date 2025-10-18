@@ -3,7 +3,9 @@ import { getAppState } from "../app-state.js";
 export class LocalDatastore {
   observers = [];
 
-  isReadyForUse = () => true;
+  isReadyForUse() {
+    return true;
+  }
 
   getBoard = (defaults) => {
     const state = getAppState();
@@ -23,8 +25,8 @@ export class LocalDatastore {
     const state = getAppState();
     const id = ++state.idGen;
     state.stickies[id] = sticky;
-    this.notifyStickyChange(id);
-    return id;
+    this.notifyStickyChange(id.toString());
+    return id.toString();
   };
 
   deleteSticky = (id) => {
@@ -83,16 +85,16 @@ export class LocalDatastore {
     const state = getAppState();
     const id = ++state.connectorIdGen;
     state.connectors[id] = connector;
-    this.notifyConnectorChange(id);
-    return id;
+    this.notifyConnectorChange(id.toString());
+    return id.toString();
   };
 
   createImage = (image) => {
     const state = getAppState();
     const id = ++state.imageIdGen;
     state.images[id] = image;
-    this.notifyImageChange(id);
-    return id;
+    this.notifyImageChange(id.toString());
+    return id.toString();
   };
 
   deleteConnector = (id) => {
