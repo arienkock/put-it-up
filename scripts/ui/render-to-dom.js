@@ -62,6 +62,10 @@ import {
   createRenderer as createConnectorRenderer,
   DEFAULT_ARROW_HEAD,
 } from "../board-items/connector.js";
+import {
+  createRenderer as createImageRenderer,
+  IMAGE_TYPE,
+} from "../board-items/image.js";
 import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { Selection } from "./selection.js";
 import { SelectionManager } from "./selection-manager.js";
@@ -80,15 +84,18 @@ export function mount(board, root, Observer, store) {
   const appState = store.getAppState();
   // Use globally stored UI state
   let stickiesMovedByDragging = appState.ui.stickiesMovedByDragging;
+  let imagesMovedByDragging = appState.ui.imagesMovedByDragging || [];
   
   // Create selections first
   const selectedStickies = new Selection(null, "selection", "onStickyChange", store);
   const selectedConnectors = new Selection(null, "connectorSelection", "onConnectorChange", store);
+  const selectedImages = new Selection(null, "imageSelection", "onImageChange", store);
   
-  // Create selection manager and register both selection types
+  // Create selection manager and register all selection types
   const selectionManager = new SelectionManager();
   selectionManager.registerSelection('stickies', selectedStickies);
   selectionManager.registerSelection('connectors', selectedConnectors);
+  selectionManager.registerSelection('images', selectedImages);
   
   const renderSticky = createRenderer(
     board,
@@ -102,14 +109,22 @@ export function mount(board, root, Observer, store) {
     domElement,
     getSelectedConnectors
   );
+  const renderImage = createImageRenderer(
+    board,
+    domElement,
+    selectionManager,
+    imagesMovedByDragging,
+    store
+  );
   
   // Now create observer with the render functions
-  const observer = new Observer(board, render, renderSticky, renderConnector);
+  const observer = new Observer(board, render, renderSticky, renderConnector, renderImage);
   board.addObserver(observer);
   
   // Update the selections with the observer
   selectedStickies.observer = observer;
   selectedConnectors.observer = observer;
+  selectedImages.observer = observer;
   
   appState.ui.currentColor = appState.ui.currentColor || colorPalette[0];
   appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
@@ -118,6 +133,9 @@ export function mount(board, root, Observer, store) {
   }
   function getSelectedConnectors() {
     return selectedConnectors;
+  }
+  function getSelectedImages() {
+    return selectedImages;
   }
   function renderBoard() {
     if (!board.isReadyForUse()) {
@@ -152,6 +170,9 @@ export function mount(board, root, Observer, store) {
     Object.entries(state.stickies).forEach(([stickyId, sticky]) =>
       renderSticky(stickyId, sticky)
     );
+    Object.entries(state.images).forEach(([imageId, image]) =>
+      renderImage(imageId, image)
+    );
   }
 
   domElement.ondragover = (event) => {
@@ -179,7 +200,7 @@ export function mount(board, root, Observer, store) {
   };
 
   // Set up keyboard handlers
-  setupKeyboardHandlers(board, selectedStickies, selectedConnectors, appState, {
+  setupKeyboardHandlers(board, selectedStickies, selectedConnectors, selectedImages, appState, {
     onZoomChange: () => render(),
     onColorChange: () => renderMenu(),
     onNewStickyRequest: () => renderBoard(),
@@ -189,6 +210,52 @@ export function mount(board, root, Observer, store) {
 
   // Set up connector events
   const connectorEvents = setupConnectorEvents(domElement, board, selectionManager, render, store);
+  
+  // Set up paste event handler for images
+  document.addEventListener('paste', (event) => {
+    const items = event.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            // Get cursor position or center of viewport
+            const rect = domElement.getBoundingClientRect();
+            const origin = board.getOrigin();
+            const boardScale = appState.ui.boardScale || 1;
+            
+            // Calculate center of viewport in board coordinates
+            const viewportCenterX = window.innerWidth / 2;
+            const viewportCenterY = window.innerHeight / 2;
+            
+            // Convert to board coordinates
+            const location = {
+              x: (viewportCenterX - rect.left) / boardScale + origin.x,
+              y: (viewportCenterY - rect.top) / boardScale + origin.y,
+            };
+            
+            const imageData = {
+              dataUrl: e.target.result,
+              naturalWidth: img.naturalWidth,
+              naturalHeight: img.naturalHeight,
+              location: location
+            };
+            
+            const id = board.putImage(imageData);
+            selectedImages.replaceSelection(id);
+            render();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  });
+  
   domElement.onclick = (event) => {
     if (appState.ui.nextClickCreatesNewSticky) {
       appState.ui.nextClickCreatesNewSticky = false;
@@ -225,7 +292,8 @@ export function mount(board, root, Observer, store) {
     const state = store.getState();
     const hasStickies = Object.keys(state.stickies || {}).length > 0;
     const hasConnectors = Object.keys(state.connectors || {}).length > 0;
-    return hasStickies || hasConnectors;
+    const hasImages = Object.keys(state.images || {}).length > 0;
+    return hasStickies || hasConnectors || hasImages;
   }
 
   // Function to find the top-leftmost content position
@@ -243,6 +311,14 @@ export function mount(board, root, Observer, store) {
       if (sticky.location) {
         minX = Math.min(minX, sticky.location.x);
         minY = Math.min(minY, sticky.location.y);
+      }
+    });
+    
+    // Check all images
+    Object.values(state.images || {}).forEach(image => {
+      if (image.location) {
+        minX = Math.min(minX, image.location.x);
+        minY = Math.min(minY, image.location.y);
       }
     });
     

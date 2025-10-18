@@ -42,18 +42,24 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left + boardOrigin.x,
-      y: event.clientY - rect.top + boardOrigin.y
+      x: event.clientX - rect.left - boardOrigin.x,
+      y: event.clientY - rect.top - boardOrigin.y
     };
     
-    // Check if we're starting from a sticky
+    // Check if we're starting from a sticky or image
     const stickyContainer = event.target.closest('.sticky-container');
+    const imageContainer = event.target.closest('.image-container');
     let originStickyId = null;
+    let originImageId = null;
     
     if (stickyContainer) {
       // Extract sticky ID from class name
       const stickyIdClass = Array.from(stickyContainer.classList).find(cls => cls.startsWith('sticky-'));
       originStickyId = stickyIdClass ? stickyIdClass.replace('sticky-', '') : null;
+    } else if (imageContainer) {
+      // Extract image ID from class name (exclude 'image-container' class)
+      const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
+      originImageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
     }
     
     // Start dragging to create connector
@@ -69,6 +75,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     if (originStickyId) {
       connectorData.originId = originStickyId;
+    } else if (originImageId) {
+      connectorData.originImageId = originImageId;
     } else {
       connectorData.originPoint = point;
     }
@@ -131,8 +139,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left + boardOrigin.x,
-      y: event.clientY - rect.top + boardOrigin.y
+      x: event.clientX - rect.left - boardOrigin.x,
+      y: event.clientY - rect.top - boardOrigin.y
     };
     
     // Update the destination point
@@ -159,13 +167,14 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left + boardOrigin.x,
-      y: event.clientY - rect.top + boardOrigin.y
+      x: event.clientX - rect.left - boardOrigin.x,
+      y: event.clientY - rect.top - boardOrigin.y
     };
     
-    // Check if we're over a sticky
+    // Check if we're over a sticky or image
     const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
     const stickyContainer = elementBelow?.closest('.sticky-container');
+    const imageContainer = elementBelow?.closest('.image-container');
     
     if (stickyContainer) {
       // Extract sticky ID from class name
@@ -175,6 +184,15 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       if (stickyId) {
         // Connect to the sticky
         board.updateConnectorEndpoint(currentConnectorId, 'destination', { stickyId });
+      }
+    } else if (imageContainer) {
+      // Extract image ID from class name (exclude 'image-container' class)
+      const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
+      const imageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
+      
+      if (imageId) {
+        // Connect to the image
+        board.updateConnectorEndpoint(currentConnectorId, 'destination', { imageId });
       }
     } else {
       // Keep as unconnected endpoint
@@ -219,8 +237,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left + boardOrigin.x,
-      y: event.clientY - rect.top + boardOrigin.y
+      x: event.clientX - rect.left - boardOrigin.x,
+      y: event.clientY - rect.top - boardOrigin.y
     };
     
     // Update the dragged handle position
@@ -247,13 +265,14 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left + boardOrigin.x,
-      y: event.clientY - rect.top + boardOrigin.y
+      x: event.clientX - rect.left - boardOrigin.x,
+      y: event.clientY - rect.top - boardOrigin.y
     };
     
-    // Check if we're over a sticky
+    // Check if we're over a sticky or image
     const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
     const stickyContainer = elementBelow?.closest('.sticky-container');
+    const imageContainer = elementBelow?.closest('.image-container');
     
     if (stickyContainer) {
       // Extract sticky ID from class name
@@ -263,6 +282,15 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       if (stickyId) {
         // Connect to the sticky
         board.updateConnectorEndpoint(draggedConnectorId, draggedHandle, { stickyId });
+      }
+    } else if (imageContainer) {
+      // Extract image ID from class name (exclude 'image-container' class)
+      const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
+      const imageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
+      
+      if (imageId) {
+        // Connect to the image
+        board.updateConnectorEndpoint(draggedConnectorId, draggedHandle, { imageId });
       }
     } else {
       // Keep as unconnected endpoint

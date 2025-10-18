@@ -4,8 +4,10 @@ export function getAppState() {
       board: undefined,
       stickies: {},
       connectors: {},
+      images: {},
       idGen: 0,
       connectorIdGen: 0,
+      imageIdGen: 0,
       ui: {
         boardScale: undefined,
         currentColor: "khaki",
@@ -14,8 +16,10 @@ export function getAppState() {
         nextClickCreatesConnector: false,
         connectorOriginId: null,
         stickiesMovedByDragging: [],
+        imagesMovedByDragging: [],
         selection: {},
         connectorSelection: {},
+        imageSelection: {},
       },
     };
   }

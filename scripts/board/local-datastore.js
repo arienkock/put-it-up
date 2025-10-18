@@ -71,6 +71,14 @@ export class LocalDatastore {
     return connector;
   };
 
+  getImage = (id) => {
+    const image = getAppState().images[id];
+    if (!image) {
+      throw new Error("No such image id=" + id);
+    }
+    return image;
+  };
+
   createConnector = (connector) => {
     const state = getAppState();
     const id = ++state.connectorIdGen;
@@ -79,10 +87,24 @@ export class LocalDatastore {
     return id;
   };
 
+  createImage = (image) => {
+    const state = getAppState();
+    const id = ++state.imageIdGen;
+    state.images[id] = image;
+    this.notifyImageChange(id);
+    return id;
+  };
+
   deleteConnector = (id) => {
     const state = getAppState();
     delete state.connectors[id];
     this.notifyConnectorChange(id);
+  };
+
+  deleteImage = (id) => {
+    const state = getAppState();
+    delete state.images[id];
+    this.notifyImageChange(id);
   };
 
   updateArrowHead = (id, arrowHead) => {
@@ -105,37 +127,61 @@ export class LocalDatastore {
 
   updateConnectorEndpoint = (id, endpoint, data) => {
     const connector = this.getConnector(id);
+    
     if (endpoint === 'origin') {
       if (data.stickyId) {
         connector.originId = data.stickyId;
         delete connector.originPoint;
+      } else if (data.imageId) {
+        connector.originImageId = data.imageId;
+        delete connector.originPoint;
       } else if (data.point) {
         connector.originPoint = data.point;
         delete connector.originId;
+        delete connector.originImageId;
       }
     } else if (endpoint === 'destination') {
       if (data.stickyId) {
         connector.destinationId = data.stickyId;
         delete connector.destinationPoint;
+      } else if (data.imageId) {
+        connector.destinationImageId = data.imageId;
+        delete connector.destinationPoint;
       } else if (data.point) {
         connector.destinationPoint = data.point;
         delete connector.destinationId;
+        delete connector.destinationImageId;
       }
     }
+    
     this.notifyConnectorChange(id);
   };
 
+  setImageLocation = (id, location) => {
+    this.getImage(id).location = location;
+    this.notifyImageChange(id);
+  };
+
+  updateImageSize = (id, width, height) => {
+    const image = this.getImage(id);
+    image.width = width;
+    image.height = height;
+    this.notifyImageChange(id);
+  };
+
   getState = () => {
-    const { stickies, connectors, idGen, connectorIdGen } = getAppState();
-    return clone({ stickies, connectors, idGen, connectorIdGen });
+    const { stickies, connectors, images, idGen, connectorIdGen, imageIdGen } = getAppState();
+    return clone({ stickies, connectors, images, idGen, connectorIdGen, imageIdGen });
   };
 
   setState = (state) => {
     const appState = getAppState();
     appState.stickies = state.stickies || {};
     appState.connectors = state.connectors || {};
+    appState.images = state.images || {};
     appState.idGen = state.idGen || 0;
     appState.connectorIdGen = state.connectorIdGen || 0;
+    appState.imageIdGen = state.imageIdGen || 0;
     this.notifyBoardChange();
   };
 
@@ -144,6 +190,9 @@ export class LocalDatastore {
   };
   notifyConnectorChange = (id) => {
     this.observers.forEach((o) => o.onConnectorChange && o.onConnectorChange(id));
+  };
+  notifyImageChange = (id) => {
+    this.observers.forEach((o) => o.onImageChange && o.onImageChange(id));
   };
   notifyBoardChange = () => {
     this.observers.forEach((o) => o.onBoardChange());

@@ -36,13 +36,65 @@ export function Board(aStore) {
     return connector;
   };
 
+  this.getImage = (id) => store.getImage(id);
+
+  this.getImageSafe = (id) => {
+    let image;
+    try {
+      image = this.getImage(id);
+    } catch (e) {}
+    return image;
+  };
+
   this.putConnector = (connector) => {
     const id = store.createConnector(connector);
     return id;
   };
 
+  this.putImage = (image) => {
+    // Validate image data
+    if (!image.dataUrl || !image.naturalWidth || !image.naturalHeight) {
+      throw new Error("Invalid image data");
+    }
+    
+    // Set initial size capped at 75% of viewport, maintaining aspect ratio
+    const maxWidth = window.innerWidth * 0.75;
+    const maxHeight = window.innerHeight * 0.75;
+    const aspectRatio = image.naturalWidth / image.naturalHeight;
+    
+    let width = image.naturalWidth;
+    let height = image.naturalHeight;
+    
+    if (width > maxWidth) {
+      width = maxWidth;
+      height = width / aspectRatio;
+    }
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+    
+    image.width = width;
+    image.height = height;
+    image.location = image.location || { x: 0, y: 0 };
+    
+    const id = store.createImage(image);
+    return id;
+  };
+
   this.deleteConnector = (id) => {
     store.deleteConnector(id);
+  };
+
+  this.deleteImage = (id) => {
+    // Delete all connectors attached to this image
+    const state = store.getState();
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      if (connector.originImageId == id || connector.destinationImageId == id) {
+        store.deleteConnector(connectorId);
+      }
+    });
+    store.deleteImage(id);
   };
 
   this.updateArrowHead = (id, arrowHead) => {
@@ -108,6 +160,10 @@ export function Board(aStore) {
     return store.getSticky(id).location;
   };
 
+  this.getImageLocation = (id) => {
+    return store.getImage(id).location;
+  };
+
   this.moveSticky = (id, newLocation) => {
     const { origin, limit } = getBoardInternal();
     const sticky = store.getSticky(id);
@@ -124,6 +180,21 @@ export function Board(aStore) {
       heightPx
     );
     store.setLocation(id, newLocation);
+  };
+
+  this.moveImage = (id, newLocation) => {
+    // Images move freely without grid snapping
+    const { origin, limit } = getBoardInternal();
+    const image = store.getImage(id);
+    const widthPx = image.width;
+    const heightPx = image.height;
+    
+    // Still respect board boundaries
+    newLocation = {
+      x: Math.min(limit.x - widthPx, Math.max(origin.x, newLocation.x || 0)),
+      y: Math.min(limit.y - heightPx, Math.max(origin.y, newLocation.y || 0))
+    };
+    store.setImageLocation(id, newLocation);
   };
 
   this.getState = () => store.getState();
@@ -212,6 +283,66 @@ export function Board(aStore) {
     const snappedLocation = snapLocationWithSize(location, gridSize, origin, limit, widthPx, heightPx);
     store.updateSize(id, { x: sizeUnits.x, y: sizeUnits.y });
     store.setLocation(id, snappedLocation);
+  };
+
+  this.resizeImage = (id, isGrow, side) => {
+    const image = store.getImage(id);
+    const aspectRatio = image.naturalWidth / image.naturalHeight;
+    const sizeIncrement = 20; // pixels
+    const factor = isGrow ? 1 : -1;
+    const increment = sizeIncrement * factor;
+    
+    let newWidth = image.width;
+    let newHeight = image.height;
+    let location = { x: image.location.x, y: image.location.y };
+    
+    // Calculate new dimensions maintaining aspect ratio
+    switch (side) {
+      case "left":
+        newWidth += increment;
+        newHeight = newWidth / aspectRatio;
+        location.x -= (newWidth - image.width);
+        break;
+      case "right":
+        newWidth += increment;
+        newHeight = newWidth / aspectRatio;
+        break;
+      case "top":
+        newHeight += increment;
+        newWidth = newHeight * aspectRatio;
+        location.y -= (newHeight - image.height);
+        break;
+      case "bottom":
+        newHeight += increment;
+        newWidth = newHeight * aspectRatio;
+        break;
+      default:
+        return;
+    }
+    
+    // Enforce minimum size
+    newWidth = Math.max(20, newWidth);
+    newHeight = Math.max(20, newHeight);
+    
+    // Check board boundaries
+    const { origin, limit } = getBoardInternal();
+    if (location.x < origin.x) {
+      location.x = origin.x;
+    }
+    if (location.y < origin.y) {
+      location.y = origin.y;
+    }
+    if (location.x + newWidth > limit.x) {
+      newWidth = limit.x - location.x;
+      newHeight = newWidth / aspectRatio;
+    }
+    if (location.y + newHeight > limit.y) {
+      newHeight = limit.y - location.y;
+      newWidth = newHeight * aspectRatio;
+    }
+    
+    store.updateImageSize(id, newWidth, newHeight);
+    store.setImageLocation(id, location);
   };
 }
 

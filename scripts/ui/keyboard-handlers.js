@@ -18,6 +18,7 @@ export function setupKeyboardHandlers(
   board,
   selectedStickies,
   selectedConnectors,
+  selectedImages,
   appState,
   callbacks
 ) {
@@ -49,7 +50,7 @@ export function setupKeyboardHandlers(
       appState.ui.connectorOriginId = null;
       callbacks.onConnectorRequest();
     }
-    // Delete selected stickies and connectors with Delete key
+    // Delete selected stickies, connectors, and images with Delete key
     else if (event.key === "Delete") {
       selectedStickies.forEach((id) => {
         board.deleteSticky(id);
@@ -57,9 +58,12 @@ export function setupKeyboardHandlers(
       selectedConnectors.forEach((id) => {
         board.deleteConnector(id);
       });
+      selectedImages.forEach((id) => {
+        board.deleteImage(id);
+      });
     }
     // Move selection with arrow keys
-    else if (event.key.startsWith("Arrow") && selectedStickies.hasItems()) {
+    else if (event.key.startsWith("Arrow") && (selectedStickies.hasItems() || selectedImages.hasItems())) {
       event.preventDefault();
       const gridUnit = board.getGridUnit();
       let dx = 0;
@@ -86,7 +90,7 @@ export function setupKeyboardHandlers(
     }
   };
 
-  // Helper function to move selected stickies
+  // Helper function to move selected stickies and images
   function moveSelection(dx, dy) {
     selectedStickies.forEach((sid) => {
       const originalLocation = board.getStickyLocation(sid);
@@ -95,6 +99,15 @@ export function setupKeyboardHandlers(
         y: originalLocation.y + dy,
       };
       board.moveSticky(sid, newLocation);
+    });
+    
+    selectedImages.forEach((iid) => {
+      const originalLocation = board.getImageLocation(iid);
+      const newLocation = {
+        x: originalLocation.x + dx,
+        y: originalLocation.y + dy,
+      };
+      board.moveImage(iid, newLocation);
     });
   }
 

@@ -9,6 +9,8 @@ export const ARROW_HEAD_TYPES = ["none", "line", "hollow", "filled"];
  * @param {HTMLElement} container - Container element
  * @param {Object} originSticky - Origin sticky data (null if unconnected)
  * @param {Object} destSticky - Destination sticky data (null if unconnected)
+ * @param {Object} originImage - Origin image data (null if unconnected)
+ * @param {Object} destImage - Destination image data (null if unconnected)
  * @param {boolean} isSelected - Whether connector is selected
  * @param {Object} boardOrigin - Board origin {x, y}
  * @param {number} stickySize - Base size of stickies
@@ -18,6 +20,8 @@ export function setConnectorStyles(
   container,
   originSticky,
   destSticky,
+  originImage,
+  destImage,
   isSelected,
   boardOrigin,
   stickySize,
@@ -89,6 +93,37 @@ export function setConnectorStyles(
         stickySize * destSizeX,
         stickySize * destSizeY
       );
+    } else if (destImage) {
+      // Destination connected to image
+      // Validate destination image location coordinates
+      if (!destImage.location || typeof destImage.location.x !== 'number' || typeof destImage.location.y !== 'number' ||
+          isNaN(destImage.location.x) || isNaN(destImage.location.y)) {
+        console.warn('Invalid destination image location:', destImage.location);
+        return; // Skip rendering if image location is invalid
+      }
+      
+      const destCenter = {
+        x: destImage.location.x - boardOrigin.x + destImage.width / 2,
+        y: destImage.location.y - boardOrigin.y + destImage.height / 2,
+      };
+      
+      startPoint = calculateEdgePoint(
+        originCenter.x,
+        originCenter.y,
+        destCenter.x,
+        destCenter.y,
+        stickySize * originSizeX,
+        stickySize * originSizeY
+      );
+      
+      endPoint = calculateEdgePoint(
+        destCenter.x,
+        destCenter.y,
+        originCenter.x,
+        originCenter.y,
+        destImage.width,
+        destImage.height
+      );
     } else {
       // Origin connected, destination unconnected
       const destPoint = connector.destinationPoint || { x: 0, y: 0 };
@@ -116,6 +151,111 @@ export function setConnectorStyles(
       
       endPoint = destCenter;
     }
+  } else if (originImage) {
+    // Connected to image
+    // Validate image location coordinates
+    if (!originImage.location || typeof originImage.location.x !== 'number' || typeof originImage.location.y !== 'number' ||
+        isNaN(originImage.location.x) || isNaN(originImage.location.y)) {
+      console.warn('Invalid origin image location:', originImage.location);
+      return; // Skip rendering if image location is invalid
+    }
+    
+    const originCenter = {
+      x: originImage.location.x - boardOrigin.x + originImage.width / 2,
+      y: originImage.location.y - boardOrigin.y + originImage.height / 2,
+    };
+    
+    if (destSticky) {
+      // Origin image, destination sticky
+      // Validate destination sticky location coordinates
+      if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
+          isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
+        console.warn('Invalid destination sticky location:', destSticky.location);
+        return; // Skip rendering if sticky location is invalid
+      }
+      
+      const destSizeX = (destSticky.size && destSticky.size.x) || 1;
+      const destSizeY = (destSticky.size && destSticky.size.y) || 1;
+      const destCenter = {
+        x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
+        y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
+      };
+      
+      startPoint = calculateEdgePoint(
+        originCenter.x,
+        originCenter.y,
+        destCenter.x,
+        destCenter.y,
+        originImage.width,
+        originImage.height
+      );
+      
+      endPoint = calculateEdgePoint(
+        destCenter.x,
+        destCenter.y,
+        originCenter.x,
+        originCenter.y,
+        stickySize * destSizeX,
+        stickySize * destSizeY
+      );
+    } else if (destImage) {
+      // Both endpoints connected to images
+      // Validate destination image location coordinates
+      if (!destImage.location || typeof destImage.location.x !== 'number' || typeof destImage.location.y !== 'number' ||
+          isNaN(destImage.location.x) || isNaN(destImage.location.y)) {
+        console.warn('Invalid destination image location:', destImage.location);
+        return; // Skip rendering if image location is invalid
+      }
+      
+      const destCenter = {
+        x: destImage.location.x - boardOrigin.x + destImage.width / 2,
+        y: destImage.location.y - boardOrigin.y + destImage.height / 2,
+      };
+      
+      startPoint = calculateEdgePoint(
+        originCenter.x,
+        originCenter.y,
+        destCenter.x,
+        destCenter.y,
+        originImage.width,
+        originImage.height
+      );
+      
+      endPoint = calculateEdgePoint(
+        destCenter.x,
+        destCenter.y,
+        originCenter.x,
+        originCenter.y,
+        destImage.width,
+        destImage.height
+      );
+    } else {
+      // Origin image connected, destination unconnected
+      const destPoint = connector.destinationPoint || { x: 0, y: 0 };
+      
+      // Validate destination point coordinates
+      if (typeof destPoint.x !== 'number' || typeof destPoint.y !== 'number' || 
+          isNaN(destPoint.x) || isNaN(destPoint.y)) {
+        console.warn('Invalid destination point:', destPoint);
+        return; // Skip rendering if destination point is invalid
+      }
+      
+      const destCenter = {
+        x: destPoint.x - boardOrigin.x,
+        y: destPoint.y - boardOrigin.y,
+      };
+      
+      startPoint = calculateEdgePoint(
+        originCenter.x,
+        originCenter.y,
+        destCenter.x,
+        destCenter.y,
+        originImage.width,
+        originImage.height
+      );
+      
+      endPoint = destCenter;
+    }
   } else {
     // Origin unconnected
     const originPoint = connector.originPoint || { x: 0, y: 0 };
@@ -133,7 +273,7 @@ export function setConnectorStyles(
     };
     
     if (destSticky) {
-      // Origin unconnected, destination connected
+      // Origin unconnected, destination connected to sticky
       // Validate destination sticky location coordinates
       if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
           isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
@@ -156,6 +296,28 @@ export function setConnectorStyles(
         stickySize * destSizeX,
         stickySize * destSizeY
       );
+    } else if (destImage) {
+      // Origin unconnected, destination connected to image
+      // Validate destination image location coordinates
+      if (!destImage.location || typeof destImage.location.x !== 'number' || typeof destImage.location.y !== 'number' ||
+          isNaN(destImage.location.x) || isNaN(destImage.location.y)) {
+        console.warn('Invalid destination image location:', destImage.location);
+        return; // Skip rendering if image location is invalid
+      }
+      
+      const destCenter = {
+        x: destImage.location.x - boardOrigin.x + destImage.width / 2,
+        y: destImage.location.y - boardOrigin.y + destImage.height / 2,
+      };
+      
+      endPoint = calculateEdgePoint(
+        destCenter.x,
+        destCenter.y,
+        startPoint.x,
+        startPoint.y,
+        destImage.width,
+        destImage.height
+      );
     } else {
       // Both endpoints unconnected
       const destPoint = connector.destinationPoint || { x: 0, y: 0 };
@@ -172,6 +334,16 @@ export function setConnectorStyles(
         y: destPoint.y - boardOrigin.y,
       };
     }
+  }
+  
+  // Validate that we have valid start and end points
+  if (!startPoint || !endPoint || 
+      typeof startPoint.x !== 'number' || typeof startPoint.y !== 'number' ||
+      typeof endPoint.x !== 'number' || typeof endPoint.y !== 'number' ||
+      isNaN(startPoint.x) || isNaN(startPoint.y) ||
+      isNaN(endPoint.x) || isNaN(endPoint.y)) {
+    console.warn('Invalid start or end point:', { startPoint, endPoint });
+    return; // Skip rendering if points are invalid
   }
   
   // Calculate bounding box for the SVG
@@ -255,7 +427,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   const color = isSelected ? "#4646d8" : "#000000";
   
   // Add handle for unconnected origin
-  if (!connector.originId) {
+  if (!connector.originId && !connector.originImageId) {
     const originHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     originHandle.classList.add("connector-handle");
     originHandle.classList.add("origin-handle");
@@ -271,7 +443,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   }
   
   // Add handle for unconnected destination
-  if (!connector.destinationId) {
+  if (!connector.destinationId && !connector.destinationImageId) {
     const destHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     destHandle.classList.add("connector-handle");
     destHandle.classList.add("destination-handle");

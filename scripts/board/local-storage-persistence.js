@@ -14,6 +14,10 @@ export class LocalStoragePersistence {
     this.saveToLocalStorage();
   };
 
+  onImageChange = (id) => {
+    this.saveToLocalStorage();
+  };
+
   onBoardChange = () => {
     this.saveToLocalStorage();
   };
@@ -26,8 +30,10 @@ export class LocalStoragePersistence {
         board: state.board,
         stickies: state.stickies,
         connectors: state.connectors,
+        images: state.images,
         idGen: state.idGen,
-        connectorIdGen: state.connectorIdGen
+        connectorIdGen: state.connectorIdGen,
+        imageIdGen: state.imageIdGen
       };
       localStorage.setItem(this.localStorageKey, JSON.stringify(persistableState));
     } catch (error) {
@@ -52,11 +58,17 @@ export class LocalStoragePersistence {
         if (parsedState.connectors) {
           appState.connectors = parsedState.connectors;
         }
+        if (parsedState.images) {
+          appState.images = parsedState.images;
+        }
         if (parsedState.idGen !== undefined) {
           appState.idGen = parsedState.idGen;
         }
         if (parsedState.connectorIdGen !== undefined) {
           appState.connectorIdGen = parsedState.connectorIdGen;
+        }
+        if (parsedState.imageIdGen !== undefined) {
+          appState.imageIdGen = parsedState.imageIdGen;
         }
         
         return true;

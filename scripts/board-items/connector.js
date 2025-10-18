@@ -26,9 +26,11 @@ export const createRenderer = (
       
       const originSticky = connector.originId ? board.getStickySafe(connector.originId) : null;
       const destSticky = connector.destinationId ? board.getStickySafe(connector.destinationId) : null;
+      const originImage = connector.originImageId ? board.getImageSafe(connector.originImageId) : null;
+      const destImage = connector.destinationImageId ? board.getImageSafe(connector.destinationImageId) : null;
       
       // Skip rendering if both endpoints are unconnected and have no points
-      if (!originSticky && !destSticky && !connector.originPoint && !connector.destinationPoint) {
+      if (!originSticky && !destSticky && !originImage && !destImage && !connector.originPoint && !connector.destinationPoint) {
         return;
       }
       
@@ -38,6 +40,8 @@ export const createRenderer = (
         connectorElement,
         originSticky,
         destSticky,
+        originImage,
+        destImage,
         connectorIsSelected,
         board.getOrigin(),
         board.getStickyBaseSize(),
