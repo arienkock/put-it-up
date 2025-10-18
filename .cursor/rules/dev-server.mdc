@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+
+Usually the dev server is already running on port 9000
+If not, then the dev server is started by executing `npm run serve`

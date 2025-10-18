@@ -27,13 +27,31 @@ export function setupImageEvents(
     // Check if clicking on a resize handle
     const handle = event.target.closest('.resize-handle');
     if (handle) {
+      // Extract side from class name - look for resize-handle-[side] pattern
+      const classNames = handle.className.split(' ');
+      resizeSide = null;
+      for (const className of classNames) {
+        if (className.startsWith('resize-handle-')) {
+          resizeSide = className.replace('resize-handle-', '');
+          break;
+        }
+      }
+      
+      console.log('Resize handle clicked:', handle.className, 'Side:', resizeSide);
+      
+      if (!resizeSide) {
+        console.error('Could not determine resize side from class name:', handle.className);
+        return;
+      }
+      
       isResizing = true;
-      resizeSide = handle.className.split('-')[2]; // Extract side from class name
       const image = store.getImage(id);
       aspectRatio = image.naturalWidth / image.naturalHeight;
       originalSize = { width: image.width, height: image.height };
       originalLocation = { x: image.location.x, y: image.location.y };
+      dragStart = { x: event.clientX, y: event.clientY }; // Initialize dragStart for resize
       document.body.style.cursor = handle.style.cursor;
+      console.log('Resize started for side:', resizeSide);
       return;
     }
     
@@ -63,11 +81,11 @@ export function setupImageEvents(
       // Move the image (this will be handled by the board)
       window.board.moveImage(id, newLocation);
     } else if (isResizing && resizeSide) {
+      console.log('Resizing mouse move:', resizeSide);
       const dx = event.clientX - dragStart.x;
       const dy = event.clientY - dragStart.y;
       
       // Calculate resize based on side
-      let isGrow = true;
       let delta = 0;
       
       switch (resizeSide) {
@@ -85,13 +103,19 @@ export function setupImageEvents(
           break;
       }
       
-      if (delta < 0) isGrow = false;
+      console.log('Delta:', delta, 'Threshold check:', Math.abs(delta) >= 5);
       
-      // Resize the image (this will be handled by the board)
-      window.board.resizeImage(id, isGrow, resizeSide);
-      
-      // Update drag start to prevent accumulation
-      dragStart = { x: event.clientX, y: event.clientY };
+      // Only resize if there's significant movement (threshold of 5 pixels)
+      if (Math.abs(delta) >= 5) {
+        const isGrow = delta > 0;
+        console.log('Calling resizeImage:', id, isGrow, resizeSide);
+        
+        // Resize the image (this will be handled by the board)
+        window.board.resizeImage(id, isGrow, resizeSide);
+        
+        // Update drag start to prevent accumulation
+        dragStart = { x: event.clientX, y: event.clientY };
+      }
     }
   };
 
