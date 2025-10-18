@@ -301,7 +301,7 @@ describe("LocalDatastore", () => {
     const id2 = store.createSticky({ text: "second", location: { x: 100, y: 100 } });
     const id3 = store.createSticky({ text: "third", location: { x: 150, y: 150 } });
     
-    expect(id2).toBe(id1 + 1);
-    expect(id3).toBe(id2 + 1);
+    expect(parseInt(id2)).toBe(parseInt(id1) + 1);
+    expect(parseInt(id3)).toBe(parseInt(id2) + 1);
   });
 });
