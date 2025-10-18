@@ -7,7 +7,11 @@
 export function createStickyContainerDOM(stickyIdClass) {
   const container = document.createElement("div");
   container.innerHTML =
-    '<div class="sticky"><textarea class="text-input text" rows="1"></textarea></div>';
+    '<div class="sticky"><textarea class="text-input text" rows="1"></textarea></div>' +
+    '<div class="resize-handle resize-handle-top"></div>' +
+    '<div class="resize-handle resize-handle-right"></div>' +
+    '<div class="resize-handle resize-handle-bottom"></div>' +
+    '<div class="resize-handle resize-handle-left"></div>';
   container.classList.add(stickyIdClass);
   container.inputElement = container.querySelector(".text-input");
   container.sticky = container.querySelector(".sticky");

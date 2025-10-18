@@ -1,6 +1,5 @@
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor, stickyColorPalette, connectorColorPalette } from "./color-management.js";
-import { createStickySizeControls } from "./sticky-size-controls.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
 
 /**
@@ -144,21 +143,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         selectedConnectors.forEach((id) => {
           board.deleteConnector(id);
         });
-      },
-    },
-    {
-      itemLabel: "Sticky size",
-      className: "sticky-size",
-      itemClickHandler: (activatingEvent) => {
-        // Only available when exactly one sticky is selected
-        if (selectedStickies.size() === 1) {
-          let theId;
-          selectedStickies.forEach((id) => (theId = id));
-          createStickySizeControls(board, root, activatingEvent, theId);
-        }
-      },
-      customLabel: (dom, label) => {
-        dom.textContent = label;
       },
     },
   ];
@@ -357,20 +341,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       // Show Delete button when items are selected
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
       if (deleteItem) menuElement.appendChild(renderMenuButton(deleteItem));
-      
-      // Show Sticky size only when stickies are selected
-      if (hasStickiesSelected) {
-        const stickySizeItem = selectionDependentItems.find(item => item.className === "sticky-size");
-        if (stickySizeItem) {
-          const button = renderMenuButton(stickySizeItem);
-          // Disable button if more than one sticky is selected
-          if (selectedStickies.size() !== 1) {
-            button.classList.add('disabled');
-            button.disabled = true;
-          }
-          menuElement.appendChild(button);
-        }
-      }
     }
 
     // Update custom labels for all rendered items
@@ -386,16 +356,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
       if (deleteItem) allItems.push(deleteItem);
-      
-      if (hasConnectorsSelected) {
-        const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
-        if (arrowHeadItem) allItems.push(arrowHeadItem);
-      }
-      
-      if (hasStickiesSelected) {
-        const stickySizeItem = selectionDependentItems.find(item => item.className === "sticky-size");
-        if (stickySizeItem) allItems.push(stickySizeItem);
-      }
     }
     
     allItems.forEach(({ itemLabel, customLabel, dom, isSeparator, icon }) => {
