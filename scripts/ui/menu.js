@@ -178,7 +178,11 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       itemElement.classList.add(item.className);
     } else {
       itemElement = document.createElement("button");
-      itemElement.onclick = item.itemClickHandler;
+      itemElement.onclick = (event) => {
+        if (item.itemClickHandler && !itemElement.disabled) {
+          item.itemClickHandler(event);
+        }
+      };
       itemElement.classList.add(item.className);
       
       // Add icon if present
@@ -357,7 +361,15 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       // Show Sticky size only when stickies are selected
       if (hasStickiesSelected) {
         const stickySizeItem = selectionDependentItems.find(item => item.className === "sticky-size");
-        if (stickySizeItem) menuElement.appendChild(renderMenuButton(stickySizeItem));
+        if (stickySizeItem) {
+          const button = renderMenuButton(stickySizeItem);
+          // Disable button if more than one sticky is selected
+          if (selectedStickies.size() !== 1) {
+            button.classList.add('disabled');
+            button.disabled = true;
+          }
+          menuElement.appendChild(button);
+        }
       }
     }
 

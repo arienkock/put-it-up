@@ -50,28 +50,25 @@ export function removePx(s) {
  * @param {number} centerY - Center Y of sticky
  * @param {number} targetX - Target X to point towards
  * @param {number} targetY - Target Y to point towards
- * @param {number} stickySize - Size of the sticky
+ * @param {number} stickyWidth - Width of the sticky
+ * @param {number} stickyHeight - Height of the sticky
  * @returns {Object} {x, y} coordinates of intersection point
  */
-export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickySize) {
+export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickyWidth, stickyHeight) {
   // Validate inputs to prevent NaN results
   if (typeof centerX !== 'number' || typeof centerY !== 'number' || 
       typeof targetX !== 'number' || typeof targetY !== 'number' || 
-      typeof stickySize !== 'number' ||
-      isNaN(centerX) || isNaN(centerY) || isNaN(targetX) || isNaN(targetY) || isNaN(stickySize)) {
-    console.warn('Invalid inputs to calculateEdgePoint:', { centerX, centerY, targetX, targetY, stickySize });
+      typeof stickyWidth !== 'number' || typeof stickyHeight !== 'number' ||
+      isNaN(centerX) || isNaN(centerY) || isNaN(targetX) || isNaN(targetY) || 
+      isNaN(stickyWidth) || isNaN(stickyHeight)) {
+    console.warn('Invalid inputs to calculateEdgePoint:', { centerX, centerY, targetX, targetY, stickyWidth, stickyHeight });
     return { x: centerX || 0, y: centerY || 0 }; // Return center point as fallback
   }
   
-  const halfSize = stickySize / 2;
+  const halfWidth = stickyWidth / 2;
+  const halfHeight = stickyHeight / 2;
   const dx = targetX - centerX;
   const dy = targetY - centerY;
-  const angle = Math.atan2(dy, dx);
-
-  // Treat stickySize as diameter of the minimal enclosing circle for a rectangle side
-  // Use rectangle intersection to be more accurate when sizes differ in X/Y
-  const halfWidth = halfSize;
-  const halfHeight = halfSize;
 
   const absDx = Math.abs(dx);
   const absDy = Math.abs(dy);
@@ -85,7 +82,7 @@ export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickySiz
   
   // Validate result to ensure no NaN values
   if (isNaN(x) || isNaN(y)) {
-    console.warn('calculateEdgePoint returned NaN:', { x, y, centerX, centerY, targetX, targetY, stickySize });
+    console.warn('calculateEdgePoint returned NaN:', { x, y, centerX, centerY, targetX, targetY, stickyWidth, stickyHeight });
     return { x: centerX, y: centerY }; // Return center point as fallback
   }
   

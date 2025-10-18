@@ -77,7 +77,8 @@ export function setConnectorStyles(
         originCenter.y,
         destCenter.x,
         destCenter.y,
-        Math.max(stickySize * originSizeX, stickySize * originSizeY)
+        stickySize * originSizeX,
+        stickySize * originSizeY
       );
       
       endPoint = calculateEdgePoint(
@@ -85,7 +86,8 @@ export function setConnectorStyles(
         destCenter.y,
         originCenter.x,
         originCenter.y,
-        Math.max(stickySize * destSizeX, stickySize * destSizeY)
+        stickySize * destSizeX,
+        stickySize * destSizeY
       );
     } else {
       // Origin connected, destination unconnected
@@ -108,7 +110,8 @@ export function setConnectorStyles(
         originCenter.y,
         destCenter.x,
         destCenter.y,
-        Math.max(stickySize * originSizeX, stickySize * originSizeY)
+        stickySize * originSizeX,
+        stickySize * originSizeY
       );
       
       endPoint = destCenter;
@@ -150,7 +153,8 @@ export function setConnectorStyles(
         destCenter.y,
         startPoint.x,
         startPoint.y,
-        Math.max(stickySize * destSizeX, stickySize * destSizeY)
+        stickySize * destSizeX,
+        stickySize * destSizeY
       );
     } else {
       // Both endpoints unconnected
