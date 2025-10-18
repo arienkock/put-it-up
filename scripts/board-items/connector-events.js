@@ -10,7 +10,6 @@ import { SelectionManager } from "../ui/selection-manager.js";
  * @param {Object} store - Store instance for state access
  */
 export function setupConnectorEvents(boardElement, board, selectionManager, renderCallback, store) {
-  const appState = store.getAppState();
   let isDraggingConnector = false;
   let dragStartPoint = null;
   let currentConnectorId = null;
@@ -20,6 +19,7 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
 
   // Handle board mouse events for connector creation
   boardElement.addEventListener('mousedown', (event) => {
+    const appState = store.getAppState();
     if (!appState.ui.nextClickCreatesConnector) return;
     
     event.preventDefault();
@@ -27,6 +27,7 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    const boardScale = appState.ui.boardScale || 1;
     
     // Validate mouse coordinates and board origin
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
@@ -42,8 +43,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left - boardOrigin.x,
-      y: event.clientY - rect.top - boardOrigin.y
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Check if we're starting from a sticky or image
@@ -124,6 +125,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
     
     // Validate mouse coordinates and board origin
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
@@ -139,8 +142,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left - boardOrigin.x,
-      y: event.clientY - rect.top - boardOrigin.y
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Update the destination point
@@ -152,6 +155,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
     
     // Validate mouse coordinates and board origin
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
@@ -167,8 +172,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left - boardOrigin.x,
-      y: event.clientY - rect.top - boardOrigin.y
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Check if we're over a sticky or image
@@ -222,6 +227,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
     
     // Validate mouse coordinates and board origin
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
@@ -237,8 +244,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left - boardOrigin.x,
-      y: event.clientY - rect.top - boardOrigin.y
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Update the dragged handle position
@@ -250,6 +257,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     const rect = boardElement.getBoundingClientRect();
     const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
     
     // Validate mouse coordinates and board origin
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
@@ -265,8 +274,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
     
     const point = {
-      x: event.clientX - rect.left - boardOrigin.x,
-      y: event.clientY - rect.top - boardOrigin.y
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Check if we're over a sticky or image
