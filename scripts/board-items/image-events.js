@@ -52,6 +52,9 @@ export function setupImageEvents(
       dragStart = { x: event.clientX, y: event.clientY }; // Initialize dragStart for resize
       document.body.style.cursor = handle.style.cursor;
       console.log('Resize started for side:', resizeSide);
+      
+      // Add global event listeners for resizing
+      addGlobalListeners();
       return;
     }
     
@@ -65,41 +68,51 @@ export function setupImageEvents(
     selectionManager.getSelection('images').replaceSelection(id);
     
     document.body.style.cursor = "grabbing";
+    
+    // Add global event listeners for dragging
+    addGlobalListeners();
   };
 
   // Mouse move handler
-  document.onmousemove = (event) => {
+  const handleMouseMove = (event) => {
     if (isDragging && !isResizing) {
+      const appState = store.getAppState();
+      const boardScale = appState.ui.boardScale || 1;
+      
       const dx = event.clientX - dragStart.x;
       const dy = event.clientY - dragStart.y;
       
+      // Convert pixel movement to board coordinates by dividing by scale
       const newLocation = {
-        x: originalLocation.x + dx,
-        y: originalLocation.y + dy
+        x: originalLocation.x + dx / boardScale,
+        y: originalLocation.y + dy / boardScale
       };
       
       // Move the image (this will be handled by the board)
       window.board.moveImage(id, newLocation);
     } else if (isResizing && resizeSide) {
       console.log('Resizing mouse move:', resizeSide);
+      const appState = store.getAppState();
+      const boardScale = appState.ui.boardScale || 1;
+      
       const dx = event.clientX - dragStart.x;
       const dy = event.clientY - dragStart.y;
       
-      // Calculate resize based on side
+      // Calculate resize based on side, accounting for board scale
       let delta = 0;
       
       switch (resizeSide) {
         case 'left':
-          delta = -dx;
+          delta = -dx / boardScale;
           break;
         case 'right':
-          delta = dx;
+          delta = dx / boardScale;
           break;
         case 'top':
-          delta = -dy;
+          delta = -dy / boardScale;
           break;
         case 'bottom':
-          delta = dy;
+          delta = dy / boardScale;
           break;
       }
       
@@ -120,7 +133,7 @@ export function setupImageEvents(
   };
 
   // Mouse up handler
-  document.onmouseup = () => {
+  const handleMouseUp = () => {
     if (isDragging || isResizing) {
       isDragging = false;
       isResizing = false;
@@ -130,7 +143,17 @@ export function setupImageEvents(
       originalSize = null;
       aspectRatio = null;
       document.body.style.cursor = "default";
+      
+      // Remove event listeners when dragging/resizing is complete
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     }
+  };
+
+  // Add event listeners when dragging starts
+  const addGlobalListeners = () => {
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   // Click handler for selection

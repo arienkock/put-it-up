@@ -2,5 +2,5 @@
 alwaysApply: true
 ---
 
-Usually the dev server is already running on port 9000
-If not, then the dev server is started by executing `npm run serve`
+Always assume the dev server is already running on port 9000. 
+Only you've detected that it's not then the dev server is started by executing `npm run serve`.
