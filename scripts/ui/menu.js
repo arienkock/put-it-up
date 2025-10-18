@@ -405,6 +405,12 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         if (colorItem) allItems.push(colorItem);
       }
       
+      // Add arrowhead item only if it was rendered (when connectors are selected)
+      if (hasConnectorsSelected) {
+        const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
+        if (arrowHeadItem) allItems.push(arrowHeadItem);
+      }
+      
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
       if (deleteItem) allItems.push(deleteItem);
     }
