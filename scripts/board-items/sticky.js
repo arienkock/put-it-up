@@ -44,10 +44,19 @@ export const createRenderer = (
         }
       }
       const textarea = container.inputElement;
-      if (textarea.value !== sticky.text) {
+      const textChanged = textarea.value !== sticky.text;
+      const sizeChanged = container.lastKnownSize !== JSON.stringify(sticky.size || { x: 1, y: 1 });
+      
+      if (textChanged) {
         textarea.value = sticky.text;
         fitContentInSticky(container.sticky, textarea);
+      } else if (sizeChanged) {
+        // Size changed but text didn't - re-evaluate text fitting for new dimensions
+        fitContentInSticky(container.sticky, textarea);
       }
+      
+      // Track the current size for future comparisons
+      container.lastKnownSize = JSON.stringify(sticky.size || { x: 1, y: 1 });
       // ordering
       const elementsOnBoard = [...domElement.children];
       const activeElement = document.activeElement;

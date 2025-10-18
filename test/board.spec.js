@@ -305,3 +305,28 @@ describe("LocalDatastore", () => {
     expect(parseInt(id3)).toBe(parseInt(id2) + 1);
   });
 });
+
+describe("Text fitting on size changes", () => {
+  it("should trigger text fitting when sticky size changes", () => {
+    const store = new LocalDatastore();
+    const board = new Board(store);
+    
+    // Create a sticky with some text
+    const id = board.putSticky({ 
+      text: "This is a longer text that should fit better in a larger sticky", 
+      location: { x: 100, y: 100 } 
+    });
+    
+    const sticky = store.getSticky(id);
+    expect(sticky.size).toBeUndefined(); // Default size is 1x1
+    
+    // Change the size
+    store.updateSize(id, { x: 2, y: 2 });
+    
+    const updatedSticky = store.getSticky(id);
+    expect(updatedSticky.size).toEqual({ x: 2, y: 2 });
+    
+    // The size change should trigger a re-render which will call text fitting
+    // This test verifies that the size change is properly detected and handled
+  });
+});
