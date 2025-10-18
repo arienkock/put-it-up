@@ -162,6 +162,77 @@ export function mount(board, root, Observer, store) {
   }
   const menu = createMenu(board, selectedStickies, selectedConnectors, root, appState, render);
   const renderMenu = menu.render;
+  
+  // Make menu immune to browser zoom by detecting devicePixelRatio changes
+  let lastDevicePixelRatio = window.devicePixelRatio;
+  
+  // Store the native DPR in localStorage
+  // IMPORTANT: The first time you load this page, make sure browser zoom is at 100% (Ctrl+0)
+  const NATIVE_DPR_KEY = 'putitup_native_dpr';
+  
+  function getNativeDevicePixelRatio() {
+    // Check if we have a stored native DPR
+    const stored = localStorage.getItem(NATIVE_DPR_KEY);
+    if (stored) {
+      const nativeDpr = parseFloat(stored);
+      console.log(`Using stored native DPR: ${nativeDpr}`);
+      return nativeDpr;
+    }
+    
+    // First time: store current DPR as native
+    // User should have browser at 100% zoom when first loading
+    const dpr = window.devicePixelRatio;
+    localStorage.setItem(NATIVE_DPR_KEY, dpr.toString());
+    console.log(`First load - stored native DPR: ${dpr}. If menu appears wrong size, press Ctrl+0 to reset zoom, clear browser cache, and reload.`);
+    
+    return dpr;
+  }
+  
+  const nativeDevicePixelRatio = getNativeDevicePixelRatio();
+  
+  function makeMenuZoomImmune() {
+    const menuContainer = root.querySelector('.menu-container');
+    if (!menuContainer) {
+      setTimeout(makeMenuZoomImmune, 100);
+      return;
+    }
+    
+    // Calculate zoom level relative to native DPR
+    // zoomLevel = current DPR / native DPR
+    const zoomLevel = window.devicePixelRatio / nativeDevicePixelRatio;
+    
+    console.log(`devicePixelRatio: ${window.devicePixelRatio}, native: ${nativeDevicePixelRatio}, zoom: ${(zoomLevel * 100).toFixed(0)}%`);
+    
+    // Only apply counter-scaling if zoom is different from 100%
+    if (Math.abs(zoomLevel - 1) > 0.01) {
+      const scale = 1 / zoomLevel;
+      menuContainer.style.transform = `scale(${scale})`;
+      menuContainer.style.transformOrigin = 'top left';
+      // Compensate width and positioning
+      menuContainer.style.width = `${zoomLevel * 100}%`;
+    } else {
+      // At 100% zoom, remove any transforms
+      menuContainer.style.transform = '';
+      menuContainer.style.width = '100%';
+    }
+    
+    lastDevicePixelRatio = window.devicePixelRatio;
+  }
+  
+  // Monitor for devicePixelRatio changes (indicates zoom)
+  function monitorZoom() {
+    if (window.devicePixelRatio !== lastDevicePixelRatio) {
+      makeMenuZoomImmune();
+    }
+    requestAnimationFrame(monitorZoom);
+  }
+  
+  // Apply immediately
+  makeMenuZoomImmune();
+  // Start monitoring
+  monitorZoom();
+  // Also listen to resize as backup
+  window.addEventListener('resize', makeMenuZoomImmune);
   function render() {
     renderBoard();
     renderMenu();
