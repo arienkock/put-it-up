@@ -56,9 +56,14 @@ export const createRenderer = (
         shouldRefocus = true;
       }
       elementsOnBoard.sort((a, b) => {
-        let yDif = removePx(a.style.top) - removePx(b.style.top);
+        const aTop = removePx(a.style.top);
+        const bTop = removePx(b.style.top);
+        const aLeft = removePx(a.style.left);
+        const bLeft = removePx(b.style.left);
+        
+        let yDif = aTop - bTop;
         if (yDif === 0) {
-          const xDif = removePx(a.style.left) - removePx(b.style.left);
+          const xDif = aLeft - bLeft;
           if (xDif === 0) {
             return b.className > a.className;
           }
@@ -66,6 +71,8 @@ export const createRenderer = (
         }
         return yDif;
       });
+      // Reorder elements by removing all and adding back in sorted order
+      elementsOnBoard.forEach((el) => domElement.removeChild(el));
       elementsOnBoard.forEach((el) => domElement.appendChild(el));
       if (shouldRefocus) {
         activeElement.focus();

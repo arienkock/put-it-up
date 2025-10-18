@@ -72,6 +72,8 @@ export const createRenderer = (
         }
         return yDif;
       });
+      // Reorder elements by removing all and adding back in sorted order
+      elementsOnBoard.forEach((el) => domElement.removeChild(el));
       elementsOnBoard.forEach((el) => domElement.appendChild(el));
       if (shouldRefocus) {
         activeElement.focus();

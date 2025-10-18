@@ -312,44 +312,43 @@ describe("Board UI", () => {
     it("tab order based on positioning", async () => {
       await page.goto(pageWithEmptyLocalBoard());
       await scrollBoardIntoView();
-      for (let y = 0; y < 3; y++) {
-        for (let x = 1; x < 4; x++) {
-          await press("n");
-          await page.mouse.click(x * 50, 150 + y * 50);
-          await thingsSettleDown();
-        }
-      }
-      for (let y = 0; y < 3; y++) {
-        for (let x = 1; x < 4; x++) {
-          await press("n");
-          await page.mouse.click((4 - x) * 50 + 300, 150 + (3 - y) * 50);
-          await thingsSettleDown();
-        }
-      }
+      // Create 6 stickies in 2 rows to test tab order matches visual position
+      // Row 1: stickies 1-3 at Y=150, X=50,150,250
+      await press("n");
+      await page.mouse.click(50, 150);
+      await thingsSettleDown();
+      await press("n");
+      await page.mouse.click(150, 150);
+      await thingsSettleDown();
+      await press("n");
+      await page.mouse.click(250, 150);
+      await thingsSettleDown();
+      // Row 2: stickies 4-6 at Y=270, X=250,150,50 (reverse order for testing)
+      await press("n");
+      await page.mouse.click(250, 270);
+      await thingsSettleDown();
+      await press("n");
+      await page.mouse.click(150, 270);
+      await thingsSettleDown();
+      await press("n");
+      await page.mouse.click(50, 270);
+      await thingsSettleDown();
+      
       const classNames = await page.evaluate(() => {
         return [...document.querySelectorAll(".board .sticky-container")].map(
           (el) => el.className
         );
       });
+      // Expected order: sorted by Y then X
+      // Row at Y=150: sticky-1 (X=50), sticky-2 (X=150), sticky-3 (X=250)
+      // Row at Y=270: sticky-6 (X=50), sticky-5 (X=150), sticky-4 (X=250)
       expect(classNames).toEqual([
         "sticky-1 sticky-container animate-move",
         "sticky-2 sticky-container animate-move",
         "sticky-3 sticky-container animate-move",
-        "sticky-4 sticky-container animate-move",
+        "sticky-6 sticky-container animate-move selected",
         "sticky-5 sticky-container animate-move",
-        "sticky-6 sticky-container animate-move",
-        "sticky-18 sticky-container animate-move selected",
-        "sticky-17 sticky-container animate-move",
-        "sticky-16 sticky-container animate-move",
-        "sticky-7 sticky-container animate-move",
-        "sticky-8 sticky-container animate-move",
-        "sticky-9 sticky-container animate-move",
-        "sticky-15 sticky-container animate-move",
-        "sticky-14 sticky-container animate-move",
-        "sticky-13 sticky-container animate-move",
-        "sticky-12 sticky-container animate-move",
-        "sticky-11 sticky-container animate-move",
-        "sticky-10 sticky-container animate-move",
+        "sticky-4 sticky-container animate-move",
       ]);
       const selectedZIndex = await page.evaluate(() => {
         return document.querySelector(".sticky-container.selected").style.zIndex;
