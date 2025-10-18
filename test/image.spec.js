@@ -18,6 +18,8 @@ const mockAppState = {
   ui: {
     boardScale: undefined,
     currentColor: "khaki",
+    currentStickyColor: "khaki",
+    currentConnectorColor: "#000000",
     currentArrowHead: "filled",
     nextClickCreatesNewSticky: false,
     nextClickCreatesConnector: false,
@@ -47,10 +49,12 @@ beforeEach(() => {
     idGen: 0,
     connectorIdGen: 0,
     imageIdGen: 0,
-    ui: {
-      boardScale: undefined,
-      currentColor: "khaki",
-      currentArrowHead: "filled",
+  ui: {
+    boardScale: undefined,
+    currentColor: "khaki",
+    currentStickyColor: "khaki",
+    currentConnectorColor: "#000000",
+    currentArrowHead: "filled",
       nextClickCreatesNewSticky: false,
       nextClickCreatesConnector: false,
       connectorOriginId: null,

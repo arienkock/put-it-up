@@ -10,7 +10,9 @@ export function getAppState() {
       imageIdGen: 0,
       ui: {
         boardScale: undefined,
-        currentColor: "khaki",
+        currentColor: "khaki", // Legacy - kept for backward compatibility
+        currentStickyColor: "khaki", // Current color for new stickies
+        currentConnectorColor: "#000000", // Current color for new connectors
         currentArrowHead: "filled",
         nextClickCreatesNewSticky: false,
         nextClickCreatesConnector: false,

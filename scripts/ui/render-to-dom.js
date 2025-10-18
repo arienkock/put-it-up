@@ -126,7 +126,9 @@ export function mount(board, root, Observer, store) {
   selectedConnectors.observer = observer;
   selectedImages.observer = observer;
   
-  appState.ui.currentColor = appState.ui.currentColor || colorPalette[0];
+  appState.ui.currentColor = appState.ui.currentColor || colorPalette[0]; // Legacy
+  appState.ui.currentStickyColor = appState.ui.currentStickyColor || colorPalette[0];
+  appState.ui.currentConnectorColor = appState.ui.currentConnectorColor || "#000000";
   appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
   function getSelectedStickies() {
     return selectedStickies;
@@ -271,7 +273,7 @@ export function mount(board, root, Observer, store) {
             appState.ui.boardScale +
           origin.y,
       };
-      const id = board.putSticky({ color: appState.ui.currentColor, location });
+      const id = board.putSticky({ color: appState.ui.currentStickyColor, location });
       selectedStickies.replaceSelection(id);
       renderBoard();
       renderMenu();

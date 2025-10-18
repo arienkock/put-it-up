@@ -27,7 +27,7 @@ export const colorPalette = stickyColorPalette;
  * @param {Object} board - Board instance
  * @param {Object} selectedStickies - Selection instance
  * @param {Object} selectedConnectors - Selection instance for connectors
- * @param {string} currentColor - Current color
+ * @param {string} currentColor - Current color (legacy)
  * @param {boolean} reverse - If true, cycle backwards through colors
  * @returns {string} New current color
  */
@@ -53,9 +53,35 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
       });
     }
     
+    // Update the appropriate current color based on what's selected
+    const appState = board.getAppState ? board.getAppState() : window.appState;
+    if (selectedStickies.hasItems() && (!selectedConnectors || !selectedConnectors.hasItems())) {
+      // Only stickies selected - update sticky color
+      appState.ui.currentStickyColor = newColor;
+    } else if (selectedConnectors && selectedConnectors.hasItems() && !selectedStickies.hasItems()) {
+      // Only connectors selected - update connector color
+      appState.ui.currentConnectorColor = newColor;
+    } else if (selectedStickies.hasItems() && selectedConnectors && selectedConnectors.hasItems()) {
+      // Both selected - update both colors
+      appState.ui.currentStickyColor = newColor;
+      appState.ui.currentConnectorColor = newColor;
+    }
+    
+    // Legacy compatibility
+    appState.ui.currentColor = newColor;
+    
     return newColor;
   } else {
-    return nextColor();
+    // No selection - cycle through colors for future items
+    const newColor = nextColor();
+    
+    // Update both current colors
+    const appState = board.getAppState ? board.getAppState() : window.appState;
+    appState.ui.currentStickyColor = newColor;
+    appState.ui.currentConnectorColor = newColor;
+    appState.ui.currentColor = newColor; // Legacy compatibility
+    
+    return newColor;
   }
 
   function nextColor() {

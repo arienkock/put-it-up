@@ -83,14 +83,49 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       itemLabel: "Color",
       className: "change-color",
       itemClickHandler: (event) => {
+        // Determine which current color to use based on selection
+        const hasStickiesSelected = selectedStickies.hasItems();
+        const hasConnectorsSelected = selectedConnectors.hasItems();
+        
+        let currentColorToUse;
+        if (hasStickiesSelected && !hasConnectorsSelected) {
+          currentColorToUse = appState.ui.currentStickyColor;
+        } else if (hasConnectorsSelected && !hasStickiesSelected) {
+          currentColorToUse = appState.ui.currentConnectorColor;
+        } else if (hasStickiesSelected && hasConnectorsSelected) {
+          // Both selected - use sticky color as primary
+          currentColorToUse = appState.ui.currentStickyColor;
+        } else {
+          // Nothing selected - use sticky color as default
+          currentColorToUse = appState.ui.currentStickyColor;
+        }
+        
         const newColor = changeColor(
           board,
           selectedStickies,
           selectedConnectors,
-          appState.ui.currentColor,
+          currentColorToUse,
           event.shiftKey
         );
+        
+        // Update the appropriate current color based on what's selected
+        if (hasStickiesSelected && !hasConnectorsSelected) {
+          appState.ui.currentStickyColor = newColor;
+        } else if (hasConnectorsSelected && !hasStickiesSelected) {
+          appState.ui.currentConnectorColor = newColor;
+        } else if (hasStickiesSelected && hasConnectorsSelected) {
+          // Both selected - update both colors
+          appState.ui.currentStickyColor = newColor;
+          appState.ui.currentConnectorColor = newColor;
+        } else {
+          // Nothing selected - update both colors
+          appState.ui.currentStickyColor = newColor;
+          appState.ui.currentConnectorColor = newColor;
+        }
+        
+        // Legacy compatibility
         appState.ui.currentColor = newColor;
+        
         renderMenu();
       },
       customLabel: (dom, label) => {
@@ -101,8 +136,22 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
         
         const palette = isConnectorPalette ? connectorColorPalette : stickyColorPalette;
         
+        // Show the appropriate current color based on selection
+        let currentColorToShow;
+        if (hasStickiesSelected && !hasConnectorsSelected) {
+          currentColorToShow = appState.ui.currentStickyColor;
+        } else if (hasConnectorsSelected && !hasStickiesSelected) {
+          currentColorToShow = appState.ui.currentConnectorColor;
+        } else if (hasStickiesSelected && hasConnectorsSelected) {
+          // Both selected - show sticky color as primary
+          currentColorToShow = appState.ui.currentStickyColor;
+        } else {
+          // Nothing selected - show sticky color as default
+          currentColorToShow = appState.ui.currentStickyColor;
+        }
+        
         dom.innerHTML = `${label}<div class="color-preview"></div>`;
-        dom.lastChild.style.backgroundColor = appState.ui.currentColor;
+        dom.lastChild.style.backgroundColor = currentColorToShow;
       },
     },
     {
@@ -189,23 +238,25 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
    * Syncs the current color and arrow head with selected items
    */
   function syncSelectorsWithSelection() {
-    // Sync color selector with selected sticky
+    // Sync sticky color with selected sticky
     if (selectedStickies.hasItems() && selectedStickies.size() === 1) {
       let selectedStickyId;
       selectedStickies.forEach((id) => (selectedStickyId = id));
       const sticky = board.getStickySafe(selectedStickyId);
       if (sticky && sticky.color) {
-        appState.ui.currentColor = sticky.color;
+        appState.ui.currentStickyColor = sticky.color;
+        appState.ui.currentColor = sticky.color; // Legacy compatibility
       }
     }
     
-    // Sync color selector with selected connector
+    // Sync connector color with selected connector
     if (selectedConnectors.hasItems() && selectedConnectors.size() === 1) {
       let selectedConnectorId;
       selectedConnectors.forEach((id) => (selectedConnectorId = id));
       const connector = board.getConnectorSafe(selectedConnectorId);
       if (connector && connector.color) {
-        appState.ui.currentColor = connector.color;
+        appState.ui.currentConnectorColor = connector.color;
+        appState.ui.currentColor = connector.color; // Legacy compatibility
       }
     }
     
