@@ -120,6 +120,11 @@ body {
   cursor: grabbing;
 }
 
+.connector-handle-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Arrow head marker paths should show pointer cursor */
 .marker-path {
   cursor: pointer;

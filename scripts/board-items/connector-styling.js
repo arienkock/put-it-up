@@ -399,7 +399,7 @@ export function setConnectorStyles(
   container.path.style.pointerEvents = "all"; // Allow clicks on the path
   
   // Add handles for unconnected endpoints
-  updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected);
+  updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected, startPoint, endPoint);
   
   // Update selection state and color
   if (isSelected) {
@@ -416,7 +416,7 @@ export function setConnectorStyles(
 /**
  * Updates or creates handles for unconnected connector endpoints
  */
-function updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected) {
+function updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected, startPoint, endPoint) {
   const svg = container.svg;
   
   // Remove existing handles
@@ -426,11 +426,20 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   const handleSize = 8;
   const color = isSelected ? "#4646d8" : "#000000";
   
+  // Calculate board-space coordinates for handles
+  // The startPoint and endPoint are already in board coordinates
+  // We just need to use them directly
+  const boardStartX = startPoint.x;
+  const boardStartY = startPoint.y;
+  const boardEndX = endPoint.x;
+  const boardEndY = endPoint.y;
+  
   // Add handle for unconnected origin
   if (!connector.originId && !connector.originImageId) {
     const originHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     originHandle.classList.add("connector-handle");
     originHandle.classList.add("origin-handle");
+    originHandle.classList.add("connector-handle-hidden"); // Hidden by default
     originHandle.setAttribute("cx", localStartX);
     originHandle.setAttribute("cy", localStartY);
     originHandle.setAttribute("r", handleSize / 2);
@@ -438,6 +447,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     originHandle.setAttribute("stroke", "white");
     originHandle.setAttribute("stroke-width", "2");
     originHandle.setAttribute("cursor", "grab");
+    originHandle.setAttribute("data-handle-position", `${boardStartX},${boardStartY}`);
     originHandle.style.pointerEvents = "all";
     svg.appendChild(originHandle);
   }
@@ -447,6 +457,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     const destHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     destHandle.classList.add("connector-handle");
     destHandle.classList.add("destination-handle");
+    destHandle.classList.add("connector-handle-hidden"); // Hidden by default
     destHandle.setAttribute("cx", localEndX);
     destHandle.setAttribute("cy", localEndY);
     destHandle.setAttribute("r", handleSize / 2);
@@ -454,6 +465,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     destHandle.setAttribute("stroke", "white");
     destHandle.setAttribute("stroke-width", "2");
     destHandle.setAttribute("cursor", "grab");
+    destHandle.setAttribute("data-handle-position", `${boardEndX},${boardEndY}`);
     destHandle.style.pointerEvents = "all";
     svg.appendChild(destHandle);
   }

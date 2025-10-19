@@ -76,10 +76,82 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
 
   // Global listener manager
   const globalListeners = new GlobalListenerManager();
+  
+  // Proximity detection state
+  let proximityDetectionActive = true; // Start active since we begin in IDLE state
+  let lastProximityUpdate = 0;
+  const PROXIMITY_THRESHOLD = 100; // pixels
+  const PROXIMITY_UPDATE_THROTTLE = 16; // ~60fps
 
   // Debug mode - controlled by global window.DEBUG_MODE
   // Use a function to check DEBUG_MODE dynamically
   const isDebugMode = () => window.DEBUG_MODE || false;
+
+  /**
+   * Proximity detection handler for connector handles
+   * Updates handle visibility based on mouse proximity
+   */
+  function handleProximityDetection(event) {
+    if (!proximityDetectionActive) return;
+    
+    // Throttle updates for performance
+    const now = Date.now();
+    if (now - lastProximityUpdate < PROXIMITY_UPDATE_THROTTLE) {
+      return;
+    }
+    lastProximityUpdate = now;
+    
+    const rect = boardElement.getBoundingClientRect();
+    const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    // Validate coordinates
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      return;
+    }
+    
+    // Convert mouse position to board coordinates
+    const mouseBoardX = (event.clientX - rect.left) / boardScale - boardOrigin.x;
+    const mouseBoardY = (event.clientY - rect.top) / boardScale - boardOrigin.y;
+    
+    // Get all connector handles on the page
+    const allHandles = document.querySelectorAll('.connector-handle');
+    
+    allHandles.forEach(handle => {
+      const positionAttr = handle.getAttribute('data-handle-position');
+      if (!positionAttr) return;
+      
+      const [handleX, handleY] = positionAttr.split(',').map(Number);
+      if (isNaN(handleX) || isNaN(handleY)) return;
+      
+      // Calculate distance from mouse to handle
+      const deltaX = mouseBoardX - handleX;
+      const deltaY = mouseBoardY - handleY;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      
+      // Check if handle should be visible based on proximity
+      const shouldBeVisible = distance <= PROXIMITY_THRESHOLD;
+      
+      // Handle special cases - always show handles for selected connectors
+      const connectorContainer = handle.closest('.connector-container');
+      const isSelected = connectorContainer?.classList.contains('selected');
+      
+      if (isSelected) {
+        // Always show handles for selected connectors
+        handle.classList.remove('connector-handle-hidden');
+      } else if (shouldBeVisible) {
+        // Show based on proximity for non-selected connectors
+        handle.classList.remove('connector-handle-hidden');
+      } else {
+        // Hide based on proximity for non-selected connectors
+        handle.classList.add('connector-handle-hidden');
+      }
+    });
+  }
 
   /**
    * Transition to new state with logging and cleanup
@@ -97,6 +169,11 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     // Clean up old state
     switch (oldState) {
+      case ConnectorState.IDLE:
+        // Disable proximity detection when leaving IDLE state
+        proximityDetectionActive = false;
+        globalListeners.clearAll();
+        break;
       case ConnectorState.DRAGGING_NEW:
         globalListeners.clearAll();
         break;
@@ -128,27 +205,56 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
           timeout: null,
           justEntered: false
         };
+        // Enable proximity detection in IDLE state
+        proximityDetectionActive = true;
+        globalListeners.setListeners({
+          'mousemove': handleProximityDetection
+        });
         break;
       case ConnectorState.CLICK_TO_CLICK_WAITING:
         stateData.justEntered = true;
         setTimeout(() => { stateData.justEntered = false; }, 0);
+        // Disable proximity detection during click-to-click mode
+        proximityDetectionActive = false;
         globalListeners.setListeners({
           'mousemove': handleClickToClickMove
         });
+        // Ensure handles for the active connector are visible
+        if (stateData.connectorId) {
+          const activeConnector = document.querySelector(`.connector-${stateData.connectorId}`);
+          if (activeConnector) {
+            const handles = activeConnector.querySelectorAll('.connector-handle');
+            handles.forEach(handle => handle.classList.remove('connector-handle-hidden'));
+          }
+        }
         break;
       case ConnectorState.DRAGGING_NEW:
+        // Disable proximity detection during dragging
+        proximityDetectionActive = false;
         globalListeners.setListeners({
           'mousemove': handleConnectorDrag,
           'mouseup': handleConnectorDragEnd
         });
         break;
       case ConnectorState.DRAGGING_HANDLE:
+        // Disable proximity detection during handle dragging
+        proximityDetectionActive = false;
         globalListeners.setListeners({
           'mousemove': handleHandleDrag,
           'mouseup': handleHandleDragEnd
         });
+        // Ensure the dragged handle remains visible
+        if (stateData.connectorId) {
+          const activeConnector = document.querySelector(`.connector-${stateData.connectorId}`);
+          if (activeConnector) {
+            const handles = activeConnector.querySelectorAll('.connector-handle');
+            handles.forEach(handle => handle.classList.remove('connector-handle-hidden'));
+          }
+        }
         break;
       case ConnectorState.DRAGGING_DISCONNECTED:
+        // Disable proximity detection during disconnected connector dragging
+        proximityDetectionActive = false;
         globalListeners.setListeners({
           'mousemove': handleDisconnectedConnectorDrag,
           'mouseup': handleDisconnectedConnectorDragEnd
@@ -808,6 +914,11 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
   // Single entry point event listeners
   boardElement.addEventListener('mousedown', routeMouseDown);
   boardElement.addEventListener('mouseup', routeMouseUp);
+  
+  // Initialize proximity detection since we start in IDLE state
+  globalListeners.setListeners({
+    'mousemove': handleProximityDetection
+  });
 
   // Handle connector selection
   boardElement.addEventListener('click', (event) => {
@@ -867,6 +978,9 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     // Cleanup function
     cleanup: () => {
       globalListeners.clearAll();
+      
+      // Disable proximity detection
+      proximityDetectionActive = false;
       
       // Clean up click-to-click mode
       if (stateData.timeout) {
