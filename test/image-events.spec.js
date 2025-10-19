@@ -486,6 +486,8 @@ describe("Image Events - Refactored Implementation Tests", () => {
 
   describe("Debug Logging", () => {
     it("should log state transitions when DEBUG_MODE is enabled", () => {
+      // Set DEBUG_MODE to true for this test
+      window.DEBUG_MODE = true;
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       transitionState(ImageState.DRAGGING, 'test transition');

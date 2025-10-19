@@ -76,6 +76,10 @@ import { colorPalette } from "./color-management.js";
 
 export { colorPalette };
 
+// Debug mode - controlled by global window.DEBUG_MODE
+// Use a function to check DEBUG_MODE dynamically
+const isDebugMode = () => window.DEBUG_MODE || false;
+
 export function mount(board, root, Observer, store) {
   root.innerHTML =
     '<div class="board-container"><div class="board"></div></div>';
@@ -175,7 +179,9 @@ export function mount(board, root, Observer, store) {
     const stored = localStorage.getItem(NATIVE_DPR_KEY);
     if (stored) {
       const nativeDpr = parseFloat(stored);
-      console.log(`Using stored native DPR: ${nativeDpr}`);
+      if (isDebugMode()) {
+        console.log(`Using stored native DPR: ${nativeDpr}`);
+      }
       return nativeDpr;
     }
     
@@ -183,7 +189,9 @@ export function mount(board, root, Observer, store) {
     // User should have browser at 100% zoom when first loading
     const dpr = window.devicePixelRatio;
     localStorage.setItem(NATIVE_DPR_KEY, dpr.toString());
-    console.log(`First load - stored native DPR: ${dpr}. If menu appears wrong size, press Ctrl+0 to reset zoom, clear browser cache, and reload.`);
+    if (isDebugMode()) {
+      console.log(`First load - stored native DPR: ${dpr}. If menu appears wrong size, press Ctrl+0 to reset zoom, clear browser cache, and reload.`);
+    }
     
     return dpr;
   }
@@ -201,7 +209,9 @@ export function mount(board, root, Observer, store) {
     // zoomLevel = current DPR / native DPR
     const zoomLevel = window.devicePixelRatio / nativeDevicePixelRatio;
     
-    console.log(`devicePixelRatio: ${window.devicePixelRatio}, native: ${nativeDevicePixelRatio}, zoom: ${(zoomLevel * 100).toFixed(0)}%`);
+    if (isDebugMode()) {
+      console.log(`devicePixelRatio: ${window.devicePixelRatio}, native: ${nativeDevicePixelRatio}, zoom: ${(zoomLevel * 100).toFixed(0)}%`);
+    }
     
     // Only apply counter-scaling if zoom is different from 100%
     if (Math.abs(zoomLevel - 1) > 0.01) {

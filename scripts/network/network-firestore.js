@@ -1,6 +1,8 @@
 import { getAppState } from "../app-state.js";
 
-
+// Debug mode - controlled by global window.DEBUG_MODE
+// Use a function to check DEBUG_MODE dynamically
+const isDebugMode = () => window.DEBUG_MODE || false;
 
 export class FirestoreStore {
   connectCalled = false;
@@ -16,7 +18,9 @@ export class FirestoreStore {
       this.db = firebase.firestore();
       this.connectCalled = true;
     }
-    console.log("db", this.db);
+    if (isDebugMode()) {
+      console.log("db", this.db);
+    }
     this.docRef = this.db.collection(this.collectionName).doc(this.boardName);
     this.docRef.onSnapshot((documentSnapshot) => {
       this.readyForUse = true;

@@ -143,12 +143,14 @@ function handleResizeEnd(event) {
 // RESIZE STATE TRANSITIONS WITH LOGGING
 // ============================================================================
 
-const DEBUG_MODE = true; // Toggle for development
+// Debug mode - controlled by global window.DEBUG_MODE
+// Use a function to check DEBUG_MODE dynamically
+const isDebugMode = () => window.DEBUG_MODE || false;
 
 function transitionResizeState(newState, reason, data = {}) {
   const oldState = currentResizeState;
   
-  if (DEBUG_MODE) {
+  if (isDebugMode()) {
     console.log(`[StickyResizeState] ${oldState} → ${newState}`, {
       reason,
       data,
@@ -194,7 +196,7 @@ function transitionResizeState(newState, reason, data = {}) {
 // ============================================================================
 
 function handleResizeEvent(eventName, event, handlerFn, ...args) {
-  if (DEBUG_MODE) {
+  if (isDebugMode()) {
     console.log(`[StickyResizeEvent] ${eventName} in ${currentResizeState}`, {
       target: event.target?.className || 'unknown',
       handler: handlerFn.name,

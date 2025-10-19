@@ -22,6 +22,10 @@
         measurementId: "G-CXTXNN5XSM"
       };
       window.firebaseConfig = firebaseConfig;
+      
+      // Global debug mode setting - controlled by query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      window.DEBUG_MODE = urlParams.get('debug') === 'true';
     </script>
     <script type="module">
       import { mount } from "./scripts/ui/render-to-dom.js";
@@ -33,7 +37,6 @@
       import { LocalStoragePersistence } from "./scripts/board/local-storage-persistence.js";
       
       // Check for offline query parameter
-      const urlParams = new URLSearchParams(window.location.search);
       const isOffline = urlParams.get('offline') === 'true';
       
       let store;

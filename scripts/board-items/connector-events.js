@@ -77,8 +77,9 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
   // Global listener manager
   const globalListeners = new GlobalListenerManager();
 
-  // Debug mode - can be toggled for development
-  const DEBUG_MODE = true;
+  // Debug mode - controlled by global window.DEBUG_MODE
+  // Use a function to check DEBUG_MODE dynamically
+  const isDebugMode = () => window.DEBUG_MODE || false;
 
   /**
    * Transition to new state with logging and cleanup
@@ -86,7 +87,7 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
   function transitionState(newState, reason, data = {}) {
     const oldState = currentState;
     
-    if (DEBUG_MODE) {
+    if (isDebugMode()) {
       console.log(`[ConnectorState] ${oldState} → ${newState}`, {
         reason,
         data,
@@ -160,7 +161,7 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
    * Event handling wrapper with debug logging
    */
   function handleEvent(eventName, event, handlerFn) {
-    if (DEBUG_MODE) {
+    if (isDebugMode()) {
       console.log(`[ConnectorEvent] ${eventName} in ${currentState}`, {
         target: event.target?.className || 'unknown',
         handler: handlerFn.name,

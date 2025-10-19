@@ -26,9 +26,10 @@ let keyboardStateData = {
 };
 
 /**
- * Debug mode for development - can be toggled
+ * Debug mode for development - controlled by global window.DEBUG_MODE
+ * Use a function to check DEBUG_MODE dynamically
  */
-const DEBUG_MODE = true;
+const isDebugMode = () => window.DEBUG_MODE || false;
 
 /**
  * Explicit priority order for keyboard handlers
@@ -55,7 +56,7 @@ function transitionKeyboardState(newState, reason, data = {}, appState = null) {
   const oldState = currentKeyboardState;
   const targetAppState = appState || window.appState || mockAppState;
   
-  if (DEBUG_MODE) {
+  if (isDebugMode()) {
     console.log(`[KeyboardState] ${oldState} → ${newState}`, {
       reason,
       data,
@@ -120,7 +121,7 @@ function transitionKeyboardState(newState, reason, data = {}, appState = null) {
  * @returns {*} Result of the handler function
  */
 function handleKeyboardEvent(eventName, event, handlerFn) {
-  if (DEBUG_MODE) {
+  if (isDebugMode()) {
     console.log(`[KeyboardEvent] ${eventName} in ${currentKeyboardState}`, {
       key: event.key,
       handler: handlerFn.name,
@@ -334,7 +335,7 @@ function routeKeyDown(event) {
   }
   
   // No handler matched - log for debugging
-  if (DEBUG_MODE) {
+  if (isDebugMode()) {
     console.log(`[KeyboardEvent] No handler matched for key: ${event.key}`, {
       state: currentKeyboardState,
       modifiers: {
@@ -431,7 +432,7 @@ export function getKeyboardState() {
   return {
     currentState: currentKeyboardState,
     stateData: { ...keyboardStateData },
-    debugMode: DEBUG_MODE
+    debugMode: isDebugMode()
   };
 }
 

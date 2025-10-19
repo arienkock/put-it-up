@@ -219,6 +219,8 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
     });
 
     it("should log state transitions when debug mode is enabled", () => {
+      // Set DEBUG_MODE to true for this test
+      window.DEBUG_MODE = true;
       const cleanup = setupKeyboardHandlers(
         board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
       );
@@ -522,6 +524,8 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
     });
 
     it("should log debug information for unmatched keys", () => {
+      // Set DEBUG_MODE to true for this test
+      window.DEBUG_MODE = true;
       const cleanup = setupKeyboardHandlers(
         board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
       );
