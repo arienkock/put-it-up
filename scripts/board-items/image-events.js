@@ -170,6 +170,6 @@ export function setupImageEvents(
       selectionManager.clearAllSelections();
     }
     
-    selectionManager.getSelection('images').toggleSelection(id);
+    selectionManager.getSelection('images').toggleSelected(id);
   };
 }
