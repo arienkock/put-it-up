@@ -7,3 +7,4 @@ If a bug gets reported by the user, you should create a bug report markdown file
 - root cause
 - fix
 - files, classes, functions and code snippets involved in the bug
+- the tests that were inspired by this bug

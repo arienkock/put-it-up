@@ -82,7 +82,7 @@ export function calculateEdgePoint(centerX, centerY, targetX, targetY, stickyWid
   
   // Validate result to ensure no NaN values
   if (isNaN(x) || isNaN(y)) {
-    console.warn('calculateEdgePoint returned NaN:', { x, y, centerX, centerY, targetX, targetY, stickyWidth, stickyHeight });
+    // console.warn('calculateEdgePoint returned NaN:', { x, y, centerX, centerY, targetX, targetY, stickyWidth, stickyHeight });
     return { x: centerX, y: centerY }; // Return center point as fallback
   }
   

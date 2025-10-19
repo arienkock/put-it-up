@@ -348,7 +348,10 @@ export function mount(board, root, Observer, store) {
       selectedStickies.replaceSelection(id);
       renderBoard();
       renderMenu();
-    } else if (event.target === domElement && !event.shiftKey && !appState.ui.nextClickCreatesConnector) {
+    } else if (appState.ui.nextClickCreatesConnector) {
+      // Let connector events handle this - don't interfere
+      return;
+    } else if (event.target === domElement && !event.shiftKey) {
       selectionManager.clearAllSelections();
       // Ensure menu reflects empty selection state
       renderMenu();

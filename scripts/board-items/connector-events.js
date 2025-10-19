@@ -19,11 +19,25 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
   let isDraggingDisconnectedConnector = false;
   let disconnectedConnectorId = null;
   let disconnectedConnectorDragStart = null;
+  
+  // Click-to-click connector creation state
+  let isClickToClickMode = false;
+  let clickToClickConnectorId = null;
+  let clickToClickOriginData = null;
+  let clickToClickTimeout = null;
+  let justEnteredClickToClickMode = false;
 
   // Handle board mouse events for connector creation
   boardElement.addEventListener('mousedown', (event) => {
     const appState = store.getAppState();
+    console.log('Mousedown handler, nextClickCreatesConnector:', appState.ui.nextClickCreatesConnector, 'isClickToClickMode:', isClickToClickMode);
     if (!appState.ui.nextClickCreatesConnector) return;
+    
+    // If we're in click-to-click mode, we'll handle completion on mouseup
+    if (isClickToClickMode) {
+      console.log('Mousedown: In click-to-click mode, will complete on mouseup');
+      return;
+    }
     
     event.preventDefault();
     event.stopPropagation();
@@ -66,7 +80,14 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       originImageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
     }
     
-    // Start dragging to create connector
+    // Store origin data for click-to-click mode
+    clickToClickOriginData = {
+      point,
+      originStickyId,
+      originImageId
+    };
+    
+    // Start dragging to create connector (for immediate visual feedback)
     isDraggingConnector = true;
     dragStartPoint = point;
     
@@ -105,16 +126,23 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     const handle = event.target.closest('.connector-handle');
     if (!handle) return;
     
+    // Find the connector ID from the container
+    const container = handle.closest('.connector-container');
+    const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-'));
+    const handleConnectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+    
+    // If we're in click-to-click mode and this is our own connector's handle, ignore it
+    if (isClickToClickMode && handleConnectorId === clickToClickConnectorId) {
+      console.log('Ignoring handle drag for click-to-click connector');
+      return;
+    }
+    
     event.preventDefault();
     event.stopPropagation();
     
     isDraggingHandle = true;
     draggedHandle = handle.classList.contains('origin-handle') ? 'origin' : 'destination';
-    
-    // Find the connector ID from the container
-    const container = handle.closest('.connector-container');
-    const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-'));
-    draggedConnectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+    draggedConnectorId = handleConnectorId;
     
     if (draggedConnectorId) {
       // Set up global mouse events
@@ -180,6 +208,64 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     document.addEventListener('mouseup', handleDisconnectedConnectorDragEnd);
   });
 
+  // Helper function to cancel click-to-click mode
+  function cancelClickToClickMode() {
+    if (isClickToClickMode && clickToClickConnectorId) {
+      // Remove the temporary connector
+      board.deleteConnector(clickToClickConnectorId);
+      
+      // Clear state
+      isClickToClickMode = false;
+      clickToClickConnectorId = null;
+      clickToClickOriginData = null;
+      if (clickToClickTimeout) {
+        clearTimeout(clickToClickTimeout);
+        clickToClickTimeout = null;
+      }
+      
+      // Remove mousemove listener for click-to-click mode
+      document.removeEventListener('mousemove', handleClickToClickMove);
+      
+      // Exit connector creation mode
+      const appState = store.getAppState();
+      appState.ui.nextClickCreatesConnector = false;
+      
+      // Trigger re-render
+      if (renderCallback) {
+        renderCallback();
+      }
+    }
+  }
+
+  // Handle mouse movement during click-to-click mode
+  function handleClickToClickMove(event) {
+    if (!isClickToClickMode || !clickToClickConnectorId) {
+      console.log('handleClickToClickMove: early return, isClickToClickMode:', isClickToClickMode, 'clickToClickConnectorId:', clickToClickConnectorId);
+      return;
+    }
+    
+    const rect = boardElement.getBoundingClientRect();
+    const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      return;
+    }
+    
+    const point = {
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+    };
+    
+    // Update the destination point to follow the mouse
+    board.updateConnectorEndpoint(clickToClickConnectorId, 'destination', { point });
+  }
+
   function handleConnectorDrag(event) {
     if (!isDraggingConnector || !currentConnectorId) return;
     
@@ -206,11 +292,27 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
+    // Check if we've moved enough to consider this a drag (vs a click)
+    const minDragDistance = 5; // pixels
+    const deltaX = point.x - dragStartPoint.x;
+    const deltaY = point.y - dragStartPoint.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    if (distance > minDragDistance) {
+      // This is a drag, not a click - exit click-to-click mode
+      isClickToClickMode = false;
+      if (clickToClickTimeout) {
+        clearTimeout(clickToClickTimeout);
+        clickToClickTimeout = null;
+      }
+    }
+    
     // Update the destination point
     board.updateConnectorEndpoint(currentConnectorId, 'destination', { point });
   }
 
   function handleConnectorDragEnd(event) {
+    console.log('handleConnectorDragEnd called, isDraggingConnector:', isDraggingConnector, 'currentConnectorId:', currentConnectorId);
     if (!isDraggingConnector || !currentConnectorId) return;
     
     const rect = boardElement.getBoundingClientRect();
@@ -236,6 +338,51 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       y: (event.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
+    // Check if this was a click (not a drag) by measuring distance moved
+    const minDragDistance = 5; // pixels
+    const deltaX = point.x - dragStartPoint.x;
+    const deltaY = point.y - dragStartPoint.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    if (distance <= minDragDistance && !isClickToClickMode) {
+      // This was a click, not a drag - enter click-to-click mode
+      console.log('Entering click-to-click mode, connector ID:', currentConnectorId);
+      isClickToClickMode = true;
+      clickToClickConnectorId = currentConnectorId;
+      justEnteredClickToClickMode = true;
+      
+      // Reset the flag after the current event loop to allow the click event to pass
+      setTimeout(() => {
+        justEnteredClickToClickMode = false;
+      }, 0);
+      
+      // Set up timeout to cancel click-to-click mode after 30 seconds
+      clickToClickTimeout = setTimeout(() => {
+        cancelClickToClickMode();
+      }, 30000);
+      
+      // Clean up drag state but keep connector
+      isDraggingConnector = false;
+      dragStartPoint = null;
+      currentConnectorId = null; // Clear this so we don't interfere with other handlers
+      
+      // Remove old event listeners and add click-to-click mousemove listener
+      document.removeEventListener('mousemove', handleConnectorDrag);
+      document.removeEventListener('mouseup', handleConnectorDragEnd);
+      document.addEventListener('mousemove', handleClickToClickMove);
+      
+      // Keep nextClickCreatesConnector active so we stay in connector creation mode
+      // appState.ui.nextClickCreatesConnector stays true
+      
+      // Trigger re-render
+      if (renderCallback) {
+        renderCallback();
+      }
+      
+      return; // Don't complete connector creation yet
+    }
+    
+    // This was a drag - complete connector creation normally
     // Check if we're over a sticky or image
     const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
     const stickyContainer = elementBelow?.closest('.sticky-container');
@@ -447,6 +594,111 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
   }
 
+  // Handle click-to-click connector destination selection on mouseup
+  boardElement.addEventListener('mouseup', (event) => {
+    console.log('Mouseup handler, isClickToClickMode:', isClickToClickMode, 'clickToClickConnectorId:', clickToClickConnectorId, 'justEnteredClickToClickMode:', justEnteredClickToClickMode);
+    
+    if (!isClickToClickMode || !clickToClickConnectorId) return;
+    
+    // Ignore the mouseup event that immediately follows entering click-to-click mode
+    if (justEnteredClickToClickMode) {
+      console.log('Ignoring first mouseup event after entering click-to-click mode');
+      return;
+    }
+    
+    console.log('Click-to-click handler: completing connector creation on mouseup', event.target);
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const rect = boardElement.getBoundingClientRect();
+    const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during click-to-click:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
+    const point = {
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+    };
+    
+    // Check if we're clicking on our own connector's handle - if so, ignore it
+    const connectorHandle = event.target.closest('.connector-handle');
+    if (connectorHandle) {
+      const connectorContainer = connectorHandle.closest('.connector-container');
+      if (connectorContainer) {
+        const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
+        const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+        if (connectorId === clickToClickConnectorId) {
+          console.log('Clicked on own connector handle, treating as empty space click');
+          // Continue with point-based connection (empty space)
+        }
+      }
+    }
+    
+    // Check if we're clicking on a sticky or image (but not on our own connector handle)
+    const isOwnHandle = connectorHandle && connectorHandle.closest('.connector-container')?.classList.contains(`connector-${clickToClickConnectorId}`);
+    const stickyContainer = !isOwnHandle ? event.target.closest('.sticky-container') : null;
+    const imageContainer = !isOwnHandle ? event.target.closest('.image-container') : null;
+    
+    if (stickyContainer) {
+      // Extract sticky ID from class name
+      const stickyIdClass = Array.from(stickyContainer.classList).find(cls => cls.startsWith('sticky-'));
+      const stickyId = stickyIdClass ? stickyIdClass.replace('sticky-', '') : null;
+      
+      if (stickyId) {
+        // Connect to the sticky
+        board.updateConnectorEndpoint(clickToClickConnectorId, 'destination', { stickyId });
+      }
+    } else if (imageContainer) {
+      // Extract image ID from class name (exclude 'image-container' class)
+      const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
+      const imageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
+      
+      if (imageId) {
+        // Connect to the image
+        board.updateConnectorEndpoint(clickToClickConnectorId, 'destination', { imageId });
+      }
+    } else {
+      // Keep as unconnected endpoint
+      board.updateConnectorEndpoint(clickToClickConnectorId, 'destination', { point });
+    }
+    
+    // Complete connector creation
+    console.log('Completing connector creation, setting nextClickCreatesConnector to false');
+    appState.ui.nextClickCreatesConnector = false;
+    
+    // Clear click-to-click mode
+    console.log('Clearing click-to-click mode');
+    isClickToClickMode = false;
+    clickToClickConnectorId = null;
+    clickToClickOriginData = null;
+    if (clickToClickTimeout) {
+      clearTimeout(clickToClickTimeout);
+      clickToClickTimeout = null;
+    }
+    
+    // Remove mousemove listener for click-to-click mode
+    console.log('Removing mousemove listener');
+    document.removeEventListener('mousemove', handleClickToClickMove);
+    
+    // Trigger re-render
+    if (renderCallback) {
+      renderCallback();
+    }
+  });
+
   // Handle connector selection
   boardElement.addEventListener('click', (event) => {
     const connectorContainer = event.target.closest('.connector-container');
@@ -494,6 +746,13 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
   });
 
+  // Handle escape key to cancel click-to-click mode
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isClickToClickMode) {
+      cancelClickToClickMode();
+    }
+  });
+
   return {
     // Cleanup function if needed
     cleanup: () => {
@@ -503,6 +762,13 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       document.removeEventListener('mouseup', handleHandleDragEnd);
       document.removeEventListener('mousemove', handleDisconnectedConnectorDrag);
       document.removeEventListener('mouseup', handleDisconnectedConnectorDragEnd);
+      document.removeEventListener('mousemove', handleClickToClickMove);
+      
+      // Clean up click-to-click mode
+      if (clickToClickTimeout) {
+        clearTimeout(clickToClickTimeout);
+        clickToClickTimeout = null;
+      }
     }
   };
 }
