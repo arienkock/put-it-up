@@ -70,7 +70,7 @@ import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { Selection } from "./selection.js";
 import { SelectionManager } from "./selection-manager.js";
 import { createMenu } from "./menu.js";
-import { setupKeyboardHandlers } from "./keyboard-handlers.js";
+import { setupKeyboardHandlers, completeKeyboardAction } from "./keyboard-handlers.js";
 import { zoomScale, applyZoomToBoard } from "./zoom.js";
 import { colorPalette } from "./color-management.js";
 
@@ -348,6 +348,9 @@ export function mount(board, root, Observer, store) {
       selectedStickies.replaceSelection(id);
       renderBoard();
       renderMenu();
+      
+      // Notify keyboard handler that sticky creation is complete
+      completeKeyboardAction('sticky created', appState);
     } else if (appState.ui.nextClickCreatesConnector) {
       // Let connector events handle this - don't interfere
       return;

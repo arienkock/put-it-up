@@ -1,4 +1,5 @@
 import { SelectionManager } from "../ui/selection-manager.js";
+import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 
 /**
  * Connector State Machine
@@ -371,6 +372,9 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
         
         transitionState(ConnectorState.IDLE, 'click-to-click connector creation completed');
         
+        // Notify keyboard handler that connector creation is complete
+        completeKeyboardAction('connector created (click-to-click)', appState);
+        
         // Trigger re-render
         if (renderCallback) {
           renderCallback();
@@ -605,6 +609,9 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     
     transitionState(ConnectorState.IDLE, 'connector creation completed');
     
+    // Notify keyboard handler that connector creation is complete
+    completeKeyboardAction('connector created', appState);
+    
     // Trigger re-render
     if (renderCallback) {
       renderCallback();
@@ -786,6 +793,9 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       appState.ui.nextClickCreatesConnector = false;
       
       transitionState(ConnectorState.IDLE, 'click-to-click mode cancelled');
+      
+      // Notify keyboard handler that connector creation is cancelled
+      completeKeyboardAction('connector creation cancelled', appState);
       
       // Trigger re-render
       if (renderCallback) {
