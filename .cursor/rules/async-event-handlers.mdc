@@ -1,0 +1,356 @@
+---
+alwaysApply: true
+---
+
+# Async Code and Event Handler Development Rules
+
+## Core Principles
+
+When writing any async code or event handler code, follow these mandatory patterns derived from successful refactoring of connector-events, sticky-events, and keyboard-handlers:
+
+### 1. State Machine Architecture (MANDATORY)
+
+**NEVER use scattered boolean flags or implicit state.** Always implement explicit state machines:
+
+```javascript
+// ✅ CORRECT: Explicit state enum
+const ComponentState = {
+  IDLE: 'idle',
+  PROCESSING: 'processing',
+  WAITING: 'waiting',
+  ERROR: 'error'
+};
+
+let currentState = ComponentState.IDLE;
+let stateData = {
+  // All state consolidated in one place
+  activeId: null,
+  startTime: null,
+  userData: null
+};
+
+// ❌ WRONG: Scattered boolean flags
+let isProcessing = false;
+let isWaiting = false;
+let hasError = false;
+let currentId = null;
+```
+
+### 2. Single Entry Point with Routing (MANDATORY)
+
+**NEVER add multiple independent event listeners for the same event type.** Use one router that delegates to sub-handlers:
+
+```javascript
+// ✅ CORRECT: Single entry point with routing
+element.addEventListener('eventType', (event) => {
+  const appState = store.getAppState();
+  
+  // Route to appropriate handler based on current state
+  for (const handlerName of HANDLER_PRIORITY) {
+    const handler = handlers[handlerName];
+    if (handler.canHandle && handler.canHandle(event, currentState, appState)) {
+      if (handler.onEvent) {
+        return handleEvent('eventType', event, handler.onEvent);
+      }
+    }
+  }
+});
+
+// ❌ WRONG: Multiple independent listeners
+element.addEventListener('eventType', handler1);
+element.addEventListener('eventType', handler2);
+element.addEventListener('eventType', handler3);
+```
+
+### 3. Sub-Handler Architecture with Explicit Precedence (MANDATORY)
+
+**NEVER put all logic in one monolithic handler.** Break into focused sub-handlers with clear precedence:
+
+```javascript
+// ✅ CORRECT: Sub-handlers with explicit precedence
+const handlers = {
+  highPriorityHandler: {
+    canHandle: (event, state, appState) => {
+      return state === ComponentState.IDLE && event.key === 'Escape';
+    },
+    
+    onEvent: (event, stateData) => {
+      // Handle high priority action
+      transitionState(ComponentState.PROCESSING, 'high priority action');
+    }
+  },
+  
+  normalHandler: {
+    canHandle: (event, state, appState) => {
+      return state === ComponentState.IDLE && event.key === 'Enter';
+    },
+    
+    onEvent: (event, stateData) => {
+      // Handle normal action
+      transitionState(ComponentState.PROCESSING, 'normal action');
+    }
+  }
+};
+
+// Explicit priority order
+const HANDLER_PRIORITY = [
+  'highPriorityHandler',
+  'normalHandler'
+];
+
+// ❌ WRONG: Monolithic handler
+function handleEvent(event) {
+  if (event.key === 'Escape') {
+    // handle escape
+  } else if (event.key === 'Enter') {
+    // handle enter
+  } else if (event.key === 'Space') {
+    // handle space
+  }
+  // ... 200 more lines
+}
+```
+
+### 4. Centralized Event Listener Management (MANDATORY)
+
+**NEVER manually add/remove global listeners without proper management.** Use a listener manager:
+
+```javascript
+// ✅ CORRECT: Listener manager
+class EventListenerManager {
+  constructor() {
+    this.activeListeners = new Map(); // type -> Set of handlers
+  }
+  
+  setListeners(listenerMap) {
+    this.clearAll();
+    
+    Object.entries(listenerMap).forEach(([eventType, handler]) => {
+      document.addEventListener(eventType, handler);
+      
+      if (!this.activeListeners.has(eventType)) {
+        this.activeListeners.set(eventType, new Set());
+      }
+      this.activeListeners.get(eventType).add(handler);
+    });
+  }
+  
+  clearAll() {
+    this.activeListeners.forEach((handlers, eventType) => {
+      handlers.forEach(handler => {
+        document.removeEventListener(eventType, handler);
+      });
+    });
+    this.activeListeners.clear();
+  }
+}
+
+const listenerManager = new EventListenerManager();
+
+// ❌ WRONG: Manual listener management
+document.addEventListener('mousemove', handler1);
+document.addEventListener('mouseup', handler2);
+// ... later, easy to forget to remove them
+```
+
+### 5. Explicit State Transitions with Logging (MANDATORY)
+
+**NEVER change state implicitly.** Always use explicit transition functions with logging:
+
+```javascript
+// ✅ CORRECT: Explicit state transitions
+const DEBUG_MODE = true;
+
+function transitionState(newState, reason, data = {}) {
+  const oldState = currentState;
+  
+  if (DEBUG_MODE) {
+    console.log(`[ComponentState] ${oldState} → ${newState}`, {
+      reason,
+      data,
+      timestamp: Date.now()
+    });
+  }
+  
+  // Clean up old state
+  switch (oldState) {
+    case ComponentState.PROCESSING:
+      listenerManager.clearAll();
+      break;
+  }
+  
+  currentState = newState;
+  
+  // Set up new state
+  switch (newState) {
+    case ComponentState.IDLE:
+      stateData = {};
+      break;
+    case ComponentState.PROCESSING:
+      listenerManager.setListeners({
+        'mousemove': handleMove,
+        'mouseup': handleEnd
+      });
+      break;
+  }
+}
+
+// ❌ WRONG: Implicit state changes
+currentState = ComponentState.PROCESSING;
+isProcessing = true;
+// No cleanup, no logging, no setup
+```
+
+### 6. Event Handling Wrapper with Error Recovery (MANDATORY)
+
+**NEVER call handlers directly.** Always wrap in error handling:
+
+```javascript
+// ✅ CORRECT: Event wrapper with error recovery
+function handleEvent(eventName, event, handlerFn) {
+  if (DEBUG_MODE) {
+    console.log(`[ComponentEvent] ${eventName} in ${currentState}`, {
+      target: event.target?.className || 'unknown',
+      handler: handlerFn.name,
+      stateData: { ...stateData }
+    });
+  }
+  
+  try {
+    return handlerFn(event, stateData);
+  } catch (error) {
+    console.error(`[ComponentError] in ${handlerFn.name}:`, error);
+    // Reset to safe state
+    transitionState(ComponentState.IDLE, 'error recovery');
+    throw error;
+  }
+}
+
+// ❌ WRONG: Direct handler calls
+handlerFn(event); // No error handling, no logging
+```
+
+### 7. Async Operation Patterns (MANDATORY)
+
+**NEVER use async/await without proper state management.** Always track async operations:
+
+```javascript
+// ✅ CORRECT: Async with state management
+async function performAsyncOperation(data) {
+  transitionState(ComponentState.PROCESSING, 'async operation started');
+  
+  try {
+    const result = await someAsyncCall(data);
+    transitionState(ComponentState.IDLE, 'async operation completed');
+    return result;
+  } catch (error) {
+    console.error('[AsyncError]', error);
+    transitionState(ComponentState.ERROR, 'async operation failed');
+    throw error;
+  }
+}
+
+// ❌ WRONG: Async without state tracking
+async function performAsyncOperation(data) {
+  const result = await someAsyncCall(data);
+  return result; // No state management, no error handling
+}
+```
+
+## Implementation Checklist
+
+Before writing any event handler or async code, verify:
+
+- [ ] **State Machine**: Defined explicit state enum with consolidated state data
+- [ ] **Single Entry Point**: One router function that delegates to sub-handlers
+- [ ] **Sub-Handlers**: Focused handlers with `canHandle` and `onEvent` methods
+- [ ] **Handler Precedence**: Explicit priority order defined
+- [ ] **Listener Manager**: Centralized management of global listeners
+- [ ] **State Transitions**: Explicit `transitionState()` function with logging
+- [ ] **Error Recovery**: Event wrapper with try/catch and state reset
+- [ ] **Debug Logging**: Comprehensive logging for all events and state changes
+- [ ] **Cleanup**: Proper cleanup in state transitions
+- [ ] **Testing**: Each sub-handler can be tested independently
+
+## Code Templates
+
+### Basic Event Handler Template
+
+```javascript
+// State definition
+const ComponentState = {
+  IDLE: 'idle',
+  PROCESSING: 'processing'
+};
+
+let currentState = ComponentState.IDLE;
+let stateData = {};
+
+// Handler definitions
+const handlers = {
+  primaryHandler: {
+    canHandle: (event, state, appState) => {
+      return state === ComponentState.IDLE && /* condition */;
+    },
+    
+    onEvent: (event, stateData) => {
+      // Handle the event
+      transitionState(ComponentState.PROCESSING, 'action started');
+    }
+  }
+};
+
+const HANDLER_PRIORITY = ['primaryHandler'];
+
+// Listener manager
+const listenerManager = new EventListenerManager();
+
+// State transitions
+function transitionState(newState, reason, data = {}) {
+  // Implementation as shown above
+}
+
+// Event wrapper
+function handleEvent(eventName, event, handlerFn) {
+  // Implementation as shown above
+}
+
+// Main router
+function routeEvent(event) {
+  const appState = store.getAppState();
+  
+  for (const handlerName of HANDLER_PRIORITY) {
+    const handler = handlers[handlerName];
+    if (handler.canHandle && handler.canHandle(event, currentState, appState)) {
+      if (handler.onEvent) {
+        return handleEvent('eventType', event, handler.onEvent);
+      }
+    }
+  }
+}
+
+// Setup
+element.addEventListener('eventType', routeEvent);
+```
+
+## Enforcement
+
+These rules are **MANDATORY** for all new async code and event handlers. Any code that violates these patterns must be refactored before being merged.
+
+## Benefits
+
+Following these patterns ensures:
+- **Easier Debugging**: Complete event/state trace in console
+- **Fewer Bugs**: Impossible states are prevented
+- **Better Maintenance**: Clear structure for adding features
+- **Self-Documenting**: Code structure matches behavior
+- **Testability**: Each handler can be tested independently
+- **Performance**: No wasted event listener registrations
+- **Error Recovery**: Automatic state reset on errors
+
+## References
+
+These rules are derived from successful refactoring of:
+- `CONNECTOR_EVENTS_REFACTORING_PLAN.md`
+- `STICKY_EVENTS_REFACTORING_PLAN.md`
+- `KEYBOARD_HANDLERS_REFACTORING_PLAN.md`
