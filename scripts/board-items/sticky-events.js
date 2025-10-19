@@ -2,6 +2,314 @@ import { fitContentInSticky } from "./text-fitting.js";
 import { STICKY_TYPE } from "./sticky.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 
+// ============================================================================
+// STICKY RESIZE STATE MACHINE
+// ============================================================================
+
+const StickyResizeState = {
+  IDLE: 'idle',
+  RESIZING: 'resizing'
+};
+
+let currentResizeState = StickyResizeState.IDLE;
+let resizeStateData = {
+  stickyId: null,
+  side: null,
+  startX: null,
+  startY: null,
+  startSize: null,
+  startLocation: null,
+  currentSize: null,
+  currentLocation: null
+};
+
+// ============================================================================
+// STICKY RESIZE LISTENER MANAGER
+// ============================================================================
+
+class StickyResizeListenerManager {
+  constructor() {
+    this.activeListeners = new Map(); // type -> Set of handlers
+  }
+  
+  /**
+   * Set listeners for resize operations
+   * Automatically removes any existing listeners first
+   */
+  setResizeListeners(moveHandler, upHandler) {
+    this.clearAll();
+    
+    document.addEventListener('mousemove', moveHandler);
+    document.addEventListener('mouseup', upHandler);
+    
+    this.activeListeners.set('mousemove', new Set([moveHandler]));
+    this.activeListeners.set('mouseup', new Set([upHandler]));
+  }
+  
+  clearAll() {
+    this.activeListeners.forEach((handlers, eventType) => {
+      handlers.forEach(handler => {
+        document.removeEventListener(eventType, handler);
+      });
+    });
+    this.activeListeners.clear();
+  }
+  
+  // Debug: log active listeners
+  getActiveListeners() {
+    const result = {};
+    this.activeListeners.forEach((handlers, eventType) => {
+      result[eventType] = handlers.size;
+    });
+    return result;
+  }
+}
+
+const resizeListeners = new StickyResizeListenerManager();
+
+// Global store reference for resize operations
+let currentStore = null;
+
+// ============================================================================
+// CENTRALIZED RESIZE EVENT HANDLERS (DEFINED EARLY FOR REFERENCE)
+// ============================================================================
+
+function handleResizeMove(event) {
+  if (currentResizeState !== StickyResizeState.RESIZING || !resizeStateData.stickyId) return;
+
+  event.preventDefault();
+  
+  const deltaX = event.pageX - resizeStateData.startX;
+  const deltaY = event.pageY - resizeStateData.startY;
+  
+  // Calculate new size based on which side is being dragged
+  let newSize = { ...resizeStateData.startSize };
+  let newLocation = { ...resizeStateData.startLocation };
+  
+  switch (resizeStateData.side) {
+    case 'right':
+      newSize.x = Math.max(1, resizeStateData.startSize.x + deltaX / STICKY_SIZE);
+      break;
+    case 'left':
+      newSize.x = Math.max(1, resizeStateData.startSize.x - deltaX / STICKY_SIZE);
+      newLocation.x = resizeStateData.startLocation.x + 
+        (resizeStateData.startSize.x - newSize.x) * STICKY_SIZE;
+      break;
+    case 'bottom':
+      newSize.y = Math.max(1, resizeStateData.startSize.y + deltaY / STICKY_SIZE);
+      break;
+    case 'top':
+      newSize.y = Math.max(1, resizeStateData.startSize.y - deltaY / STICKY_SIZE);
+      newLocation.y = resizeStateData.startLocation.y + 
+        (resizeStateData.startSize.y - newSize.y) * STICKY_SIZE;
+      break;
+  }
+
+  // Find the container element for this sticky
+  const container = document.querySelector(`[data-sticky-id="${resizeStateData.stickyId}"]`);
+  if (!container) return;
+
+  // Update DOM for live preview
+  const widthPx = newSize.x * STICKY_SIZE;
+  const heightPx = newSize.y * STICKY_SIZE;
+  container.style.width = widthPx + 'px';
+  container.style.height = heightPx + 'px';
+  
+  // Update position for left/top resizing
+  if (resizeStateData.side === 'left' || resizeStateData.side === 'top') {
+    // We need to get the store reference - this will be handled by the setup function
+    const appState = currentStore?.getAppState();
+    if (appState) {
+      const origin = appState.board.origin;
+      container.style.left = (newLocation.x - origin.x) + 'px';
+      container.style.top = (newLocation.y - origin.y) + 'px';
+    }
+  }
+
+  resizeStateData.currentSize = newSize;
+  resizeStateData.currentLocation = newLocation;
+}
+
+function handleResizeEnd(event) {
+  if (currentResizeState !== StickyResizeState.RESIZING) return;
+  
+  const handler = stickyResizeHandlers.resizeEndHandler;
+  if (handler.onMouseUp) {
+    return handleResizeEvent('mouseup', event, handler.onMouseUp);
+  }
+}
+
+// ============================================================================
+// RESIZE STATE TRANSITIONS WITH LOGGING
+// ============================================================================
+
+const DEBUG_MODE = true; // Toggle for development
+
+function transitionResizeState(newState, reason, data = {}) {
+  const oldState = currentResizeState;
+  
+  if (DEBUG_MODE) {
+    console.log(`[StickyResizeState] ${oldState} → ${newState}`, {
+      reason,
+      data,
+      timestamp: Date.now()
+    });
+  }
+  
+  // Clean up old state
+  switch (oldState) {
+    case StickyResizeState.RESIZING:
+      resizeListeners.clearAll();
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      break;
+  }
+  
+  currentResizeState = newState;
+  
+  // Set up new state
+  switch (newState) {
+    case StickyResizeState.IDLE:
+      resizeStateData = {
+        stickyId: null,
+        side: null,
+        startX: null,
+        startY: null,
+        startSize: null,
+        startLocation: null,
+        currentSize: null,
+        currentLocation: null
+      };
+      break;
+    case StickyResizeState.RESIZING:
+      document.body.style.cursor = getCursorForSide(resizeStateData.side);
+      document.body.style.userSelect = 'none';
+      resizeListeners.setResizeListeners(handleResizeMove, handleResizeEnd);
+      break;
+  }
+}
+
+// ============================================================================
+// RESIZE EVENT HANDLING WRAPPER WITH DEBUG LOGGING
+// ============================================================================
+
+function handleResizeEvent(eventName, event, handlerFn, ...args) {
+  if (DEBUG_MODE) {
+    console.log(`[StickyResizeEvent] ${eventName} in ${currentResizeState}`, {
+      target: event.target?.className || 'unknown',
+      handler: handlerFn.name,
+      resizeStateData: { ...resizeStateData }
+    });
+  }
+  
+  try {
+    return handlerFn(event, resizeStateData, ...args);
+  } catch (error) {
+    console.error(`[StickyResizeError] in ${handlerFn.name}:`, error);
+    // Reset to safe state
+    transitionResizeState(StickyResizeState.IDLE, 'error recovery');
+    throw error;
+  }
+}
+
+// ============================================================================
+// RESIZE HANDLER ARCHITECTURE
+// ============================================================================
+
+const stickyResizeHandlers = {
+  // Handler for starting resize operations
+  resizeStartHandler: {
+    canHandle: (event, state) => {
+      const handle = event.target.closest('[class*="resize-handle"]');
+      return state === StickyResizeState.IDLE && handle !== null;
+    },
+    
+    onMouseDown: (event, resizeStateData, stickyId, store) => {
+      const handle = event.target.closest('[class*="resize-handle"]');
+      const side = extractResizeSide(handle);
+      
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const sticky = store.getSticky(stickyId);
+      if (!sticky) return;
+
+      const currentSize = {
+        x: (sticky.size && sticky.size.x) || 1,
+        y: (sticky.size && sticky.size.y) || 1
+      };
+
+      const currentLocation = {
+        x: sticky.location.x,
+        y: sticky.location.y
+      };
+
+      resizeStateData.stickyId = stickyId;
+      resizeStateData.side = side;
+      resizeStateData.startX = event.pageX;
+      resizeStateData.startY = event.pageY;
+      resizeStateData.startSize = { ...currentSize };
+      resizeStateData.startLocation = { ...currentLocation };
+      resizeStateData.currentSize = { ...currentSize };
+      resizeStateData.currentLocation = { ...currentLocation };
+
+      transitionResizeState(StickyResizeState.RESIZING, 'resize started');
+    }
+  },
+  
+  // Handler for resize completion
+  resizeEndHandler: {
+    canHandle: (event, state) => {
+      return state === StickyResizeState.RESIZING;
+    },
+    
+    onMouseUp: (event, resizeStateData) => {
+      event.preventDefault();
+      
+      const finalSize = {
+        x: Math.max(1, Math.round(resizeStateData.currentSize.x)),
+        y: Math.max(1, Math.round(resizeStateData.currentSize.y))
+      };
+      
+      // Recalculate location for left/top resizing to ensure proper snapping
+      let finalLocation = { ...resizeStateData.currentLocation };
+      if (resizeStateData.side === 'left') {
+        finalLocation.x = resizeStateData.startLocation.x + 
+          (resizeStateData.startSize.x - finalSize.x) * STICKY_SIZE;
+      }
+      if (resizeStateData.side === 'top') {
+        finalLocation.y = resizeStateData.startLocation.y + 
+          (resizeStateData.startSize.y - finalSize.y) * STICKY_SIZE;
+      }
+      
+      if (currentStore) {
+        currentStore.updateSize(resizeStateData.stickyId, finalSize);
+        currentStore.setLocation(resizeStateData.stickyId, finalLocation);
+      }
+      
+      transitionResizeState(StickyResizeState.IDLE, 'resize completed');
+    }
+  }
+};
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+function extractResizeSide(handle) {
+  if (!handle) return null;
+  
+  const classList = handle.className;
+  if (classList.includes('resize-handle-top')) return 'top';
+  if (classList.includes('resize-handle-right')) return 'right';
+  if (classList.includes('resize-handle-bottom')) return 'bottom';
+  if (classList.includes('resize-handle-left')) return 'left';
+  
+  return null;
+}
+
+const STICKY_SIZE = 100; // pixels per size unit
+
 /**
  * Sets up all event handlers for a sticky note
  * 
@@ -139,25 +447,33 @@ export function setupStickyEvents(
   // Initial state
   moveToFront();
 
-  // Setup resize handle events
-  setupResizeHandles(container, id, store);
+  // Setup resize handle events with new architecture
+  setupResizeHandlesRefactored(container, id, store);
 
   return {
     // Could add cleanup functions here if needed
+    cleanup: () => {
+      // Clean up resize state if needed
+      if (currentResizeState !== StickyResizeState.IDLE) {
+        transitionResizeState(StickyResizeState.IDLE, 'cleanup');
+      }
+    }
   };
 }
 
 /**
- * Sets up resize handle event handlers for a sticky
+ * Sets up resize handle event handlers for a sticky using the new refactored architecture
  * 
  * @param {HTMLElement} container - The sticky container element
  * @param {string} id - Sticky ID
  * @param {Object} store - Store instance for state access
  */
-function setupResizeHandles(container, id, store) {
-  const STICKY_SIZE = 100; // pixels per size unit
-  let isResizing = false;
-  let resizeData = null;
+function setupResizeHandlesRefactored(container, id, store) {
+  // Set global store reference for resize operations
+  currentStore = store;
+  
+  // Add data attribute for container identification
+  container.setAttribute('data-sticky-id', id);
 
   // Get all resize handles
   const handles = {
@@ -167,120 +483,18 @@ function setupResizeHandles(container, id, store) {
     left: container.querySelector('.resize-handle-left')
   };
 
-  // Add mousedown event to each handle
+  // Add mousedown event to each handle using new architecture
   Object.entries(handles).forEach(([side, handle]) => {
     if (!handle) return;
 
     handle.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      
-      const sticky = store.getSticky(id);
-      if (!sticky) return;
-
-      const currentSize = {
-        x: (sticky.size && sticky.size.x) || 1,
-        y: (sticky.size && sticky.size.y) || 1
-      };
-
-      const currentLocation = {
-        x: sticky.location.x,
-        y: sticky.location.y
-      };
-
-      resizeData = {
-        side,
-        startX: event.pageX,
-        startY: event.pageY,
-        startSize: { ...currentSize },
-        startLocation: { ...currentLocation },
-        currentSize: { ...currentSize },
-        currentLocation: { ...currentLocation }
-      };
-
-      isResizing = true;
-      document.body.style.cursor = getCursorForSide(side);
-      
-      // Prevent text selection during resize
-      document.body.style.userSelect = 'none';
+      const handler = stickyResizeHandlers.resizeStartHandler;
+      if (handler.canHandle && handler.canHandle(event, currentResizeState)) {
+        if (handler.onMouseDown) {
+          return handleResizeEvent('mousedown', event, handler.onMouseDown, id, store);
+        }
+      }
     });
-  });
-
-  // Global mouse move handler for resize
-  document.addEventListener('mousemove', (event) => {
-    if (!isResizing || !resizeData) return;
-
-    event.preventDefault();
-    
-    const deltaX = event.pageX - resizeData.startX;
-    const deltaY = event.pageY - resizeData.startY;
-    
-    // Calculate new size based on which side is being dragged
-    let newSize = { ...resizeData.startSize };
-    let newLocation = { ...resizeData.startLocation };
-    
-    switch (resizeData.side) {
-      case 'right':
-        newSize.x = Math.max(1, resizeData.startSize.x + deltaX / STICKY_SIZE);
-        break;
-      case 'left':
-        newSize.x = Math.max(1, resizeData.startSize.x - deltaX / STICKY_SIZE);
-        newLocation.x = resizeData.startLocation.x + (resizeData.startSize.x - newSize.x) * STICKY_SIZE;
-        break;
-      case 'bottom':
-        newSize.y = Math.max(1, resizeData.startSize.y + deltaY / STICKY_SIZE);
-        break;
-      case 'top':
-        newSize.y = Math.max(1, resizeData.startSize.y - deltaY / STICKY_SIZE);
-        newLocation.y = resizeData.startLocation.y + (resizeData.startSize.y - newSize.y) * STICKY_SIZE;
-        break;
-    }
-
-    // Update DOM for live preview
-    const widthPx = newSize.x * STICKY_SIZE;
-    const heightPx = newSize.y * STICKY_SIZE;
-    container.style.width = widthPx + 'px';
-    container.style.height = heightPx + 'px';
-    
-    // Update position for left/top resizing
-    if (resizeData.side === 'left' || resizeData.side === 'top') {
-      const appState = store.getAppState();
-      const origin = appState.board.origin;
-      container.style.left = (newLocation.x - origin.x) + 'px';
-      container.style.top = (newLocation.y - origin.y) + 'px';
-    }
-
-    resizeData.currentSize = newSize;
-    resizeData.currentLocation = newLocation;
-  });
-
-  // Global mouse up handler for resize
-  document.addEventListener('mouseup', (event) => {
-    if (!isResizing || !resizeData) return;
-
-    isResizing = false;
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    
-    // Apply the final size to the store
-    const finalSize = {
-      x: Math.max(1, Math.round(resizeData.currentSize.x)),
-      y: Math.max(1, Math.round(resizeData.currentSize.y))
-    };
-    
-    // Recalculate location for left/top resizing to ensure proper snapping
-    let finalLocation = { ...resizeData.currentLocation };
-    if (resizeData.side === 'left') {
-      finalLocation.x = resizeData.startLocation.x + (resizeData.startSize.x - finalSize.x) * STICKY_SIZE;
-    }
-    if (resizeData.side === 'top') {
-      finalLocation.y = resizeData.startLocation.y + (resizeData.startSize.y - finalSize.y) * STICKY_SIZE;
-    }
-    
-    store.updateSize(id, finalSize);
-    store.setLocation(id, finalLocation);
-    
-    resizeData = null;
   });
 
   // Prevent handle clicks from triggering sticky selection
