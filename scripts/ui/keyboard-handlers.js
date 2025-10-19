@@ -80,7 +80,7 @@ export function setupKeyboardHandlers(
       deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
     }
     // Move selection with arrow keys
-    else if (event.key.startsWith("Arrow") && (selectedStickies.hasItems() || selectedImages.hasItems())) {
+    else if (event.key.startsWith("Arrow") && (selectedStickies.hasItems() || selectedImages.hasItems() || selectedConnectors.hasItems())) {
       event.preventDefault();
       const gridUnit = board.getGridUnit();
       let dx = 0;
@@ -107,7 +107,7 @@ export function setupKeyboardHandlers(
     }
   };
 
-  // Helper function to move selected stickies and images
+  // Helper function to move selected stickies, images, and connectors
   function moveSelection(dx, dy) {
     selectedStickies.forEach((sid) => {
       const originalLocation = board.getStickyLocation(sid);
@@ -125,6 +125,10 @@ export function setupKeyboardHandlers(
         y: originalLocation.y + dy,
       };
       board.moveImage(iid, newLocation);
+    });
+    
+    selectedConnectors.forEach((cid) => {
+      board.moveConnector(cid, dx, dy);
     });
   }
 

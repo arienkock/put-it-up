@@ -197,6 +197,35 @@ export function Board(aStore) {
     store.setImageLocation(id, newLocation);
   };
 
+  this.moveConnector = (id, deltaX, deltaY) => {
+    const connector = store.getConnector(id);
+    
+    // Only move connectors that have at least one disconnected endpoint
+    const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
+    const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
+    
+    if (!hasDisconnectedOrigin && !hasDisconnectedDestination) {
+      return; // Connector is fully connected, don't move it
+    }
+    
+    // Move disconnected endpoints
+    if (hasDisconnectedOrigin) {
+      const newOriginPoint = {
+        x: connector.originPoint.x + deltaX,
+        y: connector.originPoint.y + deltaY
+      };
+      store.updateConnectorEndpoint(id, 'origin', { point: newOriginPoint });
+    }
+    
+    if (hasDisconnectedDestination) {
+      const newDestinationPoint = {
+        x: connector.destinationPoint.x + deltaX,
+        y: connector.destinationPoint.y + deltaY
+      };
+      store.updateConnectorEndpoint(id, 'destination', { point: newDestinationPoint });
+    }
+  };
+
   this.getState = () => store.getState();
 
   this.setState = (state) => {

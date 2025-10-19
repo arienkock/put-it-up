@@ -358,6 +358,76 @@ describe("Connector Functionality Tests", () => {
     });
   });
 
+  describe("Connector Movement", () => {
+    it("should move disconnected connector with free endpoints", () => {
+      // Create a connector with free endpoints
+      const connectorId = board.putConnector({
+        originPoint: { x: 100, y: 100 },
+        destinationPoint: { x: 200, y: 200 },
+        color: "blue"
+      });
+
+      const originalConnector = board.getConnector(connectorId);
+      expect(originalConnector.originPoint).toEqual({ x: 100, y: 100 });
+      expect(originalConnector.destinationPoint).toEqual({ x: 200, y: 200 });
+
+      // Move the connector
+      board.moveConnector(connectorId, 50, 30);
+
+      const movedConnector = board.getConnector(connectorId);
+      expect(movedConnector.originPoint).toEqual({ x: 150, y: 130 });
+      expect(movedConnector.destinationPoint).toEqual({ x: 250, y: 230 });
+    });
+
+    it("should move connector with one connected and one free endpoint", () => {
+      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
+      
+      // Create a connector with one connected and one free endpoint
+      const connectorId = board.putConnector({
+        originId: stickyId,
+        destinationPoint: { x: 200, y: 200 },
+        color: "red"
+      });
+
+      const originalConnector = board.getConnector(connectorId);
+      expect(originalConnector.originId).toBe(stickyId);
+      expect(originalConnector.destinationPoint).toEqual({ x: 200, y: 200 });
+
+      // Move the connector - only the free endpoint should move
+      board.moveConnector(connectorId, 25, 15);
+
+      const movedConnector = board.getConnector(connectorId);
+      expect(movedConnector.originId).toBe(stickyId); // Connected endpoint should not change
+      expect(movedConnector.destinationPoint).toEqual({ x: 225, y: 215 }); // Free endpoint should move
+    });
+
+    it("should not move fully connected connector", () => {
+      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      
+      // Create a fully connected connector
+      const connectorId = board.putConnector({
+        originId: sticky1Id,
+        destinationId: sticky2Id,
+        color: "green"
+      });
+
+      const originalConnector = board.getConnector(connectorId);
+      expect(originalConnector.originId).toBe(sticky1Id);
+      expect(originalConnector.destinationId).toBe(sticky2Id);
+
+      // Try to move the connector - it should not change
+      board.moveConnector(connectorId, 50, 30);
+
+      const movedConnector = board.getConnector(connectorId);
+      expect(movedConnector.originId).toBe(sticky1Id);
+      expect(movedConnector.destinationId).toBe(sticky2Id);
+      // No originPoint or destinationPoint should exist
+      expect(movedConnector.originPoint).toBeUndefined();
+      expect(movedConnector.destinationPoint).toBeUndefined();
+    });
+  });
+
   describe("Connector Error Handling", () => {
     it("should handle connector deletion gracefully", () => {
       const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });

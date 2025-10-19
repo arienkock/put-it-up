@@ -16,6 +16,9 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
   let isDraggingHandle = false;
   let draggedHandle = null;
   let draggedConnectorId = null;
+  let isDraggingDisconnectedConnector = false;
+  let disconnectedConnectorId = null;
+  let disconnectedConnectorDragStart = null;
 
   // Handle board mouse events for connector creation
   boardElement.addEventListener('mousedown', (event) => {
@@ -118,6 +121,63 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       document.addEventListener('mousemove', handleHandleDrag);
       document.addEventListener('mouseup', handleHandleDragEnd);
     }
+  });
+
+  // Handle disconnected connector dragging - handle selection and dragging in mousedown
+  boardElement.addEventListener('mousedown', (event) => {
+    const connectorContainer = event.target.closest('.connector-container');
+    if (!connectorContainer) return;
+    
+    // Only allow dragging if clicking on the connector path (not handles)
+    const isPathClick = event.target.classList.contains('connector-path');
+    const isHandleClick = event.target.classList.contains('connector-handle');
+    
+    if (!isPathClick || isHandleClick) return;
+    
+    // Extract connector ID from class name
+    const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
+    const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+    
+    if (!connectorId) return;
+    
+    // Check if this connector is disconnected (has at least one free endpoint)
+    const connector = board.getConnectorSafe(connectorId);
+    if (!connector) return;
+    
+    const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
+    const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
+    
+    if (!hasDisconnectedOrigin && !hasDisconnectedDestination) {
+      return; // Connector is fully connected, let the click handler deal with it
+    }
+    
+    // For disconnected connectors, handle selection immediately
+    event.stopPropagation();
+    
+    // Use selection manager to handle cross-type selection clearing
+    selectionManager.selectItem('connectors', connectorId, {
+      addToSelection: event.shiftKey
+    });
+    
+    // Trigger full render to update menu
+    renderCallback();
+    
+    // Store drag start info for potential dragging
+    disconnectedConnectorId = connectorId;
+    
+    const rect = boardElement.getBoundingClientRect();
+    const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    disconnectedConnectorDragStart = {
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+    };
+    
+    // Set up global mouse events for potential dragging
+    document.addEventListener('mousemove', handleDisconnectedConnectorDrag);
+    document.addEventListener('mouseup', handleDisconnectedConnectorDragEnd);
   });
 
   function handleConnectorDrag(event) {
@@ -321,6 +381,72 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
     }
   }
 
+  function handleDisconnectedConnectorDrag(event) {
+    if (!disconnectedConnectorId) return;
+    
+    const rect = boardElement.getBoundingClientRect();
+    const boardOrigin = board.getOrigin();
+    const appState = store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    // Validate mouse coordinates and board origin
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during disconnected connector drag:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
+    const currentPoint = {
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+    };
+    
+    // Calculate the delta from the start point
+    const deltaX = currentPoint.x - disconnectedConnectorDragStart.x;
+    const deltaY = currentPoint.y - disconnectedConnectorDragStart.y;
+    
+    // Only start dragging if we've moved a minimum distance (to distinguish from clicks)
+    const minDragDistance = 5; // pixels
+    if (!isDraggingDisconnectedConnector && (Math.abs(deltaX) > minDragDistance || Math.abs(deltaY) > minDragDistance)) {
+      isDraggingDisconnectedConnector = true;
+      // Prevent the click event from firing
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    if (isDraggingDisconnectedConnector) {
+      // Move the connector
+      board.moveConnector(disconnectedConnectorId, deltaX, deltaY);
+      
+      // Update the drag start point for smooth dragging
+      disconnectedConnectorDragStart = currentPoint;
+    }
+  }
+
+  function handleDisconnectedConnectorDragEnd(event) {
+    if (!disconnectedConnectorId) return;
+    
+    // Clean up
+    isDraggingDisconnectedConnector = false;
+    disconnectedConnectorId = null;
+    disconnectedConnectorDragStart = null;
+    
+    // Remove global event listeners
+    document.removeEventListener('mousemove', handleDisconnectedConnectorDrag);
+    document.removeEventListener('mouseup', handleDisconnectedConnectorDragEnd);
+    
+    // Trigger re-render
+    if (renderCallback) {
+      renderCallback();
+    }
+  }
+
   // Handle connector selection
   boardElement.addEventListener('click', (event) => {
     const connectorContainer = event.target.closest('.connector-container');
@@ -338,11 +464,24 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       return; // Don't select if clicking on empty SVG area
     }
     
-    event.stopPropagation();
-    
     // Extract connector ID from class name
     const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
     const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+    
+    if (!connectorId) return;
+    
+    // Check if this connector is disconnected - if so, it was handled in mousedown
+    const connector = board.getConnectorSafe(connectorId);
+    if (connector) {
+      const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
+      const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
+      
+      if (hasDisconnectedOrigin || hasDisconnectedDestination) {
+        return; // Disconnected connectors are handled in mousedown
+      }
+    }
+    
+    event.stopPropagation();
     
     if (connectorId) {
       // Use selection manager to handle cross-type selection clearing
@@ -362,6 +501,8 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
       document.removeEventListener('mouseup', handleConnectorDragEnd);
       document.removeEventListener('mousemove', handleHandleDrag);
       document.removeEventListener('mouseup', handleHandleDragEnd);
+      document.removeEventListener('mousemove', handleDisconnectedConnectorDrag);
+      document.removeEventListener('mouseup', handleDisconnectedConnectorDragEnd);
     }
   };
 }
