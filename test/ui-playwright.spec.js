@@ -96,15 +96,29 @@ describe("Board UI", () => {
       expect(await page.locator(".sticky-1, .sticky-2").count()).toBe(0);
       expect(await page.locator(".sticky").count()).toBe(2);
       
-      // Reset for keyboard test
+      // Reset for Delete key test
       await page.goto(pageWithBasicContentOnALocalBoard());
       await page.waitForSelector(".board");
       
-      // Test deletion with keyboard
+      // Test deletion with Delete key
       await clickStickyOutsideOfText(1);
       await page.keyboard.down("Shift");
       await page.click(".sticky-2 .sticky");
       await page.keyboard.press("Delete");
+      await page.waitForTimeout(100); // Small delay instead of thingsSettleDown
+      await page.keyboard.up("Shift");
+      expect(await page.locator(".sticky-1, .sticky-2").count()).toBe(0);
+      expect(await page.locator(".sticky").count()).toBe(2);
+      
+      // Reset for Backspace key test
+      await page.goto(pageWithBasicContentOnALocalBoard());
+      await page.waitForSelector(".board");
+      
+      // Test deletion with Backspace key
+      await clickStickyOutsideOfText(1);
+      await page.keyboard.down("Shift");
+      await clickStickyOutsideOfText(2);
+      await page.keyboard.press("Backspace");
       await page.waitForTimeout(100); // Small delay instead of thingsSettleDown
       await page.keyboard.up("Shift");
       expect(await page.locator(".sticky-1, .sticky-2").count()).toBe(0);

@@ -14,6 +14,26 @@ import { changeColor } from "./color-management.js";
  * @param {Function} callbacks.onCancelAction - Called when user cancels action
  * @returns {Function} Cleanup function to remove event handlers
  */
+/**
+ * Deletes all selected items (stickies, connectors, and images)
+ * 
+ * @param {Object} board - Board instance
+ * @param {Object} selectedStickies - Selection management object for stickies
+ * @param {Object} selectedConnectors - Selection management object for connectors
+ * @param {Object} selectedImages - Selection management object for images
+ */
+export function deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages) {
+  selectedStickies.forEach((id) => {
+    board.deleteSticky(id);
+  });
+  selectedConnectors.forEach((id) => {
+    board.deleteConnector(id);
+  });
+  selectedImages.forEach((id) => {
+    board.deleteImage(id);
+  });
+}
+
 export function setupKeyboardHandlers(
   board,
   selectedStickies,
@@ -50,17 +70,14 @@ export function setupKeyboardHandlers(
       appState.ui.connectorOriginId = null;
       callbacks.onConnectorRequest();
     }
-    // Delete selected stickies, connectors, and images with Delete key
-    else if (event.key === "Delete") {
-      selectedStickies.forEach((id) => {
-        board.deleteSticky(id);
-      });
-      selectedConnectors.forEach((id) => {
-        board.deleteConnector(id);
-      });
-      selectedImages.forEach((id) => {
-        board.deleteImage(id);
-      });
+    // Delete selected stickies, connectors, and images with Delete or Backspace key
+    else if (event.key === "Delete" || event.key === "Backspace") {
+      // Don't delete items if a sticky is currently being edited (Backspace should delete text)
+      const isEditingSticky = document.querySelector('.sticky-container.editing');
+      if (event.key === "Backspace" && isEditingSticky) {
+        return; // Let the text input handle Backspace
+      }
+      deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
     }
     // Move selection with arrow keys
     else if (event.key.startsWith("Arrow") && (selectedStickies.hasItems() || selectedImages.hasItems())) {

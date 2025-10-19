@@ -1,5 +1,6 @@
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor, stickyColorPalette, connectorColorPalette } from "./color-management.js";
+import { deleteSelectedItems } from "./keyboard-handlers.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
 
 /**
@@ -22,12 +23,13 @@ function changeArrowHead(currentArrowHead, reverse = false) {
  * @param {Object} board - Board instance
  * @param {Object} selectedStickies - Selection management object for stickies
  * @param {Object} selectedConnectors - Selection management object for connectors
+ * @param {Object} selectedImages - Selection management object for images
  * @param {HTMLElement} root - Root element to attach menu to
  * @param {Object} appState - Application state object
  * @param {Function} renderCallback - Callback to trigger re-rendering
  * @returns {Object} Object with menuElement and render function
  */
-export function createMenu(board, selectedStickies, selectedConnectors, root, appState, renderCallback) {
+export function createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, renderCallback) {
   let menuElement;
 
   const alwaysRelevantItems = [
@@ -186,12 +188,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, root, ap
       className: "delete",
       icon: "images/delete-icon.svg",
       itemClickHandler: () => {
-        selectedStickies.forEach((id) => {
-          board.deleteSticky(id);
-        });
-        selectedConnectors.forEach((id) => {
-          board.deleteConnector(id);
-        });
+        deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
       },
     },
   ];

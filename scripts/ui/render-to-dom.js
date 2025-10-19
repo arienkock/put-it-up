@@ -160,7 +160,7 @@ export function mount(board, root, Observer, store) {
       domElement.classList.remove("click-to-connect");
     }
   }
-  const menu = createMenu(board, selectedStickies, selectedConnectors, root, appState, render);
+  const menu = createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, render);
   const renderMenu = menu.render;
   
   // Make menu immune to browser zoom by detecting devicePixelRatio changes

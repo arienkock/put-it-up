@@ -10,8 +10,6 @@ Object.freeze(stickyColorPalette);
 
 export const connectorColorPalette = [
   "#000000", // Black (default)
-  "#8B6F47", // Darker khaki
-  "#C49B3E", // Darker #F8C471
   "#7A9BC4", // Darker #AED6F1
   "#5BA67A", // Darker #82E0AA
   "#B86B5A", // Darker #F1948A
