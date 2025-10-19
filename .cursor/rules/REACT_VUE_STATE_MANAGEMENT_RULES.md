@@ -2,14 +2,18 @@
 
 ## Core Principles
 
-When working with React or Vue frontend frameworks, follow these mandatory patterns to achieve the same centralized state management benefits as the event handler refactoring, but adapted for component-based UI frameworks:
+When working with React or Vue frontend frameworks, follow these mandatory patterns to achieve the same centralized state management benefits as the event handler refactoring and State Machine Prevention Plan, but adapted for component-based UI frameworks:
 
-### 1. Centralized State Machine (MANDATORY)
+### 1. State Machine Base Class Architecture (MANDATORY)
 
-**NEVER use scattered component state or props drilling.** Always implement a centralized state machine that components subscribe to:
+**NEVER use scattered component state or props drilling.** Always extend the StateMachine base class for frontend state management:
 
 ```javascript
-// ✅ CORRECT: Centralized state machine
+// ✅ CORRECT: Extend StateMachine base class for frontend
+import { StateMachine, createStateConfig } from '../ui/state-machine-base.js';
+import { GlobalListenerManager } from '../ui/state-machine-base.js';
+import { StateMachineValidator } from '../ui/state-machine-validator.js';
+
 const AppState = {
   IDLE: 'idle',
   LOADING: 'loading',
@@ -18,48 +22,93 @@ const AppState = {
   ERROR: 'error'
 };
 
-class StateManager {
+class FrontendStateMachine extends StateMachine {
   constructor() {
-    this.currentState = AppState.IDLE;
-    this.stateData = {};
+    const stateConfig = createStateConfig(AppState);
+    
+    // Configure each state with explicit setup, cleanup, and validation
+    stateConfig[AppState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+          stateMachine.resetState();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isIdle === true;
+      }
+    };
+    
+    stateConfig[AppState.LOADING] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.setupLoadingState();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.cancelPendingRequests();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isLoading === true;
+      }
+    };
+    
+    super(AppState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
     this.subscribers = new Set();
+    this.pendingRequests = new Set();
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(AppState.IDLE);
   }
   
+  // Frontend-specific methods
   subscribe(callback) {
     this.subscribers.add(callback);
     return () => this.subscribers.delete(callback);
   }
   
-  transitionState(newState, reason, data = {}) {
-    const oldState = this.currentState;
-    
-    if (DEBUG_MODE) {
-      console.log(`[AppState] ${oldState} → ${newState}`, {
-        reason,
-        data,
-        timestamp: Date.now()
-      });
-    }
-    
-    // Clean up old state
-    this.cleanupOldState(oldState);
-    
-    this.currentState = newState;
-    this.stateData = { ...this.stateData, ...data };
-    
-    // Set up new state
-    this.setupNewState(newState);
-    
-    // Notify all subscribers
-    this.subscribers.forEach(callback => callback(this.currentState, this.stateData));
+  notifySubscribers() {
+    this.subscribers.forEach(callback => 
+      callback(this.currentState, this.stateData)
+    );
   }
   
-  getState() {
-    return { state: this.currentState, data: this.stateData };
+  clearAllSubscriptions() {
+    this.subscribers.clear();
+  }
+  
+  resetState() {
+    this.isIdle = true;
+    this.isLoading = false;
+    this.isEditing = false;
+  }
+  
+  setupLoadingState() {
+    this.isLoading = true;
+    this.isIdle = false;
+  }
+  
+  cancelPendingRequests() {
+    this.pendingRequests.forEach(request => request.cancel());
+    this.pendingRequests.clear();
   }
 }
 
-const stateManager = new StateManager();
+const frontendStateMachine = new FrontendStateMachine();
+
+// Register for automatic validation
+const validator = new StateMachineValidator(frontendStateMachine);
+validator.validateCurrentState();
 
 // ❌ WRONG: Scattered component state
 function Component1() {
@@ -75,22 +124,68 @@ function Component2() {
 }
 ```
 
-### 2. Action-Based State Transitions (MANDATORY)
+### 2. Constructor Initialization Pattern (MANDATORY)
 
-**NEVER mutate state directly in components.** Always use action functions that go through the state manager:
+**NEVER access `this` before calling `super()`.** Always initialize properties after the super constructor:
 
 ```javascript
-// ✅ CORRECT: Action-based state transitions
-class StateActions {
+// ✅ CORRECT: Proper constructor initialization for frontend state machine
+class FrontendStateMachine extends StateMachine {
+  constructor() {
+    const stateConfig = createStateConfig(AppState);
+    
+    // Configure state config BEFORE super()
+    stateConfig[AppState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        // Use stateMachine parameter, not 'this'
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+          stateMachine.resetState();
+        }
+      }
+    };
+    
+    super(AppState.IDLE, stateConfig);
+    
+    // Initialize properties AFTER super constructor
+    this.subscribers = new Set();
+    this.pendingRequests = new Set();
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(AppState.IDLE);
+  }
+}
+
+// ❌ WRONG: Accessing 'this' before super() or in state setup
+class BadFrontendStateMachine extends StateMachine {
+  constructor() {
+    this.subscribers = new Set(); // ❌ Before super()
+    
+    const stateConfig = createStateConfig(AppState);
+    stateConfig[AppState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        this.clearAllSubscriptions(); // ❌ Using 'this' in setup
+      }
+    };
+    
+    super(AppState.IDLE, stateConfig);
+  }
+}
+```
+
+```javascript
+// ✅ CORRECT: Action-based state transitions using State Machine Prevention Plan
+class FrontendStateActions {
   static startLoading(reason) {
-    stateManager.transitionState(AppState.LOADING, reason, {
+    frontendStateMachine.transitionTo(AppState.LOADING, reason, {
       startTime: Date.now(),
       reason
     });
   }
   
   static startEditing(itemId, itemType) {
-    stateManager.transitionState(AppState.EDITING, 'editing started', {
+    frontendStateMachine.transitionTo(AppState.EDITING, 'editing started', {
       editingId: itemId,
       editingType: itemType,
       startTime: Date.now()
@@ -98,7 +193,7 @@ class StateActions {
   }
   
   static startDragging(itemId, dragType, startPosition) {
-    stateManager.transitionState(AppState.DRAGGING, 'drag started', {
+    frontendStateMachine.transitionTo(AppState.DRAGGING, 'drag started', {
       draggingId: itemId,
       dragType,
       startPosition,
@@ -108,14 +203,14 @@ class StateActions {
   
   static completeAction(success = true, result = null) {
     const reason = success ? 'action completed' : 'action failed';
-    stateManager.transitionState(AppState.IDLE, reason, {
+    frontendStateMachine.transitionTo(AppState.IDLE, reason, {
       lastResult: result,
       completedAt: Date.now()
     });
   }
   
   static handleError(error, context) {
-    stateManager.transitionState(AppState.ERROR, 'error occurred', {
+    frontendStateMachine.transitionTo(AppState.ERROR, 'error occurred', {
       error: error.message,
       context,
       occurredAt: Date.now()
@@ -128,11 +223,11 @@ function MyComponent() {
   const { state, data } = useAppState();
   
   const handleEdit = (itemId) => {
-    StateActions.startEditing(itemId, 'sticky');
+    FrontendStateActions.startEditing(itemId, 'sticky');
   };
   
   const handleDragStart = (itemId, position) => {
-    StateActions.startDragging(itemId, 'move', position);
+    FrontendStateActions.startDragging(itemId, 'move', position);
   };
   
   // ❌ WRONG: Direct state mutation
@@ -149,15 +244,15 @@ function ParentComponent() {
 
 ### 3. State-Aware Component Hooks (MANDATORY)
 
-**NEVER access state directly in components.** Always use hooks that subscribe to the state manager:
+**NEVER access state directly in components.** Always use hooks that subscribe to the state machine:
 
 ```javascript
-// ✅ CORRECT: State-aware hooks
+// ✅ CORRECT: State-aware hooks using State Machine Prevention Plan
 function useAppState() {
-  const [state, setState] = useState(() => stateManager.getState());
+  const [state, setState] = useState(() => frontendStateMachine.getState());
   
   useEffect(() => {
-    const unsubscribe = stateManager.subscribe((newState, newData) => {
+    const unsubscribe = frontendStateMachine.subscribe((newState, newData) => {
       setState({ state: newState, data: newData });
     });
     
@@ -169,11 +264,11 @@ function useAppState() {
 
 function useAppStateSelector(selector) {
   const [selectedState, setSelectedState] = useState(() => 
-    selector(stateManager.getState())
+    selector(frontendStateMachine.getState())
   );
   
   useEffect(() => {
-    const unsubscribe = stateManager.subscribe((newState, newData) => {
+    const unsubscribe = frontendStateMachine.subscribe((newState, newData) => {
       const newSelectedState = selector({ state: newState, data: newData });
       setSelectedState(newSelectedState);
     });
@@ -207,30 +302,30 @@ function EditingComponent() {
 
 // ❌ WRONG: Direct state access
 function BadComponent() {
-  // Directly accessing state manager
-  const state = stateManager.getState();
+  // Directly accessing state machine
+  const state = frontendStateMachine.getState();
   // This won't trigger re-renders when state changes
 }
 ```
 
 ### 4. Async Operation State Management (MANDATORY)
 
-**NEVER handle async operations without proper state tracking.** Always use the state manager for async operations:
+**NEVER handle async operations without proper state tracking.** Always use the state machine for async operations:
 
 ```javascript
-// ✅ CORRECT: Async operations with state management
-class AsyncOperations {
+// ✅ CORRECT: Async operations with State Machine Prevention Plan
+class FrontendAsyncOperations {
   static async performAsyncAction(actionType, payload) {
     try {
-      StateActions.startLoading(`Starting ${actionType}`);
+      FrontendStateActions.startLoading(`Starting ${actionType}`);
       
       const result = await apiCall(payload);
       
-      StateActions.completeAction(true, result);
+      FrontendStateActions.completeAction(true, result);
       return result;
       
     } catch (error) {
-      StateActions.handleError(error, { actionType, payload });
+      FrontendStateActions.handleError(error, { actionType, payload });
       throw error;
     }
   }
@@ -254,10 +349,10 @@ function DataComponent() {
   
   const handleSave = async (itemData) => {
     try {
-      await AsyncOperations.saveItem(itemData);
-      // Success handled by state manager
+      await FrontendAsyncOperations.saveItem(itemData);
+      // Success handled by state machine
     } catch (error) {
-      // Error handled by state manager
+      // Error handled by state machine
     }
   };
   
@@ -531,26 +626,84 @@ function BadComponent() {
 }
 ```
 
+### 9. State Machine Prevention Plan Compliance (MANDATORY)
+
+**ALWAYS follow the State Machine Prevention Plan patterns.** Use the established base classes and validation framework:
+
+```javascript
+// ✅ CORRECT: Use State Machine Prevention Plan components for frontend
+import { StateMachine, createStateConfig } from '../ui/state-machine-base.js';
+import { GlobalListenerManager } from '../ui/state-machine-base.js';
+import { StateMachineValidator } from '../ui/state-machine-validator.js';
+
+class FrontendStateMachine extends StateMachine {
+  constructor() {
+    const stateConfig = createStateConfig(AppState);
+    
+    // Configure states with explicit setup, cleanup, and validation
+    stateConfig[AppState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+          stateMachine.resetState();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isIdle === true;
+      }
+    };
+    
+    super(AppState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
+    this.subscribers = new Set();
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(AppState.IDLE);
+  }
+}
+
+// Register for automatic validation
+const validator = new StateMachineValidator(frontendStateMachine);
+validator.validateCurrentState();
+```
+
 ## Implementation Checklist
 
 Before implementing any component state management, verify:
 
-- [ ] **Centralized State Manager**: Single source of truth for all app state
+- [ ] **State Machine Base Class**: Extends `StateMachine` base class with proper configuration
+- [ ] **Constructor Pattern**: Properties initialized after `super()` call
+- [ ] **State Configuration**: Each state has explicit `setup`, `cleanup`, and `validate` functions
+- [ ] **Property Access**: State setup functions use `stateMachine` parameter, not `this`
+- [ ] **Frontend-Specific Methods**: Includes subscription management and component notification
 - [ ] **Action-Based Transitions**: All state changes go through action functions
-- [ ] **State-Aware Hooks**: Components subscribe to state manager via hooks
-- [ ] **Async State Management**: All async operations tracked in state manager
+- [ ] **State-Aware Hooks**: Components subscribe to state machine via hooks
+- [ ] **Async State Management**: All async operations tracked in state machine
 - [ ] **State-Dependent Rendering**: UI decisions based on centralized state
 - [ ] **Cleanup and Recovery**: Proper cleanup and error recovery mechanisms
 - [ ] **State Persistence**: Critical state persisted across page refreshes
 - [ ] **Debug Logging**: Comprehensive logging for state transitions
-- [ ] **Testing**: State manager and actions can be tested independently
+- [ ] **Testing**: State machine and actions can be tested independently
+- [ ] **Validation Framework**: Uses `StateMachineValidator` for runtime validation
 - [ ] **Performance**: Efficient subscriptions and minimal re-renders
 
 ## Code Templates
 
-### Basic State Manager Template
+### State Machine Prevention Plan Template for Frontend
 
 ```javascript
+// Import State Machine Prevention Plan components
+import { StateMachine, createStateConfig } from '../ui/state-machine-base.js';
+import { GlobalListenerManager } from '../ui/state-machine-base.js';
+import { StateMachineValidator } from '../ui/state-machine-validator.js';
+
 // State definition
 const AppState = {
   IDLE: 'idle',
@@ -559,51 +712,112 @@ const AppState = {
   ERROR: 'error'
 };
 
-// State manager
-class StateManager {
+// Frontend state machine
+class FrontendStateMachine extends StateMachine {
   constructor() {
-    this.currentState = AppState.IDLE;
-    this.stateData = {};
+    const stateConfig = createStateConfig(AppState);
+    
+    // Configure each state with explicit setup, cleanup, and validation
+    stateConfig[AppState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+          stateMachine.resetState();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.clearAllSubscriptions();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isIdle === true;
+      }
+    };
+    
+    stateConfig[AppState.LOADING] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.setupLoadingState();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.subscribers) {
+          stateMachine.cancelPendingRequests();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isLoading === true;
+      }
+    };
+    
+    super(AppState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
     this.subscribers = new Set();
+    this.pendingRequests = new Set();
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(AppState.IDLE);
   }
   
+  // Frontend-specific methods
   subscribe(callback) {
     this.subscribers.add(callback);
     return () => this.subscribers.delete(callback);
   }
   
-  transitionState(newState, reason, data = {}) {
-    // Implementation as shown above
+  notifySubscribers() {
+    this.subscribers.forEach(callback => 
+      callback(this.currentState, this.stateData)
+    );
   }
   
-  getState() {
-    return { state: this.currentState, data: this.stateData };
+  clearAllSubscriptions() {
+    this.subscribers.clear();
+  }
+  
+  resetState() {
+    this.isIdle = true;
+    this.isLoading = false;
+    this.isEditing = false;
+  }
+  
+  setupLoadingState() {
+    this.isLoading = true;
+    this.isIdle = false;
+  }
+  
+  cancelPendingRequests() {
+    this.pendingRequests.forEach(request => request.cancel());
+    this.pendingRequests.clear();
   }
 }
 
-const stateManager = new StateManager();
+const frontendStateMachine = new FrontendStateMachine();
 
 // Actions
-class StateActions {
+class FrontendStateActions {
   static startLoading(reason) {
-    stateManager.transitionState(AppState.LOADING, reason);
+    frontendStateMachine.transitionTo(AppState.LOADING, reason);
   }
   
   static completeAction(success = true) {
-    stateManager.transitionState(AppState.IDLE, 'action completed');
+    frontendStateMachine.transitionTo(AppState.IDLE, 'action completed');
   }
   
   static handleError(error) {
-    stateManager.transitionState(AppState.ERROR, 'error occurred', { error });
+    frontendStateMachine.transitionTo(AppState.ERROR, 'error occurred', { error });
   }
 }
 
 // Hooks
 function useAppState() {
-  const [state, setState] = useState(() => stateManager.getState());
+  const [state, setState] = useState(() => frontendStateMachine.getState());
   
   useEffect(() => {
-    const unsubscribe = stateManager.subscribe((newState, newData) => {
+    const unsubscribe = frontendStateMachine.subscribe((newState, newData) => {
       setState({ state: newState, data: newData });
     });
     
@@ -618,7 +832,7 @@ function MyComponent() {
   const { state, data } = useAppState();
   
   const handleAction = () => {
-    StateActions.startLoading('user action');
+    FrontendStateActions.startLoading('user action');
   };
   
   return (
@@ -628,6 +842,10 @@ function MyComponent() {
     </div>
   );
 }
+
+// Usage with validation
+const validator = new StateMachineValidator(frontendStateMachine);
+validator.validateCurrentState();
 ```
 
 ## Framework-Specific Adaptations
@@ -651,20 +869,25 @@ These rules are **MANDATORY** for all React/Vue frontend state management. Any c
 ## Benefits
 
 Following these patterns ensures:
-- **Single Source of Truth**: All UI state centralized and consistent
-- **Predictable State Changes**: All state transitions explicit and logged
-- **Better Debugging**: Complete state trace across all components
-- **Easier Testing**: State manager and actions testable independently
-- **Performance**: Efficient subscriptions and minimal re-renders
-- **Error Recovery**: Automatic state reset and error handling
-- **State Persistence**: Critical state survives page refreshes
-- **Maintainability**: Clear separation between state and UI logic
+- **🛡️ Bug Prevention**: Eliminates state machine initialization bugs through proper constructor patterns
+- **🔍 Better Debugging**: Complete state trace across all components with comprehensive logging
+- **🧪 Improved Testing**: Comprehensive testing framework with validation for frontend state machines
+- **📚 Better Documentation**: Clear patterns and examples for frontend state management
+- **🔄 Consistent Architecture**: All frontend state machines follow the same patterns and base classes
+- **⚡ Better Performance**: Efficient subscriptions and minimal re-renders with centralized state
+- **🔧 Runtime Validation**: Automated validation catches frontend state issues within 5 seconds
+- **🎯 Self-Documenting**: Code structure matches behavior with explicit state configurations
+- **🧹 Proper Cleanup**: Automatic cleanup in state transitions prevents memory leaks
+- **🚨 Error Recovery**: Automatic state reset on errors with proper cleanup
+- **📱 Component Integration**: Seamless integration with React/Vue component lifecycle
+- **🔄 State Persistence**: Critical state survives page refreshes and navigation
 
 ## References
 
-These rules are adapted from the event handler refactoring patterns in:
+These rules are derived from successful refactoring of:
 - `CONNECTOR_EVENTS_REFACTORING_PLAN.md`
 - `STICKY_EVENTS_REFACTORING_PLAN.md`
 - `KEYBOARD_HANDLERS_REFACTORING_PLAN.md`
+- `STATE_MACHINE_PREVENTION_PLAN.md` - Comprehensive implementation with base classes, validation framework, and testing utilities
 
-Applied to modern React/Vue component-based architectures.
+Applied to modern React/Vue component-based architectures with State Machine Prevention Plan compliance.

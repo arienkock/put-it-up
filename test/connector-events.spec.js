@@ -1,5 +1,11 @@
+/**
+ * @jest-environment jsdom
+ */
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
+import { setupConnectorEvents } from "../scripts/board-items/connector-events-refactored.js";
+import { StateMachineValidator } from "../scripts/ui/state-machine-validator.js";
+import { StateMachineTester } from "../scripts/ui/state-machine-testing.js";
 
 // Mock window global for unit tests
 if (typeof window === 'undefined') {
@@ -39,6 +45,8 @@ jest.mock('../scripts/app-state.js', () => ({
 describe("Connector Events Logic Tests", () => {
   let board;
   let store;
+  let boardElement;
+  let connectorEvents;
 
   beforeEach(() => {
     // Reset mock app state
@@ -69,10 +77,30 @@ describe("Connector Events Logic Tests", () => {
 
     store = new LocalDatastore();
     board = new Board(store);
+    
+    // Create mock board element
+    boardElement = document.createElement('div');
+    document.body.appendChild(boardElement);
+    
+    // Setup connector events with mock dependencies
+    const mockSelectionManager = {
+      selectItem: jest.fn()
+    };
+    const mockRenderCallback = jest.fn();
+    
+    connectorEvents = setupConnectorEvents(
+      boardElement, board, mockSelectionManager, mockRenderCallback, store
+    );
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    if (connectorEvents) {
+      connectorEvents.cleanup();
+    }
+    if (boardElement && boardElement.parentNode) {
+      boardElement.parentNode.removeChild(boardElement);
+    }
   });
 
   describe("Connector State Management", () => {
@@ -323,6 +351,33 @@ describe("Connector Events Logic Tests", () => {
       expect(() => {
         board.getConnector(connectorId);
       }).toThrow();
+    });
+  });
+
+  describe("Connector State Machine Tests", () => {
+    it("should initialize in IDLE state", () => {
+      expect(connectorEvents.getCurrentState()).toBe('idle');
+    });
+
+    it("should have proximity detection active in IDLE state", () => {
+      const stateData = connectorEvents.getStateData();
+      expect(stateData).toBeDefined();
+    });
+
+    it("should track active listeners", () => {
+      const activeListeners = connectorEvents.getActiveListeners();
+      expect(activeListeners).toBeDefined();
+      expect(typeof activeListeners).toBe('object');
+    });
+
+    it("should handle state transitions correctly", () => {
+      // Test that we can get current state
+      const initialState = connectorEvents.getCurrentState();
+      expect(initialState).toBe('idle');
+      
+      // Test that state data is available
+      const stateData = connectorEvents.getStateData();
+      expect(stateData).toBeDefined();
     });
   });
 

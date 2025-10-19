@@ -4,7 +4,7 @@ import {
   getKeyboardState, 
   forceKeyboardStateTransition,
   completeKeyboardAction
-} from "../scripts/ui/keyboard-handlers.js";
+} from "../scripts/ui/keyboard-handlers-refactored.js";
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
 
@@ -229,7 +229,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
       mockDocument.body.addEventListener.mock.calls[0][1](event);
       
       expect(consoleSpy.log).toHaveBeenCalledWith(
-        expect.stringContaining('[KeyboardState] idle → sticky_creation_mode'),
+        expect.stringContaining('[KeyboardStateMachine] idle → sticky_creation_mode'),
         expect.objectContaining({
           reason: 'sticky creation mode activated',
           timestamp: expect.any(Number)

@@ -6,14 +6,16 @@ alwaysApply: true
 
 ## Core Principles
 
-When writing any async code or event handler code, follow these mandatory patterns derived from successful refactoring of connector-events, sticky-events, and keyboard-handlers:
+When writing any async code or event handler code, follow these mandatory patterns derived from successful refactoring of connector-events, sticky-events, keyboard-handlers, and the comprehensive State Machine Prevention Plan implementation:
 
-### 1. State Machine Architecture (MANDATORY)
+### 1. State Machine Base Class Architecture (MANDATORY)
 
-**NEVER use scattered boolean flags or implicit state.** Always implement explicit state machines:
+**NEVER use scattered boolean flags or implicit state.** Always extend the StateMachine base class:
 
 ```javascript
-// ✅ CORRECT: Explicit state enum
+// ✅ CORRECT: Extend StateMachine base class
+import { StateMachine, createStateConfig } from '../ui/state-machine-base.js';
+
 const ComponentState = {
   IDLE: 'idle',
   PROCESSING: 'processing',
@@ -21,22 +23,88 @@ const ComponentState = {
   ERROR: 'error'
 };
 
-let currentState = ComponentState.IDLE;
-let stateData = {
-  // All state consolidated in one place
-  activeId: null,
-  startTime: null,
-  userData: null
-};
+class ComponentStateMachine extends StateMachine {
+  constructor(dependencies) {
+    const stateConfig = createStateConfig(ComponentState);
+    
+    // Configure each state with explicit setup, cleanup, and validation
+    stateConfig[ComponentState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        stateMachine.clearAllListeners();
+        stateMachine.resetState();
+      },
+      cleanup: (stateData, stateMachine) => {
+        stateMachine.clearAllListeners();
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isIdle === true;
+      }
+    };
+    
+    super(ComponentState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
+    this.dependencies = dependencies;
+    this.globalListeners = new GlobalListenerManager();
+  }
+}
 
-// ❌ WRONG: Scattered boolean flags
+// ❌ WRONG: Scattered boolean flags or manual state management
 let isProcessing = false;
 let isWaiting = false;
 let hasError = false;
 let currentId = null;
 ```
 
-### 2. Single Entry Point with Routing (MANDATORY)
+### 2. Constructor Initialization Pattern (MANDATORY)
+
+**NEVER access `this` before calling `super()`.** Always initialize properties after the super constructor:
+
+```javascript
+// ✅ CORRECT: Proper constructor initialization
+class ComponentStateMachine extends StateMachine {
+  constructor(dependencies) {
+    const stateConfig = createStateConfig(ComponentState);
+    
+    // Configure state config BEFORE super()
+    stateConfig[ComponentState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        // Use stateMachine parameter, not 'this'
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+        }
+      }
+    };
+    
+    super(ComponentState.IDLE, stateConfig);
+    
+    // Initialize properties AFTER super constructor
+    this.dependencies = dependencies;
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(ComponentState.IDLE);
+  }
+}
+
+// ❌ WRONG: Accessing 'this' before super() or in state setup
+class ComponentStateMachine extends StateMachine {
+  constructor(dependencies) {
+    this.dependencies = dependencies; // ❌ Before super()
+    
+    const stateConfig = createStateConfig(ComponentState);
+    stateConfig[ComponentState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        this.clearAllListeners(); // ❌ Using 'this' in setup
+      }
+    };
+    
+    super(ComponentState.IDLE, stateConfig);
+  }
+}
+```
+
+### 3. Single Entry Point with Routing (MANDATORY)
 
 **NEVER add multiple independent event listeners for the same event type.** Use one router that delegates to sub-handlers:
 
@@ -62,7 +130,7 @@ element.addEventListener('eventType', handler2);
 element.addEventListener('eventType', handler3);
 ```
 
-### 3. Sub-Handler Architecture with Explicit Precedence (MANDATORY)
+### 4. Sub-Handler Architecture with Explicit Precedence (MANDATORY)
 
 **NEVER put all logic in one monolithic handler.** Break into focused sub-handlers with clear precedence:
 
@@ -111,7 +179,7 @@ function handleEvent(event) {
 }
 ```
 
-### 4. Centralized Event Listener Management (MANDATORY)
+### 5. Centralized Event Listener Management (MANDATORY)
 
 **NEVER manually add/remove global listeners without proper management.** Use a listener manager:
 
@@ -153,7 +221,7 @@ document.addEventListener('mouseup', handler2);
 // ... later, easy to forget to remove them
 ```
 
-### 5. Explicit State Transitions with Logging (MANDATORY)
+### 6. Explicit State Transitions with Logging (MANDATORY)
 
 **NEVER change state implicitly.** Always use explicit transition functions with logging:
 
@@ -201,7 +269,7 @@ isProcessing = true;
 // No cleanup, no logging, no setup
 ```
 
-### 6. Event Handling Wrapper with Error Recovery (MANDATORY)
+### 7. Event Handling Wrapper with Error Recovery (MANDATORY)
 
 **NEVER call handlers directly.** Always wrap in error handling:
 
@@ -230,7 +298,7 @@ function handleEvent(eventName, event, handlerFn) {
 handlerFn(event); // No error handling, no logging
 ```
 
-### 7. Async Operation Patterns (MANDATORY)
+### 8. Async Operation Patterns (MANDATORY)
 
 **NEVER use async/await without proper state management.** Always track async operations:
 
@@ -257,80 +325,168 @@ async function performAsyncOperation(data) {
 }
 ```
 
+### 9. State Machine Prevention Plan Compliance (MANDATORY)
+
+**ALWAYS follow the State Machine Prevention Plan patterns.** Use the established base classes and validation framework:
+
+```javascript
+// ✅ CORRECT: Use State Machine Prevention Plan components
+import { StateMachine, createStateConfig } from '../ui/state-machine-base.js';
+import { GlobalListenerManager } from '../ui/state-machine-base.js';
+import { StateMachineValidator } from '../ui/state-machine-validator.js';
+
+class ComponentStateMachine extends StateMachine {
+  constructor(dependencies) {
+    const stateConfig = createStateConfig(ComponentState);
+    
+    // Configure states with explicit setup, cleanup, and validation
+    stateConfig[ComponentState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.enableProximityDetection();
+          stateMachine.setupIdleListeners();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.disableProximityDetection();
+          stateMachine.clearAllListeners();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.proximityDetectionActive === true;
+      }
+    };
+    
+    super(ComponentState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
+    this.dependencies = dependencies;
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(ComponentState.IDLE);
+  }
+}
+
+// Register for automatic validation
+const validator = new StateMachineValidator(componentStateMachine);
+validator.validateCurrentState();
+```
+
 ## Implementation Checklist
 
 Before writing any event handler or async code, verify:
 
-- [ ] **State Machine**: Defined explicit state enum with consolidated state data
-- [ ] **Single Entry Point**: One router function that delegates to sub-handlers
-- [ ] **Sub-Handlers**: Focused handlers with `canHandle` and `onEvent` methods
-- [ ] **Handler Precedence**: Explicit priority order defined
-- [ ] **Listener Manager**: Centralized management of global listeners
-- [ ] **State Transitions**: Explicit `transitionState()` function with logging
+- [ ] **State Machine Base Class**: Extends `StateMachine` base class with proper configuration
+- [ ] **Constructor Pattern**: Properties initialized after `super()` call
+- [ ] **State Configuration**: Each state has explicit `setup`, `cleanup`, and `validate` functions
+- [ ] **Property Access**: State setup functions use `stateMachine` parameter, not `this`
+- [ ] **Global Listener Manager**: Uses `GlobalListenerManager` for centralized event handling
+- [ ] **State Validation**: Includes validation functions for runtime consistency checking
 - [ ] **Error Recovery**: Event wrapper with try/catch and state reset
 - [ ] **Debug Logging**: Comprehensive logging for all events and state changes
-- [ ] **Cleanup**: Proper cleanup in state transitions
-- [ ] **Testing**: Each sub-handler can be tested independently
+- [ ] **Testing**: Each state machine has comprehensive test coverage
+- [ ] **Validation Framework**: Uses `StateMachineValidator` for runtime validation
 
 ## Code Templates
 
-### Basic Event Handler Template
+### State Machine Prevention Plan Template
 
 ```javascript
+// Import State Machine Prevention Plan components
+import { StateMachine, createStateConfig } from '../ui/state-machine-base.js';
+import { GlobalListenerManager } from '../ui/state-machine-base.js';
+import { StateMachineValidator } from '../ui/state-machine-validator.js';
+
 // State definition
 const ComponentState = {
   IDLE: 'idle',
-  PROCESSING: 'processing'
+  PROCESSING: 'processing',
+  ERROR: 'error'
 };
 
-let currentState = ComponentState.IDLE;
-let stateData = {};
-
-// Handler definitions
-const handlers = {
-  primaryHandler: {
-    canHandle: (event, state, appState) => {
-      return state === ComponentState.IDLE && /* condition */;
-    },
+class ComponentStateMachine extends StateMachine {
+  constructor(dependencies) {
+    const stateConfig = createStateConfig(ComponentState);
     
-    onEvent: (event, stateData) => {
-      // Handle the event
-      transitionState(ComponentState.PROCESSING, 'action started');
-    }
-  }
-};
-
-const HANDLER_PRIORITY = ['primaryHandler'];
-
-// Listener manager
-const listenerManager = new EventListenerManager();
-
-// State transitions
-function transitionState(newState, reason, data = {}) {
-  // Implementation as shown above
-}
-
-// Event wrapper
-function handleEvent(eventName, event, handlerFn) {
-  // Implementation as shown above
-}
-
-// Main router
-function routeEvent(event) {
-  const appState = store.getAppState();
-  
-  for (const handlerName of HANDLER_PRIORITY) {
-    const handler = handlers[handlerName];
-    if (handler.canHandle && handler.canHandle(event, currentState, appState)) {
-      if (handler.onEvent) {
-        return handleEvent('eventType', event, handler.onEvent);
+    // Configure each state with explicit setup, cleanup, and validation
+    stateConfig[ComponentState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+          stateMachine.resetState();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isIdle === true;
       }
-    }
+    };
+    
+    stateConfig[ComponentState.PROCESSING] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.setupProcessingListeners();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+        }
+      },
+      validate: (stateData, stateMachine) => {
+        return stateMachine.isProcessing === true;
+      }
+    };
+    
+    super(ComponentState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
+    this.dependencies = dependencies;
+    this.globalListeners = new GlobalListenerManager();
+    
+    // Re-initialize initial state now that properties are set
+    this.initializeState(ComponentState.IDLE);
+  }
+  
+  // Implementation methods
+  clearAllListeners() {
+    this.globalListeners.clearAll();
+  }
+  
+  resetState() {
+    this.isIdle = true;
+    this.isProcessing = false;
+  }
+  
+  setupProcessingListeners() {
+    this.globalListeners.setListeners({
+      'mousemove': this.handleMove.bind(this),
+      'mouseup': this.handleEnd.bind(this)
+    });
+  }
+  
+  // Event handlers
+  handleMove(event) {
+    // Handle move event
+  }
+  
+  handleEnd(event) {
+    this.transitionTo(ComponentState.IDLE, 'operation completed');
   }
 }
 
-// Setup
-element.addEventListener('eventType', routeEvent);
+// Usage with validation
+const componentStateMachine = new ComponentStateMachine(dependencies);
+const validator = new StateMachineValidator(componentStateMachine);
+
+// Validate current state
+validator.validateCurrentState();
 ```
 
 ## Enforcement
@@ -340,13 +496,16 @@ These rules are **MANDATORY** for all new async code and event handlers. Any cod
 ## Benefits
 
 Following these patterns ensures:
-- **Easier Debugging**: Complete event/state trace in console
-- **Fewer Bugs**: Impossible states are prevented
-- **Better Maintenance**: Clear structure for adding features
-- **Self-Documenting**: Code structure matches behavior
-- **Testability**: Each handler can be tested independently
-- **Performance**: No wasted event listener registrations
-- **Error Recovery**: Automatic state reset on errors
+- **🛡️ Bug Prevention**: Eliminates state machine initialization bugs through proper constructor patterns
+- **🔍 Better Debugging**: Complete event/state trace in console with comprehensive logging
+- **🧪 Improved Testing**: Comprehensive testing framework with 34+ tests for state machine behavior
+- **📚 Better Documentation**: Clear patterns and examples for future state machines
+- **🔄 Consistent Architecture**: All state machines follow the same patterns and base classes
+- **⚡ Better Performance**: Centralized listener management prevents memory leaks
+- **🔧 Runtime Validation**: Automated validation catches issues within 5 seconds
+- **🎯 Self-Documenting**: Code structure matches behavior with explicit state configurations
+- **🧹 Proper Cleanup**: Automatic cleanup in state transitions prevents resource leaks
+- **🚨 Error Recovery**: Automatic state reset on errors with proper cleanup
 
 ## References
 
@@ -354,3 +513,4 @@ These rules are derived from successful refactoring of:
 - `CONNECTOR_EVENTS_REFACTORING_PLAN.md`
 - `STICKY_EVENTS_REFACTORING_PLAN.md`
 - `KEYBOARD_HANDLERS_REFACTORING_PLAN.md`
+- `STATE_MACHINE_PREVENTION_PLAN.md` - Comprehensive implementation with base classes, validation framework, and testing utilities
