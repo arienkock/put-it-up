@@ -1,5 +1,7 @@
 import { getAppState } from "../app-state.js";
 
+
+
 export class FirestoreStore {
   connectCalled = false;
   collectionName = "board-events";
@@ -9,9 +11,12 @@ export class FirestoreStore {
 
   connect() {
     if (!this.connectCalled) {
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
       this.db = firebase.firestore();
       this.connectCalled = true;
     }
+    console.log("db", this.db);
     this.docRef = this.db.collection(this.collectionName).doc(this.boardName);
     this.docRef.onSnapshot((documentSnapshot) => {
       this.readyForUse = true;

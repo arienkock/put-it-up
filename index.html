@@ -8,32 +8,51 @@
   </head>
   <body>
     <div class="app"></div>
-    <!-- <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/7.13.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
     <script>
-      let params = new URLSearchParams(window.location.search);
-      let firebaseConfig = JSON.parse(params.get("firebaseConfig"));
-      firebase.initializeApp(firebaseConfig);
-    </script> -->
+      const firebaseConfig = {
+        apiKey: "AIzaSyDhvmtdhl4SNpA8XhvHeK_1mFyVfaEa66k",
+        authDomain: "sticky-board-b7062.firebaseapp.com",
+        databaseURL: "https://sticky-board-b7062.firebaseio.com",
+        projectId: "sticky-board-b7062",
+        storageBucket: "sticky-board-b7062.firebasestorage.app",
+        messagingSenderId: "1017840154919",
+        appId: "1:1017840154919:web:05494ae3b80e71ecf5d102",
+        measurementId: "G-CXTXNN5XSM"
+      };
+      window.firebaseConfig = firebaseConfig;
+    </script>
     <script type="module">
       import { mount } from "./scripts/ui/render-to-dom.js";
       import { Board } from "./scripts/board/board.js";
       import { getAppState } from "./scripts/app-state.js";
       import { BufferedObserver } from "./scripts/ui/buffered-observer.js";
-      // import { FirestoreStore } from "./scripts/network/network-firestore.js";
+      import { FirestoreStore } from "./scripts/network/network-firestore.js";
       import { LocalDatastore } from "./scripts/board/local-datastore.js";
       import { LocalStoragePersistence } from "./scripts/board/local-storage-persistence.js";
       
-
-      // const store = new FirestoreStore();
-      const store = new LocalDatastore();
-      const persistence = new LocalStoragePersistence();
+      // Check for offline query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const isOffline = urlParams.get('offline') === 'true';
       
-      // Initialize app state from LocalStorage
-      persistence.initializeAppState();
+      let store;
+      let persistence;
       
-      // Add persistence as an observer to the store
-      store.addObserver(persistence);
+      if (isOffline) {
+        // Use local storage
+        store = new LocalDatastore();
+        persistence = new LocalStoragePersistence();
+        
+        // Initialize app state from LocalStorage
+        persistence.initializeAppState();
+        
+        // Add persistence as an observer to the store
+        store.addObserver(persistence);
+      } else {
+        // Use Firestore
+        store = new FirestoreStore();
+      }
       
       const board = new Board(store);
       mount(board, document.querySelector(".app"), BufferedObserver, store);
