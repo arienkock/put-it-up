@@ -402,7 +402,19 @@ export function setConnectorStyles(
   const strokeWidth = 4;
   const markerExtension = 6 * strokeWidth;
   const handleSize = 8; // Size of unconnected endpoint handles
-  const padding = Math.max(50, markerExtension + handleSize + 10);
+  // Compute additional padding if the curve bulges far from the chord
+  let dynamicCurvePadding = 0;
+  if (effectiveControlPoint) {
+    const chordMidX = (startPoint.x + endPoint.x) / 2;
+    const chordMidY = (startPoint.y + endPoint.y) / 2;
+    // Distance of control point from the midpoint of the chord as a proxy for bulge
+    const dx = effectiveControlPoint.x - chordMidX;
+    const dy = effectiveControlPoint.y - chordMidY;
+    const bulge = Math.hypot(dx, dy);
+    // Scale factor chosen empirically to cover cubic handles and marker size
+    dynamicCurvePadding = Math.min(Math.max(bulge * 0.35, 0), 200);
+  }
+  const padding = Math.max(50, markerExtension + handleSize + 10, dynamicCurvePadding);
   const width = maxX - minX + padding * 2;
   const height = maxY - minY + padding * 2;
   
@@ -420,6 +432,8 @@ export function setConnectorStyles(
   svg.setAttribute("height", height);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.style.pointerEvents = "none"; // Ensure SVG doesn't capture pointer events
+  // Ensure any stroke joins/markers extending beyond viewBox are still visible
+  svg.style.overflow = "visible";
   
   // Calculate local coordinates for the path
   const localStartX = startPoint.x - minX + padding;
