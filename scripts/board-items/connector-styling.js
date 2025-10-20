@@ -75,12 +75,17 @@ export function setConnectorStyles(
         x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
         y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
       };
-      
+      // Determine targeting point for curved connectors (Option A: ray towards control point)
+      // Prefer explicit curve control point if present; otherwise none here (self-connection handled later)
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForStart = controlTarget || destCenter;
+      const targetForEnd = controlTarget || originCenter;
+
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
-        destCenter.x,
-        destCenter.y,
+        targetForStart.x,
+        targetForStart.y,
         stickySize * originSizeX,
         stickySize * originSizeY
       );
@@ -88,8 +93,8 @@ export function setConnectorStyles(
       endPoint = calculateEdgePoint(
         destCenter.x,
         destCenter.y,
-        originCenter.x,
-        originCenter.y,
+        targetForEnd.x,
+        targetForEnd.y,
         stickySize * destSizeX,
         stickySize * destSizeY
       );
@@ -107,11 +112,16 @@ export function setConnectorStyles(
         y: destImage.location.y - boardOrigin.y + destImage.height / 2,
       };
       
+      // Prefer explicit curve control point when present
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForStart = controlTarget || destCenter;
+      const targetForEnd = controlTarget || originCenter;
+
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
-        destCenter.x,
-        destCenter.y,
+        targetForStart.x,
+        targetForStart.y,
         stickySize * originSizeX,
         stickySize * originSizeY
       );
@@ -119,8 +129,8 @@ export function setConnectorStyles(
       endPoint = calculateEdgePoint(
         destCenter.x,
         destCenter.y,
-        originCenter.x,
-        originCenter.y,
+        targetForEnd.x,
+        targetForEnd.y,
         destImage.width,
         destImage.height
       );
@@ -140,11 +150,14 @@ export function setConnectorStyles(
         y: destPoint.y - boardOrigin.y,
       };
       
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForStart = controlTarget || destCenter;
+      
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
-        destCenter.x,
-        destCenter.y,
+        targetForStart.x,
+        targetForStart.y,
         stickySize * originSizeX,
         stickySize * originSizeY
       );
@@ -181,11 +194,15 @@ export function setConnectorStyles(
         y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
       };
       
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForStart = controlTarget || destCenter;
+      const targetForEnd = controlTarget || originCenter;
+
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
-        destCenter.x,
-        destCenter.y,
+        targetForStart.x,
+        targetForStart.y,
         originImage.width,
         originImage.height
       );
@@ -193,8 +210,8 @@ export function setConnectorStyles(
       endPoint = calculateEdgePoint(
         destCenter.x,
         destCenter.y,
-        originCenter.x,
-        originCenter.y,
+        targetForEnd.x,
+        targetForEnd.y,
         stickySize * destSizeX,
         stickySize * destSizeY
       );
@@ -212,11 +229,15 @@ export function setConnectorStyles(
         y: destImage.location.y - boardOrigin.y + destImage.height / 2,
       };
       
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForStart = controlTarget || destCenter;
+      const targetForEnd = controlTarget || originCenter;
+
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
-        destCenter.x,
-        destCenter.y,
+        targetForStart.x,
+        targetForStart.y,
         originImage.width,
         originImage.height
       );
@@ -224,8 +245,8 @@ export function setConnectorStyles(
       endPoint = calculateEdgePoint(
         destCenter.x,
         destCenter.y,
-        originCenter.x,
-        originCenter.y,
+        targetForEnd.x,
+        targetForEnd.y,
         destImage.width,
         destImage.height
       );
@@ -245,11 +266,14 @@ export function setConnectorStyles(
         y: destPoint.y - boardOrigin.y,
       };
       
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForStart = controlTarget || destCenter;
+      
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
-        destCenter.x,
-        destCenter.y,
+        targetForStart.x,
+        targetForStart.y,
         originImage.width,
         originImage.height
       );
@@ -288,11 +312,14 @@ export function setConnectorStyles(
         y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
       };
       
+      // When curved, aim the ray from the destination center towards control target if present
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForEnd = controlTarget || startPoint;
       endPoint = calculateEdgePoint(
         destCenter.x,
         destCenter.y,
-        startPoint.x,
-        startPoint.y,
+        targetForEnd.x,
+        targetForEnd.y,
         stickySize * destSizeX,
         stickySize * destSizeY
       );
@@ -310,11 +337,13 @@ export function setConnectorStyles(
         y: destImage.location.y - boardOrigin.y + destImage.height / 2,
       };
       
+      const controlTarget = connector.curveControlPoint || null;
+      const targetForEnd = controlTarget || startPoint;
       endPoint = calculateEdgePoint(
         destCenter.x,
         destCenter.y,
-        startPoint.x,
-        startPoint.y,
+        targetForEnd.x,
+        targetForEnd.y,
         destImage.width,
         destImage.height
       );

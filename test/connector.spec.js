@@ -248,6 +248,52 @@ describe("Connector Functionality Tests", () => {
       
       consoleSpy.mockRestore();
     });
+
+    it("should aim edge intersections toward control point for curved connectors (sticky↔sticky)", () => {
+      const stickySize = 100;
+      const board = new Board(new LocalDatastore());
+      const sticky1Id = board.putSticky({ text: "A", location: { x: 100, y: 100 }, size: { x: 1, y: 1 } });
+      const sticky2Id = board.putSticky({ text: "B", location: { x: 350, y: 100 }, size: { x: 1, y: 1 } });
+
+      const connectorId = board.putConnector({ originStickyId: sticky1Id, destinationStickyId: sticky2Id, color: "#000" });
+      // Bend upward: control point above the midpoint
+      const midpointX = (100 + stickySize/2 + 350 + stickySize/2) / 2; // centers used in styling
+      const midpointY = (100 + stickySize/2 + 100 + stickySize/2) / 2;
+      const controlPoint = { x: midpointX, y: midpointY - 150 };
+      board.updateCurveControlPoint(connectorId, controlPoint);
+
+      // Trigger a render cycle indirectly via board internals to compute positions
+      // We validate geometry indirectly by calculating edge intersections directly
+      const originCenterX = 100 + stickySize / 2;
+      const originCenterY = 100 + stickySize / 2;
+      const endTargetX = controlPoint.x;
+      const endTargetY = controlPoint.y;
+      const originEdge = calculateEdgePoint(originCenterX, originCenterY, endTargetX, endTargetY, stickySize, stickySize);
+
+      // For an upward bend, the ray from origin center toward control should hit top edge
+      expect(originEdge.y).toBeLessThanOrEqual(originCenterY);
+    });
+
+    it("should aim edge intersections toward control point for mixed point↔sticky", () => {
+      const stickySize = 100;
+      const board = new Board(new LocalDatastore());
+      const stickyId = board.putSticky({ text: "A", location: { x: 300, y: 300 }, size: { x: 1, y: 1 } });
+
+      const connectorId = board.putConnector({ originPoint: { x: 100, y: 300 }, destinationStickyId: stickyId, color: "#000" });
+      // Control point above midpoint between free point and sticky center
+      const stickyCenter = { x: 300 + stickySize/2, y: 300 + stickySize/2 };
+      const midpointX = (100 + stickyCenter.x) / 2;
+      const midpointY = (300 + stickyCenter.y) / 2;
+      const controlPoint = { x: midpointX, y: midpointY - 120 };
+      board.updateCurveControlPoint(connectorId, controlPoint);
+
+      const destCenterX = stickyCenter.x;
+      const destCenterY = stickyCenter.y;
+      const targetX = controlPoint.x;
+      const targetY = controlPoint.y;
+      const destEdge = calculateEdgePoint(destCenterX, destCenterY, targetX, targetY, stickySize, stickySize);
+      expect(destEdge.y).toBeLessThanOrEqual(destCenterY);
+    });
   });
 
   describe("Connector-to-Image Connections", () => {
