@@ -285,6 +285,16 @@ export class FirestoreStore {
     this.notifyConnectorChange(id);
   };
 
+  updateCurveControlPoint = (id, point) => {
+    if (this.connectorRef) {
+      this.connectorRef.doc(id).update({ curveControlPoint: point });
+    }
+    // Update local state immediately
+    const connector = this.getConnector(id);
+    connector.curveControlPoint = point;
+    this.notifyConnectorChange(id);
+  };
+
   setImageLocation = (id, location) => {
     if (this.imageRef) {
       this.imageRef.doc(id).update({ location });

@@ -12,6 +12,7 @@ const ConnectorState = {
   DRAGGING_NEW: 'dragging_new',
   CLICK_TO_CLICK_WAITING: 'click_to_click_waiting',
   DRAGGING_HANDLE: 'dragging_handle',
+  DRAGGING_CURVE_HANDLE: 'dragging_curve_handle',
   DRAGGING_DISCONNECTED: 'dragging_disconnected'
 };
 
@@ -91,6 +92,21 @@ class ConnectorStateMachine extends StateMachine {
       }
     };
     
+    stateConfig[ConnectorState.DRAGGING_CURVE_HANDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.disableProximityDetection();
+          stateMachine.setupCurveHandleDragListeners();
+          stateMachine.ensureHandleVisibility(stateData.connectorId);
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+        }
+      }
+    };
+    
     stateConfig[ConnectorState.DRAGGING_DISCONNECTED] = {
       setup: (stateData, stateMachine) => {
         if (stateMachine.globalListeners) {
@@ -158,6 +174,13 @@ class ConnectorStateMachine extends StateMachine {
     this.globalListeners.setListeners({
       'mousemove': this.handleHandleDrag.bind(this),
       'mouseup': this.handleHandleDragEnd.bind(this)
+    });
+  }
+  
+  setupCurveHandleDragListeners() {
+    this.globalListeners.setListeners({
+      'mousemove': this.handleCurveHandleDrag.bind(this),
+      'mouseup': this.handleCurveHandleDragEnd.bind(this)
     });
   }
   
@@ -362,12 +385,39 @@ class ConnectorStateMachine extends StateMachine {
         }
       },
       
+      // Handler for dragging curve control handles
+      curveHandleDragging: {
+        canHandle: (event, state, appState) => {
+          const handle = event.target.closest('.curve-control-handle');
+          return state === ConnectorState.IDLE && 
+                 handle !== null &&
+                 !appState.ui.nextClickCreatesConnector;
+        },
+        
+        onMouseDown: (event, stateData) => {
+          const handle = event.target.closest('.curve-control-handle');
+          const container = handle.closest('.connector-container');
+          const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-'));
+          const handleConnectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+          
+          event.preventDefault();
+          event.stopPropagation();
+          
+          stateData.connectorId = handleConnectorId;
+          
+          this.transitionTo(ConnectorState.DRAGGING_CURVE_HANDLE, 'curve handle drag started');
+        }
+      },
+      
       // Handler for dragging existing connector handles
       handleDragging: {
         canHandle: (event, state, appState) => {
           const handle = event.target.closest('.connector-handle');
+          // Exclude curve control handles - they have their own handler
+          const isCurveHandle = handle && handle.classList.contains('curve-control-handle');
           return state === ConnectorState.IDLE && 
                  handle !== null &&
+                 !isCurveHandle &&
                  !appState.ui.nextClickCreatesConnector;
         },
         
@@ -537,6 +587,7 @@ class ConnectorStateMachine extends StateMachine {
   getHandlerPriority() {
     return [
       'clickToClickCompletion',    // Highest - overrides everything
+      'curveHandleDragging',        // High priority - curve handle dragging
       'handleDragging',             // Mid priority
       'disconnectedDragging',       // Mid priority
       'newConnectorCreation',       // Lowest - only if nothing else matched
@@ -577,6 +628,9 @@ class ConnectorStateMachine extends StateMachine {
       
       case ConnectorState.DRAGGING_HANDLE:
         return this.handleEvent('mouseup', event, this.handleHandleDragEnd.bind(this));
+      
+      case ConnectorState.DRAGGING_CURVE_HANDLE:
+        return this.handleEvent('mouseup', event, this.handleCurveHandleDragEnd.bind(this));
       
       case ConnectorState.DRAGGING_DISCONNECTED:
         return this.handleEvent('mouseup', event, this.handleDisconnectedConnectorDragEnd.bind(this));
@@ -821,6 +875,47 @@ class ConnectorStateMachine extends StateMachine {
     }
     
     this.transitionTo(ConnectorState.IDLE, 'handle drag completed');
+    
+    // Trigger re-render
+    if (this.renderCallback) {
+      this.renderCallback();
+    }
+  }
+
+  handleCurveHandleDrag(event) {
+    if (this.currentState !== ConnectorState.DRAGGING_CURVE_HANDLE || !this.stateData.connectorId) return;
+    
+    const rect = this.boardElement.getBoundingClientRect();
+    const boardOrigin = this.board.getOrigin();
+    const appState = this.store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    // Validate coordinates
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
+        isNaN(event.clientX) || isNaN(event.clientY) ||
+        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
+        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
+      console.warn('Invalid mouse coordinates or board origin during curve handle drag:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY, 
+        boardOrigin 
+      });
+      return;
+    }
+    
+    const point = {
+      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+    };
+    
+    // Update the curve control point
+    this.board.updateCurveControlPoint(this.stateData.connectorId, point);
+  }
+
+  handleCurveHandleDragEnd(event) {
+    if (this.currentState !== ConnectorState.DRAGGING_CURVE_HANDLE || !this.stateData.connectorId) return;
+    
+    this.transitionTo(ConnectorState.IDLE, 'curve handle drag completed');
     
     // Trigger re-render
     if (this.renderCallback) {

@@ -347,10 +347,18 @@ export function setConnectorStyles(
   }
   
   // Calculate bounding box for the SVG
-  const minX = Math.min(startPoint.x, endPoint.x);
-  const minY = Math.min(startPoint.y, endPoint.y);
-  const maxX = Math.max(startPoint.x, endPoint.x);
-  const maxY = Math.max(startPoint.y, endPoint.y);
+  let minX = Math.min(startPoint.x, endPoint.x);
+  let minY = Math.min(startPoint.y, endPoint.y);
+  let maxX = Math.max(startPoint.x, endPoint.x);
+  let maxY = Math.max(startPoint.y, endPoint.y);
+  
+  // Include curve control point in bounding box if it exists
+  if (connector.curveControlPoint) {
+    minX = Math.min(minX, connector.curveControlPoint.x);
+    minY = Math.min(minY, connector.curveControlPoint.y);
+    maxX = Math.max(maxX, connector.curveControlPoint.x);
+    maxY = Math.max(maxY, connector.curveControlPoint.y);
+  }
   
   // Add padding for arrow head and handles
   const strokeWidth = 4;
@@ -381,17 +389,97 @@ export function setConnectorStyles(
   const localEndX = endPoint.x - minX + padding;
   const localEndY = endPoint.y - minY + padding;
   
+  // Calculate midpoint for comparison
+  const midpointX = (localStartX + localEndX) / 2;
+  const midpointY = (localStartY + localEndY) / 2;
+  
   // Update arrow head marker
   const connectorColor = connector.color || "#000000";
   const markerId = updateArrowHeadMarker(container.defs, arrowHeadType, isSelected, connectorColor, connectorId);
   
-  // Draw the path
-  const pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
+  // Draw the path - check for curve control point
+  let pathData;
+  let arrowOrientation = "auto";
+  
+  if (connector.curveControlPoint) {
+    // Convert control point to local coordinates
+    const controlX = connector.curveControlPoint.x - minX + padding;
+    const controlY = connector.curveControlPoint.y - minY + padding;
+    
+    // Check if control point is different from midpoint (to avoid unnecessary segments)
+    const controlDistanceFromMidpoint = Math.sqrt(
+      Math.pow(controlX - midpointX, 2) + Math.pow(controlY - midpointY, 2)
+    );
+    
+    if (controlDistanceFromMidpoint > 1) { // 1 pixel threshold
+      // Create two cubic Bezier segments that meet at the control point (smoothly)
+      // Compute unit direction vectors for straight segments
+      const vSCx = controlX - localStartX;
+      const vSCy = controlY - localStartY;
+      const lenSC = Math.hypot(vSCx, vSCy) || 1;
+      const dirSCx = vSCx / lenSC;
+      const dirSCy = vSCy / lenSC;
+      
+      const vCEdx = localEndX - controlX;
+      const vCEdy = localEndY - controlY;
+      const lenCE = Math.hypot(vCEdx, vCEdy) || 1;
+      const dirCEx = vCEdx / lenCE;
+      const dirCEy = vCEdy / lenCE;
+      
+      // Tangent at the midpoint: use angle bisector for smooth join
+      let tanCx = dirSCx + dirCEx;
+      let tanCy = dirSCy + dirCEy;
+      const tanLen = Math.hypot(tanCx, tanCy);
+      if (tanLen < 1e-6) {
+        // Opposite directions (straight line). Fallback to one of the segment directions
+        tanCx = dirSCx;
+        tanCy = dirSCy;
+      } else {
+        tanCx /= tanLen;
+        tanCy /= tanLen;
+      }
+      
+      // Handle lengths as a fraction of segment lengths
+      const handleScale = 0.3;
+      
+      // First cubic from start -> control point
+      const c1x = localStartX + dirSCx * (lenSC * handleScale);
+      const c1y = localStartY + dirSCy * (lenSC * handleScale);
+      const c2x = controlX - tanCx * (lenSC * handleScale);
+      const c2y = controlY - tanCy * (lenSC * handleScale);
+      
+      // Second cubic from control point -> end
+      const c3x = controlX + tanCx * (lenCE * handleScale);
+      const c3y = controlY + tanCy * (lenCE * handleScale);
+      const c4x = localEndX - dirCEx * (lenCE * handleScale);
+      const c4y = localEndY - dirCEy * (lenCE * handleScale);
+      
+      pathData = `M ${localStartX} ${localStartY} C ${c1x} ${c1y} ${c2x} ${c2y} ${controlX} ${controlY} C ${c3x} ${c3y} ${c4x} ${c4y} ${localEndX} ${localEndY}`;
+      
+      // Calculate arrowhead orientation based on end tangent (approx with last control to end)
+      const angle = Math.atan2(localEndY - c4y, localEndX - c4x) * 180 / Math.PI;
+      arrowOrientation = angle.toString();
+    } else {
+      // Control point is at midpoint, use straight line
+      pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
+    }
+  } else {
+    // No control point, use straight line
+    pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
+  }
+  
   container.path.setAttribute("d", pathData);
   
   // Only apply marker-end if arrow head is not "none"
   if (arrowHeadType !== "none") {
     container.path.setAttribute("marker-end", `url(#${markerId})`);
+    // Set custom orientation if we calculated one
+    if (arrowOrientation !== "auto") {
+      const marker = container.defs.querySelector(`#${markerId}`);
+      if (marker) {
+        marker.setAttribute("orient", arrowOrientation);
+      }
+    }
   } else {
     container.path.removeAttribute("marker-end");
   }
@@ -469,6 +557,46 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     destHandle.style.pointerEvents = "all";
     svg.appendChild(destHandle);
   }
+  
+  // Add curve control handle for all connectors
+  const midpointX = (localStartX + localEndX) / 2;
+  const midpointY = (localStartY + localEndY) / 2;
+  
+  // Determine curve control handle position
+  let curveHandleX, curveHandleY, curveHandleBoardX, curveHandleBoardY;
+  
+  // Compute board->local offsets using known start point mapping
+  const offsetX = localStartX - startPoint.x;
+  const offsetY = localStartY - startPoint.y;
+  
+  if (connector.curveControlPoint) {
+    // Use existing control point
+    curveHandleX = connector.curveControlPoint.x + offsetX;
+    curveHandleY = connector.curveControlPoint.y + offsetY;
+    curveHandleBoardX = connector.curveControlPoint.x;
+    curveHandleBoardY = connector.curveControlPoint.y;
+  } else {
+    // Use midpoint
+    curveHandleX = midpointX;
+    curveHandleY = midpointY;
+    curveHandleBoardX = (startPoint.x + endPoint.x) / 2;
+    curveHandleBoardY = (startPoint.y + endPoint.y) / 2;
+  }
+  
+  const curveHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  curveHandle.classList.add("connector-handle");
+  curveHandle.classList.add("curve-control-handle");
+  curveHandle.classList.add("connector-handle-hidden"); // Hidden by default
+  curveHandle.setAttribute("cx", String(curveHandleX));
+  curveHandle.setAttribute("cy", String(curveHandleY));
+  curveHandle.setAttribute("r", String(handleSize / 2));
+  curveHandle.setAttribute("fill", "rgba(70, 70, 216, 0.6)");
+  curveHandle.setAttribute("stroke", "white");
+  curveHandle.setAttribute("stroke-width", "2");
+  curveHandle.setAttribute("cursor", "grab");
+  curveHandle.setAttribute("data-handle-position", `${curveHandleBoardX},${curveHandleBoardY}`);
+  curveHandle.style.pointerEvents = "all";
+  svg.appendChild(curveHandle);
 }
 
 /**

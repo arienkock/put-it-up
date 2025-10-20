@@ -113,6 +113,10 @@ export function Board(aStore) {
     store.updateConnectorEndpoint(id, endpoint, data);
   };
 
+  this.updateCurveControlPoint = (connectorId, point) => {
+    store.updateCurveControlPoint(connectorId, point);
+  };
+
   this.putSticky = (sticky) => {
     const { origin, limit } = getBoardInternal();
     sticky.text = sticky.text || "";

@@ -159,6 +159,12 @@ export class LocalDatastore {
     this.notifyConnectorChange(id);
   };
 
+  updateCurveControlPoint = (id, point) => {
+    const connector = this.getConnector(id);
+    connector.curveControlPoint = point;
+    this.notifyConnectorChange(id);
+  };
+
   setImageLocation = (id, location) => {
     this.getImage(id).location = location;
     this.notifyImageChange(id);
