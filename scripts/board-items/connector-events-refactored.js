@@ -136,7 +136,7 @@ class ConnectorStateMachine extends StateMachine {
     // Proximity detection state
     this.proximityDetectionActive = true;
     this.lastProximityUpdate = 0;
-    this.PROXIMITY_THRESHOLD = 100; // pixels
+    this.PROXIMITY_THRESHOLD = 70; // pixels
     this.PROXIMITY_UPDATE_THROTTLE = 16; // ~60fps
     
     this.setupEventListeners();

@@ -80,7 +80,7 @@ export function setupConnectorEvents(boardElement, board, selectionManager, rend
   // Proximity detection state
   let proximityDetectionActive = true; // Start active since we begin in IDLE state
   let lastProximityUpdate = 0;
-  const PROXIMITY_THRESHOLD = 100; // pixels
+  const PROXIMITY_THRESHOLD = 70; // pixels
   const PROXIMITY_UPDATE_THROTTLE = 16; // ~60fps
 
   // Debug mode - controlled by global window.DEBUG_MODE

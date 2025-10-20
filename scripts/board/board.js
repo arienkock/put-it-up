@@ -5,7 +5,7 @@ const DEFAULT_BOARD = {
 
 export function Board(aStore) {
   let store = aStore;
-  let gridSize = 25;
+  let gridSize = 10;
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
@@ -122,7 +122,7 @@ export function Board(aStore) {
     sticky.text = sticky.text || "";
     sticky.text = removeNewlines(sticky.text);
     const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
-    const sizeIncrements = { x: 100, y: 100 };
+    const sizeIncrements = { x: 70, y: 70 };
     const widthPx = sizeIncrements.x * sizeUnits.x;
     const heightPx = sizeIncrements.y * sizeUnits.y;
     sticky.location = snapLocationWithSize(
@@ -172,7 +172,7 @@ export function Board(aStore) {
     const { origin, limit } = getBoardInternal();
     const sticky = store.getSticky(id);
     const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
-    const sizeIncrements = { x: 100, y: 100 };
+    const sizeIncrements = { x: 70, y: 70 };
     const widthPx = sizeIncrements.x * sizeUnits.x;
     const heightPx = sizeIncrements.y * sizeUnits.y;
     newLocation = snapLocationWithSize(
@@ -236,7 +236,7 @@ export function Board(aStore) {
     store.setState(state);
   };
 
-  this.getStickyBaseSize = () => 100;
+  this.getStickyBaseSize = () => 70;
   this.getGridUnit = () => gridSize;
   this.getBoardSize = () => {
     const { origin, limit } = getBoardInternal();
@@ -255,6 +255,7 @@ export function Board(aStore) {
 
   this.moveInBounds = ({ origin, limit }) => {
     const state = store.getState();
+    const sizeIncrements = { x: 70, y: 70 };
     Object.entries(state.stickies).forEach(([id, sticky]) => {
       const oldLocation = sticky.location;
       const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
@@ -274,7 +275,7 @@ export function Board(aStore) {
     const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
     const location = { x: sticky.location.x, y: sticky.location.y };
     const factor = isGrow ? 1 : -1;
-    const sizeIncrements = { x: 100, y: 100 };
+    const sizeIncrements = { x: 70, y: 70 };
     let changed = false;
     switch (side) {
       case "left":
@@ -382,13 +383,14 @@ export function Board(aStore) {
 function snapDimension(x, gridSize) {
   const remainder = x % gridSize;
   x -= remainder;
-  if (remainder > gridSize / 2) {
+  if (remainder >= gridSize / 2) {
     x += gridSize;
   }
   return x;
 }
 
 function snapLocationWithSize(location, gridSize, origin, limit, widthPx, heightPx) {
+  // Snap to grid boundaries for fine positioning
   return {
     x: Math.min(
       limit.x - widthPx,

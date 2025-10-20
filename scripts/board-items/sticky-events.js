@@ -310,7 +310,7 @@ function extractResizeSide(handle) {
   return null;
 }
 
-const STICKY_SIZE = 100; // pixels per size unit
+const STICKY_SIZE = 70; // pixels per size unit
 
 /**
  * Sets up all event handlers for a sticky note

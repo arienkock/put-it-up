@@ -1,5 +1,5 @@
 export const DEFAULT_STICKY_COLOR = "khaki";
-export const STICKY_SIZE = 100; // pixels
+export const STICKY_SIZE = 70; // pixels
 
 /**
  * Applies all styling to a sticky note element

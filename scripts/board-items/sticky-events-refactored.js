@@ -13,7 +13,7 @@ const StickyResizeState = {
   RESIZING: 'resizing'
 };
 
-const STICKY_SIZE = 100; // pixels per size unit
+const STICKY_SIZE = 70; // pixels per size unit
 
 /**
  * Sticky Resize State Machine Implementation
