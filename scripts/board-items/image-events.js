@@ -174,7 +174,14 @@ function createResizeHandler(id, getImageLocation, selectionManager, store) {
       stateData.resizeSide = resizeSide;
       stateData.resizeStart = { x: event.clientX, y: event.clientY };
       
-      const image = store.getImage(id);
+      // Guard against missing image id
+      let image;
+      try {
+        image = store.getImage(id);
+      } catch (e) {
+        console.warn('[ImageWarning] Missing image on resize start, aborting', { id, error: e?.message });
+        return;
+      }
       stateData.originalSize = { width: image.width, height: image.height };
       stateData.aspectRatio = image.naturalWidth / image.naturalHeight;
       
@@ -198,7 +205,13 @@ function createDragHandler(id, getImageLocation, selectionManager, store) {
       
       stateData.imageId = id;
       stateData.dragStart = { x: event.clientX, y: event.clientY };
-      stateData.originalLocation = getImageLocation(id);
+      // Guard against missing image id
+      try {
+        stateData.originalLocation = getImageLocation(id);
+      } catch (e) {
+        console.warn('[ImageWarning] Missing image on drag start, aborting', { id, error: e?.message });
+        return;
+      }
       
       // Select this image
       selectionManager.clearAllSelections();
