@@ -456,6 +456,8 @@ export function setConnectorStyles(
   // Draw the path - check for curve control point and self-loop
   let pathData;
   let arrowOrientation = "auto";
+  let usedSelfLoopPath = false;
+  let selfLoopCenterBoard = null; // {x,y} for arrowhead orientation
 
   // Helper to build a very simple self-loop (two smooth cubic segments via one apex)
   function buildSelfLoopPath() {
@@ -523,6 +525,23 @@ export function setConnectorStyles(
     const loopPath = buildSelfLoopPath();
     if (loopPath) {
       pathData = loopPath;
+      usedSelfLoopPath = true;
+      // Derive center for arrow orientation
+      if (originSticky && destSticky && connector.originId === connector.destinationId) {
+        const sizeX = (originSticky.size && originSticky.size.x) || 1;
+        const sizeY = (originSticky.size && originSticky.size.y) || 1;
+        const objWidth = stickySize * sizeX;
+        const objHeight = stickySize * sizeY;
+        selfLoopCenterBoard = {
+          x: originSticky.location.x - boardOrigin.x + objWidth / 2,
+          y: originSticky.location.y - boardOrigin.y + objHeight / 2
+        };
+      } else if (originImage && destImage && connector.originImageId === connector.destinationImageId) {
+        selfLoopCenterBoard = {
+          x: originImage.location.x - boardOrigin.x + originImage.width / 2,
+          y: originImage.location.y - boardOrigin.y + originImage.height / 2
+        };
+      }
     }
   }
 
@@ -598,10 +617,17 @@ export function setConnectorStyles(
   // Only apply marker-end if arrow head is not "none"
   if (arrowHeadType !== "none") {
     container.path.setAttribute("marker-end", `url(#${markerId})`);
-    // Ensure marker uses auto orientation for correct tangent alignment
     const marker = container.defs.querySelector(`#${markerId}`);
     if (marker) {
-      marker.setAttribute("orient", "auto");
+      if (usedSelfLoopPath) {
+        // For self-loops, force arrowhead to point up (toward the item bottom edge normal)
+        // SVG angles: 0 = right, 90 = down, -90/270 = up
+        const angleDeg = -90;
+        marker.setAttribute("orient", String(angleDeg));
+      } else {
+        // Default automatic orientation along the path
+        marker.setAttribute("orient", "auto");
+      }
     }
   } else {
     container.path.removeAttribute("marker-end");
