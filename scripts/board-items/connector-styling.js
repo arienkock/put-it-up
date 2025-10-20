@@ -439,26 +439,26 @@ export function setConnectorStyles(
         tanCy /= tanLen;
       }
       
-      // Handle lengths as a fraction of segment lengths
-      const handleScale = 0.3;
+      // Use unified handle scales: keep ends straight (0) and control curvature around midpoint
+      const endHandleScale = 0.0; // c1/c4: ends are straight into/out of the curve
+      const midScale = 0.22;      // c2/c3: curvature around the midpoint
       
       // First cubic from start -> control point
-      const c1x = localStartX + dirSCx * (lenSC * handleScale);
-      const c1y = localStartY + dirSCy * (lenSC * handleScale);
-      const c2x = controlX - tanCx * (lenSC * handleScale);
-      const c2y = controlY - tanCy * (lenSC * handleScale);
+      const c1x = localStartX + dirSCx * (lenSC * endHandleScale);
+      const c1y = localStartY + dirSCy * (lenSC * endHandleScale);
+      const c2x = controlX - tanCx * (lenSC * midScale);
+      const c2y = controlY - tanCy * (lenSC * midScale);
       
       // Second cubic from control point -> end
-      const c3x = controlX + tanCx * (lenCE * handleScale);
-      const c3y = controlY + tanCy * (lenCE * handleScale);
-      const c4x = localEndX - dirCEx * (lenCE * handleScale);
-      const c4y = localEndY - dirCEy * (lenCE * handleScale);
+      const c3x = controlX + tanCx * (lenCE * midScale);
+      const c3y = controlY + tanCy * (lenCE * midScale);
+      const c4x = localEndX - dirCEx * (lenCE * endHandleScale);
+      const c4y = localEndY - dirCEy * (lenCE * endHandleScale);
       
       pathData = `M ${localStartX} ${localStartY} C ${c1x} ${c1y} ${c2x} ${c2y} ${controlX} ${controlY} C ${c3x} ${c3y} ${c4x} ${c4y} ${localEndX} ${localEndY}`;
       
-      // Calculate arrowhead orientation based on end tangent (approx with last control to end)
-      const angle = Math.atan2(localEndY - c4y, localEndX - c4x) * 180 / Math.PI;
-      arrowOrientation = angle.toString();
+      // Let marker orient automatically follow the path tangent at the end
+      arrowOrientation = "auto";
     } else {
       // Control point is at midpoint, use straight line
       pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
@@ -473,12 +473,10 @@ export function setConnectorStyles(
   // Only apply marker-end if arrow head is not "none"
   if (arrowHeadType !== "none") {
     container.path.setAttribute("marker-end", `url(#${markerId})`);
-    // Set custom orientation if we calculated one
-    if (arrowOrientation !== "auto") {
-      const marker = container.defs.querySelector(`#${markerId}`);
-      if (marker) {
-        marker.setAttribute("orient", arrowOrientation);
-      }
+    // Ensure marker uses auto orientation for correct tangent alignment
+    const marker = container.defs.querySelector(`#${markerId}`);
+    if (marker) {
+      marker.setAttribute("orient", "auto");
     }
   } else {
     container.path.removeAttribute("marker-end");
