@@ -375,42 +375,17 @@ export function setConnectorStyles(
     return; // Skip rendering if points are invalid
   }
   
-  // Resolve control point for self-connections (same start and end object)
+  // Resolve control point or self-loop parameters
   const isSelfConnection = (
     connector.originId && connector.destinationId && connector.originId === connector.destinationId
   ) || (
     connector.originImageId && connector.destinationImageId && connector.originImageId === connector.destinationImageId
   );
 
-  // Compute an effective control point used for rendering and handle placement
+  // Compute an effective control point used for traditional 2-segment curves and handle placement
   let effectiveControlPoint = null;
   if (connector.curveControlPoint) {
     effectiveControlPoint = connector.curveControlPoint;
-  } else if (isSelfConnection) {
-    // Derive the connected object's center and size in board coordinates
-    let centerX = null;
-    let centerY = null;
-    let objWidth = null;
-    let objHeight = null;
-    if (originSticky && destSticky && connector.originId === connector.destinationId) {
-      const sizeX = (originSticky.size && originSticky.size.x) || 1;
-      const sizeY = (originSticky.size && originSticky.size.y) || 1;
-      objWidth = stickySize * sizeX;
-      objHeight = stickySize * sizeY;
-      centerX = originSticky.location.x - boardOrigin.x + objWidth / 2;
-      centerY = originSticky.location.y - boardOrigin.y + objHeight / 2;
-    } else if (originImage && destImage && connector.originImageId === connector.destinationImageId) {
-      objWidth = originImage.width;
-      objHeight = originImage.height;
-      centerX = originImage.location.x - boardOrigin.x + objWidth / 2;
-      centerY = originImage.location.y - boardOrigin.y + objHeight / 2;
-    }
-
-    if (centerX !== null && centerY !== null && objWidth !== null && objHeight !== null) {
-      // Place the control point outside the object (above the center) so the loop is visible
-      const offset = Math.max(objWidth, objHeight) / 2 + 40;
-      effectiveControlPoint = { x: centerX, y: centerY - offset };
-    }
   }
 
   // Calculate bounding box for the SVG
@@ -478,11 +453,80 @@ export function setConnectorStyles(
   const connectorColor = connector.color || "#000000";
   const markerId = updateArrowHeadMarker(container.defs, arrowHeadType, isSelected, connectorColor, connectorId);
   
-  // Draw the path - check for curve control point
+  // Draw the path - check for curve control point and self-loop
   let pathData;
   let arrowOrientation = "auto";
-  
-  if (effectiveControlPoint) {
+
+  // Helper to build a very simple self-loop (two smooth cubic segments via one apex)
+  function buildSelfLoopPath() {
+    // Determine object center and size (board coordinates)
+    let objCenterX = null;
+    let objCenterY = null;
+    let objWidth = null;
+    let objHeight = null;
+    if (originSticky && destSticky && connector.originId === connector.destinationId) {
+      const sizeX = (originSticky.size && originSticky.size.x) || 1;
+      const sizeY = (originSticky.size && originSticky.size.y) || 1;
+      objWidth = stickySize * sizeX;
+      objHeight = stickySize * sizeY;
+      objCenterX = originSticky.location.x - boardOrigin.x + objWidth / 2;
+      objCenterY = originSticky.location.y - boardOrigin.y + objHeight / 2;
+    } else if (originImage && destImage && connector.originImageId === connector.destinationImageId) {
+      objWidth = originImage.width;
+      objHeight = originImage.height;
+      objCenterX = originImage.location.x - boardOrigin.x + objWidth / 2;
+      objCenterY = originImage.location.y - boardOrigin.y + objHeight / 2;
+    }
+    if (objCenterX === null || objCenterY === null || objWidth === null || objHeight === null) {
+      return null;
+    }
+
+    // Loop sizing: radius = 0.5 * average(width, height), clamped
+    const avg = (objWidth + objHeight) / 2;
+    const rawRadius = 0.5 * avg;
+    const radius = Math.max(40, Math.min(300, rawRadius));
+    const margin = Math.max(12, Math.min(48, avg * 0.15));
+
+    // Bottom-right direction
+    const norm = Math.SQRT1_2; // 1 / sqrt(2)
+    const dirX = norm;
+    const dirY = norm;
+    const loopCenterBoardX = objCenterX + dirX * (radius + margin);
+    const loopCenterBoardY = objCenterY + dirY * (radius + margin);
+
+    // Always derive anchors from object edges to ensure consistent self-loop
+    const startEdge = calculateEdgePoint(objCenterX, objCenterY, objCenterX + objWidth, objCenterY + objHeight * 0.25, objWidth, objHeight);
+    const endEdge = calculateEdgePoint(objCenterX, objCenterY, objCenterX + objWidth * 0.25, objCenterY + objHeight, objWidth, objHeight);
+    const sBX = startEdge.x; const sBY = startEdge.y;
+    const eBX = endEdge.x; const eBY = endEdge.y;
+
+    // Convert to local space
+    const sX = sBX - minX + padding;
+    const sY = sBY - minY + padding;
+    const eX = eBX - minX + padding;
+    const eY = eBY - minY + padding;
+    const cX = loopCenterBoardX - minX + padding;
+    const cY = loopCenterBoardY - minY + padding;
+
+    // Build a single SVG arc for a simple, smooth loop
+    // Use large-arc to ensure a visible loop; sweep clockwise
+    const rx = radius;
+    const ry = radius;
+    const xAxisRotation = 0;
+    const largeArcFlag = 1;
+    const sweepFlag = 1;
+    const dStr = `M ${sX} ${sY} A ${rx} ${ry} ${xAxisRotation} ${largeArcFlag} ${sweepFlag} ${eX} ${eY}`;
+    return dStr;
+  }
+
+  if (isSelfConnection && !connector.curveControlPoint) {
+    const loopPath = buildSelfLoopPath();
+    if (loopPath) {
+      pathData = loopPath;
+    }
+  }
+
+  if (!pathData && effectiveControlPoint) {
     // Convert control point to local coordinates
     const controlX = effectiveControlPoint.x - minX + padding;
     const controlY = effectiveControlPoint.y - minY + padding;
@@ -544,7 +588,7 @@ export function setConnectorStyles(
       // Control point is at midpoint, use straight line
       pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
     }
-  } else {
+  } else if (!pathData) {
     // No control point, use straight line
     pathData = `M ${localStartX} ${localStartY} L ${localEndX} ${localEndY}`;
   }

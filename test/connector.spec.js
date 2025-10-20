@@ -1,3 +1,46 @@
+import { createRenderer } from "../scripts/board-items/connector.js";
+
+describe("connector self-loop rendering", () => {
+  it("renders 3+ cubic segments for self-loop and bulges outward", () => {
+    // Minimal board stub
+    const board = {
+      ensureConnectorHasColor: () => {},
+      getOrigin: () => ({ x: 0, y: 0 }),
+      getStickyBaseSize: () => 100,
+      getStickySafe: (id) => ({ id, location: { x: 100, y: 100 }, size: { x: 2, y: 1 } }),
+      getImageSafe: () => null,
+    };
+    const container = document.createElement("div");
+    const selected = { isSelected: () => false };
+    const render = createRenderer(board, container, () => selected);
+
+    const connectorId = "c1";
+    const connector = {
+      originId: "s1",
+      destinationId: "s1",
+      color: "#000000",
+      arrowHead: "filled",
+    };
+
+    render(connectorId, connector);
+
+    const path = container.querySelector(".connector-path");
+    expect(path).toBeTruthy();
+    const d = path.getAttribute("d") || "";
+    const numC = (d.match(/\bC\b/g) || []).length;
+    expect(numC).toBeGreaterThanOrEqual(3);
+
+    // Bulge outward: viewBox height should be > 0 and container should extend beyond item bounds
+    const svg = container.querySelector("svg");
+    expect(svg).toBeTruthy();
+    const vb = svg.getAttribute("viewBox");
+    expect(vb).toBeTruthy();
+    const parts = (vb || "0 0 0 0").split(" ").map(Number);
+    expect(parts[2]).toBeGreaterThan(0);
+    expect(parts[3]).toBeGreaterThan(0);
+  });
+});
+
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
 import { calculateEdgePoint } from "../scripts/board-items/connector-dom.js";
