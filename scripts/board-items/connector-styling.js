@@ -346,6 +346,44 @@ export function setConnectorStyles(
     return; // Skip rendering if points are invalid
   }
   
+  // Resolve control point for self-connections (same start and end object)
+  const isSelfConnection = (
+    connector.originId && connector.destinationId && connector.originId === connector.destinationId
+  ) || (
+    connector.originImageId && connector.destinationImageId && connector.originImageId === connector.destinationImageId
+  );
+
+  // Compute an effective control point used for rendering and handle placement
+  let effectiveControlPoint = null;
+  if (connector.curveControlPoint) {
+    effectiveControlPoint = connector.curveControlPoint;
+  } else if (isSelfConnection) {
+    // Derive the connected object's center and size in board coordinates
+    let centerX = null;
+    let centerY = null;
+    let objWidth = null;
+    let objHeight = null;
+    if (originSticky && destSticky && connector.originId === connector.destinationId) {
+      const sizeX = (originSticky.size && originSticky.size.x) || 1;
+      const sizeY = (originSticky.size && originSticky.size.y) || 1;
+      objWidth = stickySize * sizeX;
+      objHeight = stickySize * sizeY;
+      centerX = originSticky.location.x - boardOrigin.x + objWidth / 2;
+      centerY = originSticky.location.y - boardOrigin.y + objHeight / 2;
+    } else if (originImage && destImage && connector.originImageId === connector.destinationImageId) {
+      objWidth = originImage.width;
+      objHeight = originImage.height;
+      centerX = originImage.location.x - boardOrigin.x + objWidth / 2;
+      centerY = originImage.location.y - boardOrigin.y + objHeight / 2;
+    }
+
+    if (centerX !== null && centerY !== null && objWidth !== null && objHeight !== null) {
+      // Place the control point outside the object (above the center) so the loop is visible
+      const offset = Math.max(objWidth, objHeight) / 2 + 40;
+      effectiveControlPoint = { x: centerX, y: centerY - offset };
+    }
+  }
+
   // Calculate bounding box for the SVG
   let minX = Math.min(startPoint.x, endPoint.x);
   let minY = Math.min(startPoint.y, endPoint.y);
@@ -353,11 +391,11 @@ export function setConnectorStyles(
   let maxY = Math.max(startPoint.y, endPoint.y);
   
   // Include curve control point in bounding box if it exists
-  if (connector.curveControlPoint) {
-    minX = Math.min(minX, connector.curveControlPoint.x);
-    minY = Math.min(minY, connector.curveControlPoint.y);
-    maxX = Math.max(maxX, connector.curveControlPoint.x);
-    maxY = Math.max(maxY, connector.curveControlPoint.y);
+  if (effectiveControlPoint) {
+    minX = Math.min(minX, effectiveControlPoint.x);
+    minY = Math.min(minY, effectiveControlPoint.y);
+    maxX = Math.max(maxX, effectiveControlPoint.x);
+    maxY = Math.max(maxY, effectiveControlPoint.y);
   }
   
   // Add padding for arrow head and handles
@@ -401,10 +439,10 @@ export function setConnectorStyles(
   let pathData;
   let arrowOrientation = "auto";
   
-  if (connector.curveControlPoint) {
+  if (effectiveControlPoint) {
     // Convert control point to local coordinates
-    const controlX = connector.curveControlPoint.x - minX + padding;
-    const controlY = connector.curveControlPoint.y - minY + padding;
+    const controlX = effectiveControlPoint.x - minX + padding;
+    const controlY = effectiveControlPoint.y - minY + padding;
     
     // Check if control point is different from midpoint (to avoid unnecessary segments)
     const controlDistanceFromMidpoint = Math.sqrt(
@@ -485,7 +523,7 @@ export function setConnectorStyles(
   container.path.style.pointerEvents = "all"; // Allow clicks on the path
   
   // Add handles for unconnected endpoints
-  updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected, startPoint, endPoint);
+  updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected, startPoint, endPoint, effectiveControlPoint);
   
   // Update selection state and color
   if (isSelected) {
@@ -502,7 +540,7 @@ export function setConnectorStyles(
 /**
  * Updates or creates handles for unconnected connector endpoints
  */
-function updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected, startPoint, endPoint) {
+function updateConnectorHandles(container, connector, localStartX, localStartY, localEndX, localEndY, isSelected, startPoint, endPoint, effectiveControlPoint) {
   const svg = container.svg;
   
   // Remove existing handles
@@ -535,6 +573,10 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     originHandle.setAttribute("cursor", "grab");
     originHandle.setAttribute("data-handle-position", `${boardStartX},${boardStartY}`);
     originHandle.style.pointerEvents = "all";
+    // Ensure handles are visible immediately for selected connectors
+    if (isSelected) {
+      originHandle.classList.remove("connector-handle-hidden");
+    }
     svg.appendChild(originHandle);
   }
   
@@ -553,6 +595,10 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     destHandle.setAttribute("cursor", "grab");
     destHandle.setAttribute("data-handle-position", `${boardEndX},${boardEndY}`);
     destHandle.style.pointerEvents = "all";
+    // Ensure handles are visible immediately for selected connectors
+    if (isSelected) {
+      destHandle.classList.remove("connector-handle-hidden");
+    }
     svg.appendChild(destHandle);
   }
   
@@ -573,6 +619,12 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
     curveHandleY = connector.curveControlPoint.y + offsetY;
     curveHandleBoardX = connector.curveControlPoint.x;
     curveHandleBoardY = connector.curveControlPoint.y;
+  } else if (effectiveControlPoint) {
+    // Use computed effective control point (e.g., for self-connections)
+    curveHandleX = effectiveControlPoint.x + offsetX;
+    curveHandleY = effectiveControlPoint.y + offsetY;
+    curveHandleBoardX = effectiveControlPoint.x;
+    curveHandleBoardY = effectiveControlPoint.y;
   } else {
     // Use midpoint
     curveHandleX = midpointX;
@@ -594,6 +646,10 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   curveHandle.setAttribute("cursor", "grab");
   curveHandle.setAttribute("data-handle-position", `${curveHandleBoardX},${curveHandleBoardY}`);
   curveHandle.style.pointerEvents = "all";
+  // Ensure handles are visible immediately for selected connectors
+  if (isSelected) {
+    curveHandle.classList.remove("connector-handle-hidden");
+  }
   svg.appendChild(curveHandle);
 }
 
