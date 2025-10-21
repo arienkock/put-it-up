@@ -125,23 +125,32 @@ describe("Board UI", () => {
       expect(await page.locator(".sticky").count()).toBe(2);
     });
 
-    it("moves with drag and drop", async () => {
+    it("moves with custom drag", async () => {
       await page.waitForSelector(".sticky-1 .sticky");
-      const dragDestination = { x: 205, y: 355 };
-      await dragAndDrop(".sticky-1 .sticky", ".board", {
-        x: 10,
-        y: 140,
-        height: 0,
-        width: 0,
-      });
-      await thingsSettleDown();
       const sticky = page.locator(".sticky-1 .sticky");
-      await page.waitForSelector(".sticky-1 .sticky");
-      const stickyLocation = await sticky.boundingBox();
-      expect(stickyLocation).toBeInTheVicinityOf(
-        dragDestination,
-        15 // Increased tolerance for 10px grid
-      );
+      const initialBox = await sticky.boundingBox();
+      
+      // Drag to new position
+      const destinationX = initialBox.x + 100;
+      const destinationY = initialBox.y + 50;
+      
+      // Start drag with mousedown
+      await page.mouse.move(initialBox.x + initialBox.width / 2, initialBox.y + initialBox.height / 2);
+      await page.mouse.down();
+      await thingsSettleDown();
+      
+      // Move to destination
+      await page.mouse.move(destinationX, destinationY);
+      await thingsSettleDown();
+      
+      // End drag with mouseup
+      await page.mouse.up();
+      await thingsSettleDown();
+      
+      // Verify position changed
+      const finalBox = await sticky.boundingBox();
+      expect(finalBox.x).toBeCloseTo(destinationX - initialBox.width / 2, 10);
+      expect(finalBox.y).toBeCloseTo(destinationY - initialBox.height / 2, 10);
     });
 
     it("moves sticky with arrow keys when selected", async () => {
@@ -554,90 +563,7 @@ async function scrollBoardIntoView() {
   });
 }
 
-async function dragAndDrop(
-  sourceSelector,
-  destinationSelector,
-  destinationBox
-) {
-  const sourceElement = page.locator(sourceSelector);
-  const sourceBox = await sourceElement.boundingBox();
-
-  await page.evaluate(
-    ({ ss, ds, sb, db }) => {
-      const source = document.querySelector(ss);
-      const destination = document.querySelector(ds);
-
-      const sourceX = sb.x + sb.width / 2;
-      const sourceY = sb.y + sb.height / 2;
-      const destinationX = db.x + db.width / 2;
-      const destinationY = db.y + db.height / 2;
-
-      source.dispatchEvent(
-        new MouseEvent("mousedown", {
-          bubbles: true,
-          cancelable: true,
-          screenX: sourceX,
-          screenY: sourceY,
-          clientX: sourceX,
-          clientY: sourceY,
-        })
-      );
-
-      const dragStartEvent = new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer: new DataTransfer(),
-      });
-      source.dispatchEvent(dragStartEvent);
-
-      destination.dispatchEvent(
-        new MouseEvent("mousemove", {
-          bubbles: true,
-          cancelable: true,
-          screenX: destinationX,
-          screenY: destinationY,
-          clientX: destinationX,
-          clientY: destinationY,
-        })
-      );
-
-      destination.dispatchEvent(
-        new MouseEvent("mouseup", {
-          bubbles: true,
-          cancelable: true,
-          screenX: destinationX,
-          screenY: destinationY,
-          clientX: destinationX,
-          clientY: destinationY,
-        })
-      );
-
-      destination.dispatchEvent(
-        new DragEvent("drop", {
-          bubbles: true,
-          cancelable: true,
-          screenX: destinationX,
-          screenY: destinationY,
-          clientX: destinationX,
-          clientY: destinationY,
-          dataTransfer: dragStartEvent.dataTransfer,
-        })
-      );
-
-      source.dispatchEvent(
-        new DragEvent("dragend", {
-          bubbles: true,
-          cancelable: true,
-          screenX: destinationX,
-          screenY: destinationY,
-          clientX: destinationX,
-          clientY: destinationY,
-        })
-      );
-    },
-    { ss: sourceSelector, ds: destinationSelector, sb: sourceBox, db: destinationBox }
-  );
-}
+// Old HTML5 drag function removed - now using custom drag implementation
 
 async function getComputedFontSize(selector) {
   const fontSize = await page.evaluate(

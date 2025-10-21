@@ -1,5 +1,6 @@
 import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
 import { createStateConfig } from "../ui/state-config-pattern.js";
+import { calculateMovementDelta } from "../ui/movement-utils.js";
 
 /**
  * Image State Machine
@@ -311,16 +312,21 @@ class ImageStateMachine extends StateMachine {
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
-    const dx = event.clientX - this.stateData.dragStart.x;
-    const dy = event.clientY - this.stateData.dragStart.y;
+    const delta = calculateMovementDelta(
+      this.stateData.dragStart.x,
+      this.stateData.dragStart.y,
+      event.clientX,
+      event.clientY,
+      boardScale
+    );
     
-    // Convert pixel movement to board coordinates by dividing by scale
+    // Convert pixel movement to board coordinates
     const newLocation = {
-      x: this.stateData.originalLocation.x + dx / boardScale,
-      y: this.stateData.originalLocation.y + dy / boardScale
+      x: this.stateData.originalLocation.x + delta.dx,
+      y: this.stateData.originalLocation.y + delta.dy
     };
     
-    // Move the image (this will be handled by the board)
+    // Move the image using board.moveImage for consistency
     window.board.moveImage(this.stateData.imageId, newLocation);
   }
   

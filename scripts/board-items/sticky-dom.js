@@ -16,7 +16,7 @@ export function createStickyContainerDOM(stickyIdClass) {
   container.inputElement = container.querySelector(".text-input");
   container.sticky = container.querySelector(".sticky");
   container.classList.add("sticky-container");
-  container.sticky.setAttribute("draggable", "true");
+  // Custom drag is now handled by the state machine - no HTML5 draggable needed
   return container;
 }
 

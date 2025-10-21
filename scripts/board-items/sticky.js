@@ -1,9 +1,8 @@
 import { fitContentInSticky } from "./text-fitting.js";
 import { createStickyContainerDOM, removePx } from "./sticky-dom.js";
 import { setStickyStyles, DEFAULT_STICKY_COLOR } from "./sticky-styling.js";
-import { setupStickyEvents } from "./sticky-events.js";
+import { setupStickyEvents } from "./sticky-events-refactored.js";
 
-export const STICKY_TYPE = "application/sticky";
 export { DEFAULT_STICKY_COLOR };
 
 export const createRenderer = (

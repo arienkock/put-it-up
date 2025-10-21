@@ -55,7 +55,6 @@ Future changes:
 
 import {
   createRenderer,
-  STICKY_TYPE,
   DEFAULT_STICKY_COLOR,
 } from "../board-items/sticky.js";
 import {
@@ -258,29 +257,8 @@ export function mount(board, root, Observer, store) {
     );
   }
 
-  domElement.ondragover = (event) => {
-    event.preventDefault();
-  };
-
-  domElement.ondrop = (event) => {
-    const { pageX: x, pageY: y } = event;
-    const { originalLocations, dragStart } = JSON.parse(
-      event.dataTransfer.getData(STICKY_TYPE)
-    );
-    const offset = {
-      x: (x - dragStart.x) / appState.ui.boardScale,
-      y: (y - dragStart.y) / appState.ui.boardScale,
-    };
-    Object.keys(originalLocations).forEach((id) => {
-      const originalLocation = originalLocations[id];
-      const newLocation = {
-        x: originalLocation.x + offset.x,
-        y: originalLocation.y + offset.y,
-      };
-      appState.ui.stickiesMovedByDragging.push(id);
-      board.moveSticky(id, newLocation);
-    });
-  };
+  // Custom drag is now handled by individual item state machines
+  // No HTML5 drop handlers needed
 
   // Set up keyboard handlers
   setupKeyboardHandlers(board, selectedStickies, selectedConnectors, selectedImages, appState, {

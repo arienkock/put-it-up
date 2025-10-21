@@ -2,6 +2,7 @@ import { StateMachine } from "./state-machine-base.js";
 import { createStateConfig } from "./state-config-pattern.js";
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor } from "./color-management.js";
+import { moveSelection } from "./movement-utils.js";
 
 /**
  * Centralized Keyboard State Machine
@@ -180,30 +181,10 @@ class KeyboardStateMachine extends StateMachine {
   }
   
   /**
-   * Helper function to move selected items
+   * Helper function to move selected items using movement-utils
    */
   moveSelection(dx, dy) {
-    this.selectedStickies.forEach((sid) => {
-      const originalLocation = this.board.getStickyLocation(sid);
-      const newLocation = {
-        x: originalLocation.x + dx,
-        y: originalLocation.y + dy,
-      };
-      this.board.moveSticky(sid, newLocation);
-    });
-    
-    this.selectedImages.forEach((iid) => {
-      const originalLocation = this.board.getImageLocation(iid);
-      const newLocation = {
-        x: originalLocation.x + dx,
-        y: originalLocation.y + dy,
-      };
-      this.board.moveImage(iid, newLocation);
-    });
-    
-    this.selectedConnectors.forEach((cid) => {
-      this.board.moveConnector(cid, dx, dy);
-    });
+    moveSelection(dx, dy, this.board, this.selectedStickies, this.selectedImages, this.selectedConnectors);
   }
   
   /**
