@@ -353,3 +353,8 @@ body {
 .image-container .resize-handle:hover {
   background-color: #2a2a9e;
 }
+
+.image-container.selected {
+  outline: 3px solid rgba(70, 70, 216, 0.7);
+  outline-offset: -3px;
+}

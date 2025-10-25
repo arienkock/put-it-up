@@ -1,6 +1,8 @@
 // Image Events Refactored Implementation
 // Based on the refactoring plan to eliminate scattered boolean flags and improve maintainability
 
+import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-utils.js";
+
 // Centralized state machine
 const ImageState = {
   IDLE: 'idle',
@@ -36,7 +38,7 @@ let currentState = ImageState.IDLE;
 let stateData = {
   imageId: null,
   dragStart: null,
-  originalLocation: null,
+  originalLocations: {},
   resizeSide: null,
   originalSize: null,
   aspectRatio: null,
@@ -104,7 +106,7 @@ function transitionState(newState, reason, data = {}) {
       stateData = {
         imageId: null,
         dragStart: null,
-        originalLocation: null,
+        originalLocations: {},
         resizeSide: null,
         originalSize: null,
         aspectRatio: null,
@@ -200,24 +202,70 @@ function createDragHandler(id, getImageLocation, selectionManager, store) {
     },
     
     onMouseDown: (event, stateData) => {
-      event.preventDefault();
-      event.stopPropagation();
+      // Store drag start info but don't prevent events yet
+      // Let click events fire normally for selection
       
       stateData.imageId = id;
       stateData.dragStart = { x: event.clientX, y: event.clientY };
-      // Guard against missing image id
-      try {
-        stateData.originalLocation = getImageLocation(id);
-      } catch (e) {
-        console.warn('[ImageWarning] Missing image on drag start, aborting', { id, error: e?.message });
-        return;
+      
+      // Check if this image is part of a multi-selection
+      const selectedImages = selectionManager.getSelection('images');
+      if (selectedImages && selectedImages.isSelected(id)) {
+        // Multi-selection: store all selected image locations
+        stateData.originalLocations = {};
+        selectedImages.forEach((imageId) => {
+          try {
+            stateData.originalLocations[imageId] = getImageLocation(imageId);
+          } catch (e) {
+            console.warn('[ImageWarning] Missing image location', { imageId, error: e?.message });
+          }
+        });
+        // Don't clear selection - preserve it for multi-drag
+      } else {
+        // Single image: store only this image location
+        stateData.originalLocations = {};
+        try {
+          stateData.originalLocations[id] = getImageLocation(id);
+        } catch (e) {
+          console.warn('[ImageWarning] Missing image on drag start, aborting', { id, error: e?.message });
+          return;
+        }
       }
       
-      // Select this image
-      selectionManager.clearAllSelections();
-      selectionManager.getSelection('images').replaceSelection(id);
+      // Set up mousemove listener to detect actual drag
+      const handleMouseMove = (moveEvent) => {
+        const dx = moveEvent.clientX - stateData.dragStart.x;
+        const dy = moveEvent.clientY - stateData.dragStart.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // If mouse moved more than 5 pixels, start drag
+        if (distance > 5) {
+          // Remove the temporary listener
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+          
+          // Only clear/replace selection if image wasn't already selected
+          if (!selectedImages || !selectedImages.isSelected(id)) {
+            selectionManager.clearAllSelections();
+            selectionManager.getSelection('images').replaceSelection(id);
+          }
+          
+          // Now prevent events and start drag
+          moveEvent.preventDefault();
+          moveEvent.stopPropagation();
+          transitionState(ImageState.DRAGGING, 'drag started');
+        }
+      };
       
-      transitionState(ImageState.DRAGGING, 'drag started');
+      const handleMouseUp = () => {
+        // Remove listeners if mouse is released without dragging
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+      
+      // Add temporary listeners
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
     }
   };
 }
@@ -268,8 +316,7 @@ const HANDLER_PRIORITY = [
   'selectionHandler',  // Lowest - only if in connector mode
 ];
 
-// Handler registry - will be populated per image instance
-let imageHandlers = {};
+// Handler registry removed - now instance-specific per image
 
 // Global references for mouse move handlers
 let globalStore = null;
@@ -281,17 +328,20 @@ function handleImageDrag(event) {
   const appState = globalStore.getAppState();
   const boardScale = appState.ui.boardScale || 1;
   
-  const dx = event.clientX - stateData.dragStart.x;
-  const dy = event.clientY - stateData.dragStart.y;
+  // Calculate movement delta using movement utils
+  const delta = calculateMovementDelta(
+    stateData.dragStart.x,
+    stateData.dragStart.y,
+    event.clientX,
+    event.clientY,
+    boardScale
+  );
   
-  // Convert pixel movement to board coordinates by dividing by scale
-  const newLocation = {
-    x: stateData.originalLocation.x + dx / boardScale,
-    y: stateData.originalLocation.y + dy / boardScale
-  };
-  
-  // Move the image (this will be handled by the board)
-  window.board.moveImage(stateData.imageId, newLocation);
+  // Move all images in the selection
+  Object.keys(stateData.originalLocations).forEach((imageId) => {
+    const originalLocation = stateData.originalLocations[imageId];
+    moveItemFromOriginal(imageId, originalLocation, delta.dx, delta.dy, window.board, 'image');
+  });
 }
 
 // Mouse up handler for dragging
@@ -359,8 +409,8 @@ export function setupImageEvents(
   // Store global reference for mouse move handlers
   globalStore = store;
   
-  // Create handlers for this specific image instance
-  imageHandlers = {
+  // Create handlers for this specific image instance - each image gets its own handlers
+  const imageHandlers = {
     resizeHandler: createResizeHandler(id, getImageLocation, selectionManager, store),
     dragHandler: createDragHandler(id, getImageLocation, selectionManager, store),
     normalSelectionHandler: createNormalSelectionHandler(id, getImageLocation, selectionManager, store),
@@ -404,7 +454,6 @@ export {
   currentState,
   stateData,
   transitionState,
-  imageHandlers,
   HANDLER_PRIORITY,
   setListeners,
   clearAllListeners
