@@ -1,6 +1,6 @@
 import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
 import { createStateConfig } from "../ui/state-config-pattern.js";
-import { calculateMovementDelta } from "../ui/movement-utils.js";
+import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-utils.js";
 
 /**
  * Image State Machine
@@ -210,13 +210,28 @@ class ImageStateMachine extends StateMachine {
           event.preventDefault();
           event.stopPropagation();
           
+          const appState = this.store.getAppState();
+          const boardScale = appState.ui.boardScale || 1;
+          
           stateData.imageId = this.id;
           stateData.dragStart = { x: event.clientX, y: event.clientY };
-          stateData.originalLocation = this.getImageLocation(this.id);
+          stateData.boardScale = boardScale;
+          stateData.originalLocations = {};
           
-          // Select this image
-          this.selectionManager.clearAllSelections();
-          this.selectionManager.getSelection('images').replaceSelection(this.id);
+          // Get original locations for all selected images
+          const selectedImages = this.selectionManager.getSelection('images');
+          if (selectedImages && selectedImages.isSelected(this.id)) {
+            // Multi-selection drag: preserve selection and get all locations
+            selectedImages.forEach((iid) => {
+              const image = this.store.getImage(iid);
+              stateData.originalLocations[iid] = image.location;
+            });
+          } else {
+            // Single drag: clear other selections and store only this image
+            this.selectionManager.clearAllSelections();
+            this.selectionManager.getSelection('images').replaceSelection(this.id);
+            stateData.originalLocations[this.id] = this.getImageLocation(this.id);
+          }
           
           this.transitionTo(ImageState.DRAGGING, 'drag started');
         }
@@ -309,25 +324,19 @@ class ImageStateMachine extends StateMachine {
   handleImageDrag(event) {
     if (this.currentState !== ImageState.DRAGGING) return;
     
-    const appState = this.store.getAppState();
-    const boardScale = appState.ui.boardScale || 1;
-    
     const delta = calculateMovementDelta(
       this.stateData.dragStart.x,
       this.stateData.dragStart.y,
       event.clientX,
       event.clientY,
-      boardScale
+      this.stateData.boardScale
     );
     
-    // Convert pixel movement to board coordinates
-    const newLocation = {
-      x: this.stateData.originalLocation.x + delta.dx,
-      y: this.stateData.originalLocation.y + delta.dy
-    };
-    
-    // Move the image using board.moveImage for consistency
-    window.board.moveImage(this.stateData.imageId, newLocation);
+    // Move all selected images using movement utils
+    Object.keys(this.stateData.originalLocations).forEach((id) => {
+      const originalLocation = this.stateData.originalLocations[id];
+      moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, window.board, 'image');
+    });
   }
   
   // Mouse up handler for dragging

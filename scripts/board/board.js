@@ -228,6 +228,15 @@ export function Board(aStore) {
       };
       store.updateConnectorEndpoint(id, 'destination', { point: newDestinationPoint });
     }
+    
+    // Always move the curve handle if it exists
+    if (connector.curveControlPoint) {
+      const newCurveControlPoint = {
+        x: connector.curveControlPoint.x + deltaX,
+        y: connector.curveControlPoint.y + deltaY
+      };
+      store.updateCurveControlPoint(id, newCurveControlPoint);
+    }
   };
 
   this.getState = () => store.getState();

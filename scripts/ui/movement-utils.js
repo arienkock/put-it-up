@@ -133,3 +133,35 @@ export function constrainToBoardBoundaries(x, y, board) {
     y: Math.max(0, Math.min(y, boardSize.height))
   };
 }
+
+/**
+ * Move item from original location by delta
+ * Used for drag operations where we track original position
+ * 
+ * @param {string} id - Item ID
+ * @param {Object} originalLocation - Original location {x, y}
+ * @param {number} dx - Delta X movement
+ * @param {number} dy - Delta Y movement
+ * @param {Object} board - Board instance
+ * @param {string} type - Item type ('sticky', 'image', 'connector')
+ */
+export function moveItemFromOriginal(id, originalLocation, dx, dy, board, type) {
+  const newLocation = {
+    x: originalLocation.x + dx,
+    y: originalLocation.y + dy
+  };
+  
+  switch (type) {
+    case 'sticky':
+      board.moveSticky(id, newLocation);
+      break;
+    case 'image':
+      board.moveImage(id, newLocation);
+      break;
+    case 'connector':
+      board.moveConnector(id, dx, dy);
+      break;
+    default:
+      console.warn(`Unknown item type for movement: ${type}`);
+  }
+}

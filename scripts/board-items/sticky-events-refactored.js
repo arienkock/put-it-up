@@ -2,7 +2,7 @@ import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js
 import { createStateConfig } from "../ui/state-config-pattern.js";
 import { fitContentInSticky } from "./text-fitting.js";
 import { SelectionManager } from "../ui/selection-manager.js";
-import { moveItem, calculateMovementDelta } from "../ui/movement-utils.js";
+import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-utils.js";
 
 /**
  * Sticky Resize State Machine
@@ -426,16 +426,10 @@ class StickyResizeStateMachine extends StateMachine {
       this.stateData.boardScale
     );
     
-    // Move all selected stickies
+    // Move all selected stickies using movement utils
     Object.keys(this.stateData.originalLocations).forEach((id) => {
       const originalLocation = this.stateData.originalLocations[id];
-      const newLocation = {
-        x: originalLocation.x + delta.dx,
-        y: originalLocation.y + delta.dy
-      };
-      
-      // Use board.moveSticky for consistent movement
-      window.board.moveSticky(id, newLocation);
+      moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, window.board, 'sticky');
     });
   }
   

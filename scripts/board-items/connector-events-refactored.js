@@ -1,5 +1,6 @@
 import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
 import { createStateConfig } from "../ui/state-config-pattern.js";
+import { moveItem, calculateMovementDelta } from "../ui/movement-utils.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 
@@ -572,10 +573,7 @@ class ConnectorStateMachine extends StateMachine {
           const appState = this.store.getAppState();
           const boardScale = appState.ui.boardScale || 1;
           
-          stateData.dragStartPoint = {
-            x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
-            y: (event.clientY - rect.top) / boardScale - boardOrigin.y
-          };
+          stateData.dragStart = { x: event.clientX, y: event.clientY };
           
           this.transitionTo(ConnectorState.DRAGGING_DISCONNECTED, 'disconnected connector drag started');
         }
@@ -926,41 +924,23 @@ class ConnectorStateMachine extends StateMachine {
   handleDisconnectedConnectorDrag(event) {
     if (this.currentState !== ConnectorState.DRAGGING_DISCONNECTED || !this.stateData.connectorId) return;
     
-    const rect = this.boardElement.getBoundingClientRect();
-    const boardOrigin = this.board.getOrigin();
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
-    // Validate coordinates
-    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
-        isNaN(event.clientX) || isNaN(event.clientY) ||
-        !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
-        isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
-      console.warn('Invalid mouse coordinates or board origin during disconnected connector drag:', { 
-        clientX: event.clientX, 
-        clientY: event.clientY, 
-        boardOrigin 
-      });
-      return;
-    }
+    const delta = calculateMovementDelta(
+      this.stateData.dragStart.x,
+      this.stateData.dragStart.y,
+      event.clientX,
+      event.clientY,
+      boardScale
+    );
     
-    const currentPoint = {
-      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
-      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
-    };
-    
-    // Calculate the delta from the start point
-    const deltaX = currentPoint.x - this.stateData.dragStartPoint.x;
-    const deltaY = currentPoint.y - this.stateData.dragStartPoint.y;
-    
-    // Only start dragging if we've moved a minimum distance (to distinguish from clicks)
-    const minDragDistance = 5; // pixels
-    if (Math.abs(deltaX) > minDragDistance || Math.abs(deltaY) > minDragDistance) {
-      // Move the connector
-      this.board.moveConnector(this.stateData.connectorId, deltaX, deltaY);
-      
-      // Update the drag start point for smooth dragging
-      this.stateData.dragStartPoint = currentPoint;
+    // Only move if minimum distance threshold met
+    const minDragDistance = 5;
+    if (Math.abs(delta.dx) > minDragDistance || Math.abs(delta.dy) > minDragDistance) {
+      moveItem(this.stateData.connectorId, delta.dx, delta.dy, this.board, 'connector');
+      // Update drag start for smooth continuous dragging
+      this.stateData.dragStart = { x: event.clientX, y: event.clientY };
     }
   }
 
