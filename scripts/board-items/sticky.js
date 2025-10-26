@@ -1,7 +1,8 @@
 import { fitContentInSticky } from "./text-fitting.js";
-import { createStickyContainerDOM, removePx } from "./sticky-dom.js";
+import { createStickyContainerDOM } from "./sticky-dom.js";
 import { setStickyStyles, DEFAULT_STICKY_COLOR } from "./sticky-styling.js";
 import { setupStickyEvents } from "./sticky-events.js";
+import { reorderBoardElements } from "./z-order-manager.js";
 
 export { DEFAULT_STICKY_COLOR };
 
@@ -111,56 +112,3 @@ function getStickyElement(
   return container;
 }
 
-/**
- * Reorders board elements to ensure proper z-order:
- * Connectors first, then stickies (by position)
- * Only called when elements are added or removed to avoid unnecessary DOM manipulation
- */
-function reorderBoardElements(domElement) {
-  const elementsOnBoard = [...domElement.children];
-  const activeElement = document.activeElement;
-  let shouldRefocus = false;
-  if (elementsOnBoard.some((el) => el.contains(activeElement))) {
-    shouldRefocus = true;
-  }
-  elementsOnBoard.sort((a, b) => {
-    const aIsConnector = a.classList.contains("connector-container");
-    const bIsConnector = b.classList.contains("connector-container");
-    const aIsImage = a.classList.contains("image-container");
-    const bIsImage = b.classList.contains("image-container");
-    
-    // Connectors first, then stickies, then images
-    if (aIsConnector && !bIsConnector) return -1;
-    if (!aIsConnector && bIsConnector) return 1;
-    if (aIsImage && !bIsImage) return 1;
-    if (!aIsImage && bIsImage) return -1;
-    
-    // Both same type - sort by position
-    const aTop = removePx(a.style.top);
-    const bTop = removePx(b.style.top);
-    const aLeft = removePx(a.style.left);
-    const bLeft = removePx(b.style.left);
-    
-    // Validate that positions are valid numbers
-    if (isNaN(aTop) || isNaN(bTop) || isNaN(aLeft) || isNaN(bLeft)) {
-      // If positions are invalid, maintain current order
-      return 0;
-    }
-    
-    let yDif = aTop - bTop;
-    if (yDif === 0) {
-      const xDif = aLeft - bLeft;
-      if (xDif === 0) {
-        return b.className > a.className;
-      }
-      return xDif;
-    }
-    return yDif;
-  });
-  // Reorder elements by removing all and adding back in sorted order
-  elementsOnBoard.forEach((el) => domElement.removeChild(el));
-  elementsOnBoard.forEach((el) => domElement.appendChild(el));
-  if (shouldRefocus) {
-    activeElement.focus();
-  }
-}

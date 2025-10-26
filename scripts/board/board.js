@@ -46,6 +46,27 @@ export function Board(aStore) {
     return image;
   };
 
+  /**
+   * Generic method to get any board item (sticky or image) by ID.
+   * Returns null if item doesn't exist or ID is invalid.
+   * 
+   * @param {string} id - The item ID
+   * @returns {Object|null} Item data object or null
+   */
+  this.getBoardItem = (id) => {
+    if (!id) return null;
+    
+    // Try sticky first
+    const sticky = this.getStickySafe(id);
+    if (sticky) return sticky;
+    
+    // Try image
+    const image = this.getImageSafe(id);
+    if (image) return image;
+    
+    return null;
+  };
+
   this.putConnector = (connector) => {
     const id = store.createConnector(connector);
     return id;

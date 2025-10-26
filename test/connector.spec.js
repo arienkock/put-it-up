@@ -10,8 +10,9 @@ describe("connector self-loop rendering", () => {
       ensureConnectorHasColor: () => {},
       getOrigin: () => ({ x: 0, y: 0 }),
       getStickyBaseSize: () => 70,
-      getStickySafe: (id) => ({ id, location: { x: 100, y: 100 }, size: { x: 2, y: 1 } }),
+      getStickySafe: (id) => ({ id, location: { x: 100, y: 100 }, size: { x: 2, y: 1 }, text: "" }),
       getImageSafe: () => null,
+      getBoardItem: (id) => ({ id, location: { x: 100, y: 100 }, size: { x: 2, y: 1 }, text: "" }),
     };
     const container = document.createElement("div");
     const selected = { isSelected: () => false };

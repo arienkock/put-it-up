@@ -1,4 +1,5 @@
 import { calculateEdgePoint } from "./connector-dom.js";
+import { getBoardItemBounds, isStickyItem } from "./board-item-interface.js";
 
 export const ARROW_HEAD_TYPES = ["none", "line", "hollow", "filled"];
 
@@ -7,21 +8,18 @@ export const ARROW_HEAD_TYPES = ["none", "line", "hollow", "filled"];
  * 
  * @param {Object} connector - Connector data object
  * @param {HTMLElement} container - Container element
- * @param {Object} originSticky - Origin sticky data (null if unconnected)
- * @param {Object} destSticky - Destination sticky data (null if unconnected)
- * @param {Object} originImage - Origin image data (null if unconnected)
- * @param {Object} destImage - Destination image data (null if unconnected)
+ * @param {Object|null} originItem - Origin item data (sticky or image) - null if unconnected
+ * @param {Object|null} destItem - Destination item data (sticky or image) - null if unconnected
  * @param {boolean} isSelected - Whether connector is selected
  * @param {Object} boardOrigin - Board origin {x, y}
  * @param {number} stickySize - Base size of stickies
+ * @param {string} connectorId - Connector ID
  */
 export function setConnectorStyles(
   connector,
   container,
-  originSticky,
-  destSticky,
-  originImage,
-  destImage,
+  originItem,
+  destItem,
   isSelected,
   boardOrigin,
   stickySize,
@@ -41,53 +39,32 @@ export function setConnectorStyles(
     return; // Skip rendering if sticky size is invalid
   }
   
-  // Calculate start and end points
+  // Calculate start and end points using generic bounds
   let startPoint, endPoint;
   
-  if (originSticky) {
-    // Connected to sticky
-    // Validate sticky location coordinates
-    if (!originSticky.location || typeof originSticky.location.x !== 'number' || typeof originSticky.location.y !== 'number' ||
-        isNaN(originSticky.location.x) || isNaN(originSticky.location.y)) {
-      console.warn('Invalid origin sticky location:', originSticky.location);
-      return; // Skip rendering if sticky location is invalid
-    }
+  const originBounds = getBoardItemBounds(originItem, boardOrigin, stickySize);
+  const destBounds = getBoardItemBounds(destItem, boardOrigin, stickySize);
+  
+  if (originBounds) {
+    // Origin is connected to an item (sticky or image)
+    const originCenter = { x: originBounds.centerX, y: originBounds.centerY };
     
-    const originSizeX = (originSticky.size && originSticky.size.x) || 1;
-    const originSizeY = (originSticky.size && originSticky.size.y) || 1;
-    const originCenter = {
-      x: originSticky.location.x - boardOrigin.x + (stickySize * originSizeX) / 2,
-      y: originSticky.location.y - boardOrigin.y + (stickySize * originSizeY) / 2,
-    };
-    
-    if (destSticky) {
-      // Both endpoints connected to stickies
-      // Validate destination sticky location coordinates
-      if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
-          isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
-        console.warn('Invalid destination sticky location:', destSticky.location);
-        return; // Skip rendering if sticky location is invalid
-      }
+    if (destBounds) {
+      // Both endpoints connected to items
+      const destCenter = { x: destBounds.centerX, y: destBounds.centerY };
       
-      const destSizeX = (destSticky.size && destSticky.size.x) || 1;
-      const destSizeY = (destSticky.size && destSticky.size.y) || 1;
-      const destCenter = {
-        x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
-        y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
-      };
-      // Determine targeting point for curved connectors (Option A: ray towards control point)
-      // Prefer explicit curve control point if present; otherwise none here (self-connection handled later)
+      // Determine targeting point for curved connectors
       const controlTarget = connector.curveControlPoint || null;
       const targetForStart = controlTarget || destCenter;
       const targetForEnd = controlTarget || originCenter;
-
+      
       startPoint = calculateEdgePoint(
         originCenter.x,
         originCenter.y,
         targetForStart.x,
         targetForStart.y,
-        stickySize * originSizeX,
-        stickySize * originSizeY
+        originBounds.width,
+        originBounds.height
       );
       
       endPoint = calculateEdgePoint(
@@ -95,44 +72,8 @@ export function setConnectorStyles(
         destCenter.y,
         targetForEnd.x,
         targetForEnd.y,
-        stickySize * destSizeX,
-        stickySize * destSizeY
-      );
-    } else if (destImage) {
-      // Destination connected to image
-      // Validate destination image location coordinates
-      if (!destImage.location || typeof destImage.location.x !== 'number' || typeof destImage.location.y !== 'number' ||
-          isNaN(destImage.location.x) || isNaN(destImage.location.y)) {
-        console.warn('Invalid destination image location:', destImage.location);
-        return; // Skip rendering if image location is invalid
-      }
-      
-      const destCenter = {
-        x: destImage.location.x - boardOrigin.x + destImage.width / 2,
-        y: destImage.location.y - boardOrigin.y + destImage.height / 2,
-      };
-      
-      // Prefer explicit curve control point when present
-      const controlTarget = connector.curveControlPoint || null;
-      const targetForStart = controlTarget || destCenter;
-      const targetForEnd = controlTarget || originCenter;
-
-      startPoint = calculateEdgePoint(
-        originCenter.x,
-        originCenter.y,
-        targetForStart.x,
-        targetForStart.y,
-        stickySize * originSizeX,
-        stickySize * originSizeY
-      );
-      
-      endPoint = calculateEdgePoint(
-        destCenter.x,
-        destCenter.y,
-        targetForEnd.x,
-        targetForEnd.y,
-        destImage.width,
-        destImage.height
+        destBounds.width,
+        destBounds.height
       );
     } else {
       // Origin connected, destination unconnected
@@ -158,124 +99,8 @@ export function setConnectorStyles(
         originCenter.y,
         targetForStart.x,
         targetForStart.y,
-        stickySize * originSizeX,
-        stickySize * originSizeY
-      );
-      
-      endPoint = destCenter;
-    }
-  } else if (originImage) {
-    // Connected to image
-    // Validate image location coordinates
-    if (!originImage.location || typeof originImage.location.x !== 'number' || typeof originImage.location.y !== 'number' ||
-        isNaN(originImage.location.x) || isNaN(originImage.location.y)) {
-      console.warn('Invalid origin image location:', originImage.location);
-      return; // Skip rendering if image location is invalid
-    }
-    
-    const originCenter = {
-      x: originImage.location.x - boardOrigin.x + originImage.width / 2,
-      y: originImage.location.y - boardOrigin.y + originImage.height / 2,
-    };
-    
-    if (destSticky) {
-      // Origin image, destination sticky
-      // Validate destination sticky location coordinates
-      if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
-          isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
-        console.warn('Invalid destination sticky location:', destSticky.location);
-        return; // Skip rendering if sticky location is invalid
-      }
-      
-      const destSizeX = (destSticky.size && destSticky.size.x) || 1;
-      const destSizeY = (destSticky.size && destSticky.size.y) || 1;
-      const destCenter = {
-        x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
-        y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
-      };
-      
-      const controlTarget = connector.curveControlPoint || null;
-      const targetForStart = controlTarget || destCenter;
-      const targetForEnd = controlTarget || originCenter;
-
-      startPoint = calculateEdgePoint(
-        originCenter.x,
-        originCenter.y,
-        targetForStart.x,
-        targetForStart.y,
-        originImage.width,
-        originImage.height
-      );
-      
-      endPoint = calculateEdgePoint(
-        destCenter.x,
-        destCenter.y,
-        targetForEnd.x,
-        targetForEnd.y,
-        stickySize * destSizeX,
-        stickySize * destSizeY
-      );
-    } else if (destImage) {
-      // Both endpoints connected to images
-      // Validate destination image location coordinates
-      if (!destImage.location || typeof destImage.location.x !== 'number' || typeof destImage.location.y !== 'number' ||
-          isNaN(destImage.location.x) || isNaN(destImage.location.y)) {
-        console.warn('Invalid destination image location:', destImage.location);
-        return; // Skip rendering if image location is invalid
-      }
-      
-      const destCenter = {
-        x: destImage.location.x - boardOrigin.x + destImage.width / 2,
-        y: destImage.location.y - boardOrigin.y + destImage.height / 2,
-      };
-      
-      const controlTarget = connector.curveControlPoint || null;
-      const targetForStart = controlTarget || destCenter;
-      const targetForEnd = controlTarget || originCenter;
-
-      startPoint = calculateEdgePoint(
-        originCenter.x,
-        originCenter.y,
-        targetForStart.x,
-        targetForStart.y,
-        originImage.width,
-        originImage.height
-      );
-      
-      endPoint = calculateEdgePoint(
-        destCenter.x,
-        destCenter.y,
-        targetForEnd.x,
-        targetForEnd.y,
-        destImage.width,
-        destImage.height
-      );
-    } else {
-      // Origin image connected, destination unconnected
-      const destPoint = connector.destinationPoint || { x: 0, y: 0 };
-      
-      // Validate destination point coordinates
-      if (typeof destPoint.x !== 'number' || typeof destPoint.y !== 'number' || 
-          isNaN(destPoint.x) || isNaN(destPoint.y)) {
-        console.warn('Invalid destination point:', destPoint);
-        return; // Skip rendering if destination point is invalid
-      }
-      
-      const destCenter = {
-        x: destPoint.x - boardOrigin.x,
-        y: destPoint.y - boardOrigin.y,
-      };
-      
-      const controlTarget = connector.curveControlPoint || null;
-      const targetForStart = controlTarget || destCenter;
-      
-      startPoint = calculateEdgePoint(
-        originCenter.x,
-        originCenter.y,
-        targetForStart.x,
-        targetForStart.y,
-        originImage.width,
-        originImage.height
+        originBounds.width,
+        originBounds.height
       );
       
       endPoint = destCenter;
@@ -296,21 +121,9 @@ export function setConnectorStyles(
       y: originPoint.y - boardOrigin.y,
     };
     
-    if (destSticky) {
-      // Origin unconnected, destination connected to sticky
-      // Validate destination sticky location coordinates
-      if (!destSticky.location || typeof destSticky.location.x !== 'number' || typeof destSticky.location.y !== 'number' ||
-          isNaN(destSticky.location.x) || isNaN(destSticky.location.y)) {
-        console.warn('Invalid destination sticky location:', destSticky.location);
-        return; // Skip rendering if sticky location is invalid
-      }
-      
-      const destSizeX = (destSticky.size && destSticky.size.x) || 1;
-      const destSizeY = (destSticky.size && destSticky.size.y) || 1;
-      const destCenter = {
-        x: destSticky.location.x - boardOrigin.x + (stickySize * destSizeX) / 2,
-        y: destSticky.location.y - boardOrigin.y + (stickySize * destSizeY) / 2,
-      };
+    if (destBounds) {
+      // Origin unconnected, destination connected to item
+      const destCenter = { x: destBounds.centerX, y: destBounds.centerY };
       
       // When curved, aim the ray from the destination center towards control target if present
       const controlTarget = connector.curveControlPoint || null;
@@ -320,32 +133,8 @@ export function setConnectorStyles(
         destCenter.y,
         targetForEnd.x,
         targetForEnd.y,
-        stickySize * destSizeX,
-        stickySize * destSizeY
-      );
-    } else if (destImage) {
-      // Origin unconnected, destination connected to image
-      // Validate destination image location coordinates
-      if (!destImage.location || typeof destImage.location.x !== 'number' || typeof destImage.location.y !== 'number' ||
-          isNaN(destImage.location.x) || isNaN(destImage.location.y)) {
-        console.warn('Invalid destination image location:', destImage.location);
-        return; // Skip rendering if image location is invalid
-      }
-      
-      const destCenter = {
-        x: destImage.location.x - boardOrigin.x + destImage.width / 2,
-        y: destImage.location.y - boardOrigin.y + destImage.height / 2,
-      };
-      
-      const controlTarget = connector.curveControlPoint || null;
-      const targetForEnd = controlTarget || startPoint;
-      endPoint = calculateEdgePoint(
-        destCenter.x,
-        destCenter.y,
-        targetForEnd.x,
-        targetForEnd.y,
-        destImage.width,
-        destImage.height
+        destBounds.width,
+        destBounds.height
       );
     } else {
       // Both endpoints unconnected
@@ -376,11 +165,9 @@ export function setConnectorStyles(
   }
   
   // Resolve control point or self-loop parameters
-  const isSelfConnection = (
-    connector.originId && connector.destinationId && connector.originId === connector.destinationId
-  ) || (
-    connector.originImageId && connector.destinationImageId && connector.originImageId === connector.destinationImageId
-  );
+  // Check if origin and destination are the same item (self-connection)
+  const isSelfConnection = connector.originId === connector.destinationId || 
+                           connector.originImageId === connector.destinationImageId;
 
   // Compute an effective control point used for traditional 2-segment curves and handle placement
   let effectiveControlPoint = null;
@@ -461,27 +248,16 @@ export function setConnectorStyles(
 
   // Helper to build a very simple self-loop (two smooth cubic segments via one apex)
   function buildSelfLoopPath() {
-    // Determine object center and size (board coordinates)
-    let objCenterX = null;
-    let objCenterY = null;
-    let objWidth = null;
-    let objHeight = null;
-    if (originSticky && destSticky && connector.originId === connector.destinationId) {
-      const sizeX = (originSticky.size && originSticky.size.x) || 1;
-      const sizeY = (originSticky.size && originSticky.size.y) || 1;
-      objWidth = stickySize * sizeX;
-      objHeight = stickySize * sizeY;
-      objCenterX = originSticky.location.x - boardOrigin.x + objWidth / 2;
-      objCenterY = originSticky.location.y - boardOrigin.y + objHeight / 2;
-    } else if (originImage && destImage && connector.originImageId === connector.destinationImageId) {
-      objWidth = originImage.width;
-      objHeight = originImage.height;
-      objCenterX = originImage.location.x - boardOrigin.x + objWidth / 2;
-      objCenterY = originImage.location.y - boardOrigin.y + objHeight / 2;
-    }
-    if (objCenterX === null || objCenterY === null || objWidth === null || objHeight === null) {
+    // Use generic bounds to determine object center and size
+    const bounds = getBoardItemBounds(originItem || destItem, boardOrigin, stickySize);
+    if (!bounds) {
       return null;
     }
+    
+    const objCenterX = bounds.centerX;
+    const objCenterY = bounds.centerY;
+    const objWidth = bounds.width;
+    const objHeight = bounds.height;
 
     // Loop sizing: radius = 0.5 * average(width, height), clamped
     const avg = (objWidth + objHeight) / 2;
@@ -526,20 +302,12 @@ export function setConnectorStyles(
     if (loopPath) {
       pathData = loopPath;
       usedSelfLoopPath = true;
-      // Derive center for arrow orientation
-      if (originSticky && destSticky && connector.originId === connector.destinationId) {
-        const sizeX = (originSticky.size && originSticky.size.x) || 1;
-        const sizeY = (originSticky.size && originSticky.size.y) || 1;
-        const objWidth = stickySize * sizeX;
-        const objHeight = stickySize * sizeY;
+      // Derive center for arrow orientation using generic bounds
+      const bounds = getBoardItemBounds(originItem || destItem, boardOrigin, stickySize);
+      if (bounds) {
         selfLoopCenterBoard = {
-          x: originSticky.location.x - boardOrigin.x + objWidth / 2,
-          y: originSticky.location.y - boardOrigin.y + objHeight / 2
-        };
-      } else if (originImage && destImage && connector.originImageId === connector.destinationImageId) {
-        selfLoopCenterBoard = {
-          x: originImage.location.x - boardOrigin.x + originImage.width / 2,
-          y: originImage.location.y - boardOrigin.y + originImage.height / 2
+          x: bounds.centerX,
+          y: bounds.centerY
         };
       }
     }
