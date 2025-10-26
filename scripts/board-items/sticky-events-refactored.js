@@ -2,7 +2,6 @@ import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js
 import { createStateConfig } from "../ui/state-config-pattern.js";
 import { fitContentInSticky } from "./text-fitting.js";
 import { SelectionManager } from "../ui/selection-manager.js";
-import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-utils.js";
 
 /**
  * Sticky Resize State Machine
@@ -10,8 +9,7 @@ import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-uti
  */
 const StickyResizeState = {
   IDLE: 'idle',
-  RESIZING: 'resizing',
-  DRAGGING: 'dragging'
+  RESIZING: 'resizing'
 };
 
 const STICKY_SIZE = 70; // pixels per size unit
@@ -59,22 +57,6 @@ class StickyResizeStateMachine extends StateMachine {
       }
     };
     
-    stateConfig[StickyResizeState.DRAGGING] = {
-      setup: (stateData, stateMachine) => {
-        if (stateMachine.globalListeners) {
-          stateMachine.setCursor('grabbing');
-          stateMachine.setUserSelect('none');
-          stateMachine.setupDragListeners();
-        }
-      },
-      cleanup: (stateData, stateMachine) => {
-        if (stateMachine.globalListeners) {
-          stateMachine.clearAllListeners();
-          stateMachine.resetCursor();
-          stateMachine.resetUserSelect();
-        }
-      }
-    };
     
     super(StickyResizeState.IDLE, stateConfig);
     
@@ -119,12 +101,6 @@ class StickyResizeStateMachine extends StateMachine {
     });
   }
   
-  setupDragListeners() {
-    this.globalListeners.setListeners({
-      'mousemove': this.handleDragMove.bind(this),
-      'mouseup': this.handleDragEnd.bind(this)
-    });
-  }
   
   /**
    * Returns the appropriate cursor for the given resize side
@@ -262,56 +238,19 @@ class StickyResizeStateMachine extends StateMachine {
           const handle = event.target.closest('[class*="resize-handle"]');
           return state === StickyResizeState.IDLE && 
                  handle === null &&
-                 !appState.ui.nextClickCreatesConnector;
+                 !appState.ui.nextClickCreatesConnector &&
+                 window.dragManager;
         },
         
         onMouseDown: (event, stateData) => {
-          event.preventDefault();
-          event.stopPropagation();
-          
-          const appState = this.store.getAppState();
-          const boardScale = appState.ui.boardScale || 1;
-          
-          stateData.stickyId = this.id;
-          stateData.dragStart = { x: event.clientX, y: event.clientY };
-          stateData.boardScale = boardScale;
-          stateData.originalLocations = {};
-          
-          // Get original locations for all selected stickies
-          const selectedStickies = this.selectionManager.getSelection('stickies');
-          if (selectedStickies && selectedStickies.isSelected(this.id)) {
-            selectedStickies.forEach((sid) => {
-              const sticky = this.store.getSticky(sid);
-              stateData.originalLocations[sid] = sticky.location;
-            });
-          } else {
-            const sticky = this.store.getSticky(this.id);
-            stateData.originalLocations[this.id] = sticky.location;
+          // Delegate to global drag manager
+          if (window.dragManager && window.dragManager.startDrag(this.id, 'sticky', event)) {
+            event.preventDefault();
+            event.stopPropagation();
           }
-          
-          this.transitionTo(StickyResizeState.DRAGGING, 'drag started');
         }
       },
       
-      // Handler for drag completion
-      dragEndHandler: {
-        canHandle: (event, state) => {
-          return state === StickyResizeState.DRAGGING;
-        },
-        
-        onMouseUp: (event, stateData) => {
-          event.preventDefault();
-          
-          const appState = this.store.getAppState();
-          
-          // Mark stickies as moved by dragging
-          Object.keys(stateData.originalLocations).forEach((id) => {
-            appState.ui.stickiesMovedByDragging.push(id);
-          });
-          
-          this.transitionTo(StickyResizeState.IDLE, 'drag completed');
-        }
-      }
     };
   }
   
@@ -338,7 +277,7 @@ class StickyResizeStateMachine extends StateMachine {
     const handlers = this.getStickyResizeHandlers();
     
     // Route to appropriate handler based on current state
-    const handlerPriority = ['resizeEndHandler', 'dragEndHandler'];
+    const handlerPriority = ['resizeEndHandler'];
     for (const handlerName of handlerPriority) {
       const handler = handlers[handlerName];
       if (handler.canHandle && handler.canHandle(event, this.currentState)) {
@@ -412,33 +351,6 @@ class StickyResizeStateMachine extends StateMachine {
     this.routeMouseUp(event);
   }
   
-  // Mouse move handler for dragging
-  handleDragMove(event) {
-    if (this.currentState !== StickyResizeState.DRAGGING || !this.stateData.stickyId) return;
-
-    event.preventDefault();
-    
-    const delta = calculateMovementDelta(
-      this.stateData.dragStart.x,
-      this.stateData.dragStart.y,
-      event.clientX,
-      event.clientY,
-      this.stateData.boardScale
-    );
-    
-    // Move all selected stickies using movement utils
-    Object.keys(this.stateData.originalLocations).forEach((id) => {
-      const originalLocation = this.stateData.originalLocations[id];
-      moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, window.board, 'sticky');
-    });
-  }
-  
-  // Mouse up handler for dragging
-  handleDragEnd(event) {
-    if (this.currentState !== StickyResizeState.DRAGGING) return;
-    
-    this.routeMouseUp(event);
-  }
   
   setupEventListeners() {
     // Add data attribute for container identification

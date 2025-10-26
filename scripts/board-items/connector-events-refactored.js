@@ -1,6 +1,5 @@
 import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
 import { createStateConfig } from "../ui/state-config-pattern.js";
-import { moveItem, calculateMovementDelta } from "../ui/movement-utils.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 
@@ -13,8 +12,7 @@ const ConnectorState = {
   DRAGGING_NEW: 'dragging_new',
   CLICK_TO_CLICK_WAITING: 'click_to_click_waiting',
   DRAGGING_HANDLE: 'dragging_handle',
-  DRAGGING_CURVE_HANDLE: 'dragging_curve_handle',
-  DRAGGING_DISCONNECTED: 'dragging_disconnected'
+  DRAGGING_CURVE_HANDLE: 'dragging_curve_handle'
 };
 
 /**
@@ -108,19 +106,6 @@ class ConnectorStateMachine extends StateMachine {
       }
     };
     
-    stateConfig[ConnectorState.DRAGGING_DISCONNECTED] = {
-      setup: (stateData, stateMachine) => {
-        if (stateMachine.globalListeners) {
-          stateMachine.disableProximityDetection();
-          stateMachine.setupDisconnectedDragListeners();
-        }
-      },
-      cleanup: (stateData, stateMachine) => {
-        if (stateMachine.globalListeners) {
-          stateMachine.clearAllListeners();
-        }
-      }
-    };
     
     super(ConnectorState.IDLE, stateConfig);
     
@@ -182,13 +167,6 @@ class ConnectorStateMachine extends StateMachine {
     this.globalListeners.setListeners({
       'mousemove': this.handleCurveHandleDrag.bind(this),
       'mouseup': this.handleCurveHandleDragEnd.bind(this)
-    });
-  }
-  
-  setupDisconnectedDragListeners() {
-    this.globalListeners.setListeners({
-      'mousemove': this.handleDisconnectedConnectorDrag.bind(this),
-      'mouseup': this.handleDisconnectedConnectorDragEnd.bind(this)
     });
   }
   
@@ -548,7 +526,9 @@ class ConnectorStateMachine extends StateMachine {
           const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
           const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
           
-          return state === ConnectorState.IDLE && (hasDisconnectedOrigin || hasDisconnectedDestination);
+          return state === ConnectorState.IDLE && 
+                 (hasDisconnectedOrigin || hasDisconnectedDestination) &&
+                 window.dragManager;
         },
         
         onMouseDown: (event, stateData) => {
@@ -566,16 +546,10 @@ class ConnectorStateMachine extends StateMachine {
           // Trigger full render to update menu
           this.renderCallback();
           
-          stateData.connectorId = connectorId;
-          
-          const rect = this.boardElement.getBoundingClientRect();
-          const boardOrigin = this.board.getOrigin();
-          const appState = this.store.getAppState();
-          const boardScale = appState.ui.boardScale || 1;
-          
-          stateData.dragStart = { x: event.clientX, y: event.clientY };
-          
-          this.transitionTo(ConnectorState.DRAGGING_DISCONNECTED, 'disconnected connector drag started');
+          // Delegate to global drag manager
+          if (window.dragManager && window.dragManager.startDrag(connectorId, 'connector', event)) {
+            event.preventDefault();
+          }
         }
       }
     };
@@ -629,9 +603,6 @@ class ConnectorStateMachine extends StateMachine {
       
       case ConnectorState.DRAGGING_CURVE_HANDLE:
         return this.handleEvent('mouseup', event, this.handleCurveHandleDragEnd.bind(this));
-      
-      case ConnectorState.DRAGGING_DISCONNECTED:
-        return this.handleEvent('mouseup', event, this.handleDisconnectedConnectorDragEnd.bind(this));
       
       default:
         return; // Ignore mouseup in other states
@@ -914,40 +885,6 @@ class ConnectorStateMachine extends StateMachine {
     if (this.currentState !== ConnectorState.DRAGGING_CURVE_HANDLE || !this.stateData.connectorId) return;
     
     this.transitionTo(ConnectorState.IDLE, 'curve handle drag completed');
-    
-    // Trigger re-render
-    if (this.renderCallback) {
-      this.renderCallback();
-    }
-  }
-
-  handleDisconnectedConnectorDrag(event) {
-    if (this.currentState !== ConnectorState.DRAGGING_DISCONNECTED || !this.stateData.connectorId) return;
-    
-    const appState = this.store.getAppState();
-    const boardScale = appState.ui.boardScale || 1;
-    
-    const delta = calculateMovementDelta(
-      this.stateData.dragStart.x,
-      this.stateData.dragStart.y,
-      event.clientX,
-      event.clientY,
-      boardScale
-    );
-    
-    // Only move if minimum distance threshold met
-    const minDragDistance = 5;
-    if (Math.abs(delta.dx) > minDragDistance || Math.abs(delta.dy) > minDragDistance) {
-      moveItem(this.stateData.connectorId, delta.dx, delta.dy, this.board, 'connector');
-      // Update drag start for smooth continuous dragging
-      this.stateData.dragStart = { x: event.clientX, y: event.clientY };
-    }
-  }
-
-  handleDisconnectedConnectorDragEnd(event) {
-    if (this.currentState !== ConnectorState.DRAGGING_DISCONNECTED || !this.stateData.connectorId) return;
-    
-    this.transitionTo(ConnectorState.IDLE, 'disconnected connector drag completed');
     
     // Trigger re-render
     if (this.renderCallback) {

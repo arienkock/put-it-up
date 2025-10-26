@@ -1,6 +1,5 @@
 import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
 import { createStateConfig } from "../ui/state-config-pattern.js";
-import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-utils.js";
 
 /**
  * Image State Machine
@@ -8,7 +7,6 @@ import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-uti
  */
 const ImageState = {
   IDLE: 'idle',
-  DRAGGING: 'dragging',
   RESIZING: 'resizing'
 };
 
@@ -35,20 +33,6 @@ class ImageStateMachine extends StateMachine {
       }
     };
     
-    stateConfig[ImageState.DRAGGING] = {
-      setup: (stateData, stateMachine) => {
-        if (stateMachine.globalListeners) {
-          stateMachine.setCursor('grabbing');
-          stateMachine.setupDragListeners();
-        }
-      },
-      cleanup: (stateData, stateMachine) => {
-        if (stateMachine.globalListeners) {
-          stateMachine.clearAllListeners();
-          stateMachine.resetCursor();
-        }
-      }
-    };
     
     stateConfig[ImageState.RESIZING] = {
       setup: (stateData, stateMachine) => {
@@ -90,13 +74,6 @@ class ImageStateMachine extends StateMachine {
   
   setCursor(cursor) {
     document.body.style.cursor = cursor;
-  }
-  
-  setupDragListeners() {
-    this.globalListeners.setListeners({
-      'mousemove': this.handleImageDrag.bind(this),
-      'mouseup': this.handleImageDragEnd.bind(this)
-    });
   }
   
   setupResizeListeners() {
@@ -203,37 +180,16 @@ class ImageStateMachine extends StateMachine {
           const handle = event.target?.closest?.('.resize-handle');
           return state === ImageState.IDLE && 
                  handle === null &&
-                 !appState.ui.nextClickCreatesConnector;
+                 !appState.ui.nextClickCreatesConnector &&
+                 window.dragManager;
         },
         
         onMouseDown: (event, stateData) => {
-          event.preventDefault();
-          event.stopPropagation();
-          
-          const appState = this.store.getAppState();
-          const boardScale = appState.ui.boardScale || 1;
-          
-          stateData.imageId = this.id;
-          stateData.dragStart = { x: event.clientX, y: event.clientY };
-          stateData.boardScale = boardScale;
-          stateData.originalLocations = {};
-          
-          // Get original locations for all selected images
-          const selectedImages = this.selectionManager.getSelection('images');
-          if (selectedImages && selectedImages.isSelected(this.id)) {
-            // Multi-selection drag: preserve selection and get all locations
-            selectedImages.forEach((iid) => {
-              const image = this.store.getImage(iid);
-              stateData.originalLocations[iid] = image.location;
-            });
-          } else {
-            // Single drag: clear other selections and store only this image
-            this.selectionManager.clearAllSelections();
-            this.selectionManager.getSelection('images').replaceSelection(this.id);
-            stateData.originalLocations[this.id] = this.getImageLocation(this.id);
+          // Delegate to global drag manager
+          if (window.dragManager && window.dragManager.startDrag(this.id, 'image', event)) {
+            event.preventDefault();
+            event.stopPropagation();
           }
-          
-          this.transitionTo(ImageState.DRAGGING, 'drag started');
         }
       },
       
@@ -318,32 +274,6 @@ class ImageStateMachine extends StateMachine {
         }
       }
     }
-  }
-  
-  // Mouse move handler for dragging
-  handleImageDrag(event) {
-    if (this.currentState !== ImageState.DRAGGING) return;
-    
-    const delta = calculateMovementDelta(
-      this.stateData.dragStart.x,
-      this.stateData.dragStart.y,
-      event.clientX,
-      event.clientY,
-      this.stateData.boardScale
-    );
-    
-    // Move all selected images using movement utils
-    Object.keys(this.stateData.originalLocations).forEach((id) => {
-      const originalLocation = this.stateData.originalLocations[id];
-      moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, window.board, 'image');
-    });
-  }
-  
-  // Mouse up handler for dragging
-  handleImageDragEnd() {
-    if (this.currentState !== ImageState.DRAGGING) return;
-    
-    this.transitionTo(ImageState.IDLE, 'drag ended');
   }
   
   // Mouse move handler for resizing

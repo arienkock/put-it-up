@@ -68,6 +68,7 @@ import {
 import { setupConnectorEvents } from "../board-items/connector-events-refactored.js";
 import { Selection } from "./selection.js";
 import { SelectionManager } from "./selection-manager.js";
+import { createDragManager } from "./drag-manager.js";
 import { createMenu } from "./menu.js";
 import { setupKeyboardHandlers, completeKeyboardAction } from "./keyboard-handlers.js";
 import { zoomScale, applyZoomToBoard } from "./zoom.js";
@@ -271,6 +272,10 @@ export function mount(board, root, Observer, store) {
 
   // Set up connector events
   const connectorEvents = setupConnectorEvents(domElement, board, selectionManager, render, store);
+  
+  // Set up drag manager
+  const dragManager = createDragManager(domElement, board, selectionManager, store, render);
+  window.dragManager = dragManager;
   
   // Set up paste event handler for images
   document.addEventListener('paste', (event) => {
