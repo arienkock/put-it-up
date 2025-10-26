@@ -83,6 +83,15 @@ class ImageStateMachine extends StateMachine {
     });
   }
   
+  handleImageResizeEnd(event) {
+    if (this.currentState !== ImageState.RESIZING) return;
+    
+    event.preventDefault();
+    event.stopPropagation(); // Prevent click events from firing after resize
+    
+    this.transitionTo(ImageState.IDLE, 'resize ended');
+  }
+  
   /**
    * Helper function to extract resize side from class name
    */
@@ -201,6 +210,13 @@ class ImageStateMachine extends StateMachine {
         },
         
         onClick: (event, stateData) => {
+          // Ignore click if we just completed a drag
+          if (window.dragManager && window.dragManager.justCompletedDrag) {
+            console.log('[IMAGE CLICK] Ignoring click after drag');
+            event.stopPropagation();
+            return;
+          }
+          
           event.stopPropagation();
           
           if (!event.shiftKey) {
@@ -219,6 +235,13 @@ class ImageStateMachine extends StateMachine {
         },
         
         onClick: (event, stateData) => {
+          // Ignore click if we just completed a drag
+          if (window.dragManager && window.dragManager.justCompletedDrag) {
+            console.log('[IMAGE CLICK] Ignoring click after drag');
+            event.stopPropagation();
+            return;
+          }
+          
           event.stopPropagation();
           
           if (!event.shiftKey) {
@@ -316,12 +339,6 @@ class ImageStateMachine extends StateMachine {
     }
   }
   
-  // Mouse up handler for resizing
-  handleImageResizeEnd() {
-    if (this.currentState !== ImageState.RESIZING) return;
-    
-    this.transitionTo(ImageState.IDLE, 'resize ended');
-  }
   
   setupEventListeners() {
     // Single mousedown handler with routing

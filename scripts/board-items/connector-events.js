@@ -657,6 +657,9 @@ class ConnectorStateMachine extends StateMachine {
   handleConnectorDragEnd(event) {
     if (this.currentState !== ConnectorState.DRAGGING_NEW || !this.stateData.connectorId) return;
     
+    event.preventDefault();
+    event.stopPropagation(); // Prevent click events from firing after drag
+    
     const rect = this.boardElement.getBoundingClientRect();
     const boardOrigin = this.board.getOrigin();
     const appState = this.store.getAppState();
@@ -797,6 +800,9 @@ class ConnectorStateMachine extends StateMachine {
   handleHandleDragEnd(event) {
     if (this.currentState !== ConnectorState.DRAGGING_HANDLE || !this.stateData.connectorId) return;
     
+    event.preventDefault();
+    event.stopPropagation(); // Prevent click events from firing after drag
+    
     const rect = this.boardElement.getBoundingClientRect();
     const boardOrigin = this.board.getOrigin();
     const appState = this.store.getAppState();
@@ -883,6 +889,9 @@ class ConnectorStateMachine extends StateMachine {
 
   handleCurveHandleDragEnd(event) {
     if (this.currentState !== ConnectorState.DRAGGING_CURVE_HANDLE || !this.stateData.connectorId) return;
+    
+    event.preventDefault();
+    event.stopPropagation(); // Prevent click events from firing after drag
     
     this.transitionTo(ConnectorState.IDLE, 'curve handle drag completed');
     

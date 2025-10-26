@@ -43,6 +43,24 @@ export class SelectionManager {
   }
 
   /**
+   * Adds an item to the current selection without toggling
+   * Used when starting a drag to ensure the item is selected without deselecting others
+   * @param {string} typeName - The content type being selected
+   * @param {string} itemId - The ID of the item to select
+   */
+  addToSelection(typeName, itemId) {
+    console.log('[SELECTION MANAGER] addToSelection called', { typeName, itemId });
+    const targetSelection = this.selections.get(typeName);
+    
+    if (!targetSelection) {
+      console.warn(`No selection registered for type: ${typeName}`);
+      return;
+    }
+    
+    targetSelection.addToSelection(itemId);
+  }
+
+  /**
    * Clears all selections except the specified type
    * @param {string} exceptType - The type to exclude from clearing
    */

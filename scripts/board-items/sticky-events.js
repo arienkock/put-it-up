@@ -208,6 +208,7 @@ class StickyResizeStateMachine extends StateMachine {
         
         onMouseUp: (event, stateData) => {
           event.preventDefault();
+          event.stopPropagation(); // Prevent click events from firing after resize
           
           const finalSize = {
             x: Math.max(1, Math.round(stateData.currentSize.x)),
@@ -243,6 +244,7 @@ class StickyResizeStateMachine extends StateMachine {
         },
         
         onMouseDown: (event, stateData) => {
+          console.log('[STICKY EVENT] mousedown on sticky', { id: this.id });
           // Delegate to global drag manager
           if (window.dragManager && window.dragManager.startDrag(this.id, 'sticky', event)) {
             event.preventDefault();
@@ -504,6 +506,14 @@ export function setupStickyEvents(
 
   // Sticky click event for selection
   container.sticky.onclick = (event) => {
+    console.log('[STICKY CLICK] Click event fired', { id, shiftKey: event.shiftKey, target: event.target });
+    
+    // Ignore click if we just completed a drag
+    if (window.dragManager && window.dragManager.justCompletedDrag) {
+      console.log('[STICKY CLICK] Ignoring click after drag');
+      return;
+    }
+    
     // Don't handle sticky selection if we're in connector creation mode
     if (appState.ui.nextClickCreatesConnector) {
       return;
@@ -514,6 +524,12 @@ export function setupStickyEvents(
     // Use selection manager to handle cross-type selection clearing
     selectionManager.selectItem('stickies', id, {
       addToSelection: event.shiftKey
+    });
+    
+    // DEBUG: Log selection after click
+    const appState2 = store.getAppState();
+    console.log('[STICKY CLICK] After selectItem', {
+      selectedStickies: Object.keys(appState2.ui.selection || {})
     });
     
     // Only exit editing mode if not clicking on the textarea

@@ -62,6 +62,9 @@ class DragStateMachine extends StateMachine {
     
     // Global listener manager
     this.globalListeners = new GlobalListenerManager();
+    
+    // Flag to track if we just completed a drag to ignore subsequent clicks
+    this.justCompletedDrag = false;
   }
   
   clearAllListeners() {
@@ -141,19 +144,39 @@ class DragStateMachine extends StateMachine {
     const imageSelection = this.selectionManager.getSelection('images');
     const connectorSelection = this.selectionManager.getSelection('connectors');
     
+    // DEBUG: Log current selections
+    console.log('[DRAG START] Before checking selection:', {
+      itemId,
+      itemType,
+      selectedStickies: stickySelection ? Object.keys(appState.ui.selection || {}) : [],
+      selectedImages: imageSelection ? Object.keys(appState.ui.imageSelection || {}) : [],
+      selectedConnectors: connectorSelection ? Object.keys(appState.ui.connectorSelection || {}) : []
+    });
+    
     const isSelected = 
       (itemType === 'sticky' && stickySelection && stickySelection.isSelected(itemId)) ||
       (itemType === 'image' && imageSelection && imageSelection.isSelected(itemId)) ||
       (itemType === 'connector' && connectorSelection && connectorSelection.isSelected(itemId));
     
-    // If not selected, select it (and clear other selections)
+    console.log('[DRAG START] Item is selected?', isSelected);
+    
+    // If not selected, add it to the current selection (don't toggle, just add)
     if (!isSelected) {
-      this.selectionManager.selectItem(itemType, itemId, { addToSelection: false });
+      console.log('[DRAG START] Adding item to selection');
+      this.selectionManager.addToSelection(itemType, itemId);
       // Re-read selections after potential update
       stickySelection = this.selectionManager.getSelection('stickies');
       imageSelection = this.selectionManager.getSelection('images');
       connectorSelection = this.selectionManager.getSelection('connectors');
     }
+    
+    // DEBUG: Log selections after potential update
+    const appStateAfter = this.store.getAppState();
+    console.log('[DRAG START] After processing selection:', {
+      selectedStickies: Object.keys(appStateAfter.ui.selection || {}),
+      selectedImages: Object.keys(appStateAfter.ui.imageSelection || {}),
+      selectedConnectors: Object.keys(appStateAfter.ui.connectorSelection || {})
+    });
     
     // Store drag start information
     const boardScale = appState.ui.boardScale || 1;
@@ -262,8 +285,24 @@ class DragStateMachine extends StateMachine {
     if (this.currentState !== DragState.DRAGGING) return;
     
     event.preventDefault();
+    event.stopPropagation(); // Prevent click events from firing after drag
     
     const appState = this.store.getAppState();
+    
+    // DEBUG: Log selections at drag end
+    console.log('[DRAG END] Current selections:', {
+      selectedStickies: Object.keys(appState.ui.selection || {}),
+      selectedImages: Object.keys(appState.ui.imageSelection || {}),
+      selectedConnectors: Object.keys(appState.ui.connectorSelection || {})
+    });
+    
+    // Set flag to ignore click events that fire after drag
+    this.justCompletedDrag = true;
+    
+    // Clear the flag after a short delay to allow click events to be suppressed
+    setTimeout(() => {
+      this.justCompletedDrag = false;
+    }, 100);
     
     // Mark items as moved by dragging (for sticky resizing behavior)
     if (this.stateData.originalLocations.stickies) {
@@ -321,7 +360,10 @@ export function createDragManager(boardElement, board, selectionManager, store, 
     cleanup: () => stateMachine.cleanup(),
     getCurrentState: () => stateMachine.getCurrentState(),
     getStateData: () => stateMachine.getStateData(),
-    getActiveListeners: () => stateMachine.getActiveListeners()
+    getActiveListeners: () => stateMachine.getActiveListeners(),
+    get justCompletedDrag() { return stateMachine.justCompletedDrag; },
+    get selectionManager() { return stateMachine.selectionManager; },
+    get store() { return stateMachine.store; }
   };
 }
 
