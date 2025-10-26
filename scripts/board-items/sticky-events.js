@@ -478,8 +478,9 @@ export function setupStickyEvents(
   };
   
   container.inputElement.onclick = (event) => {
-    if (event.shiftKey) {
+    if (event.shiftKey && !container.inputElement.matches(':focus')) {
       event.preventDefault();
+      event.stopPropagation();
     }
   };
 

@@ -353,6 +353,31 @@ export function mount(board, root, Observer, store) {
       renderMenu();
     }
   };
+  // Prevent native text selection on non-textarea elements
+  document.addEventListener('selectstart', (event) => {
+    // Check if the target is a textarea or its ancestor
+    const target = event.target;
+    const isTextarea = target.tagName === 'TEXTAREA' || target.closest('textarea');
+    
+    // If not a textarea, prevent native selection
+    if (!isTextarea) {
+      event.preventDefault();
+    }
+  });
+  
+  // Also prevent selection via mousedown on shift-click for images
+  document.addEventListener('mousedown', (event) => {
+    if (event.shiftKey) {
+      const target = event.target;
+      const isTextarea = target.tagName === 'TEXTAREA' || target.closest('textarea');
+      
+      // If clicking on an image or non-textarea element with shift, prevent selection
+      if (!isTextarea && (target.tagName === 'IMG' || target.closest('.sticky-container') || target.closest('.image-container'))) {
+        event.preventDefault();
+      }
+    }
+  }, true); // Use capture phase to catch before other handlers
+  
   // Expose board globally for sticky events to access
   window.board = board;
   window.boardRenderCallback = renderBoard;

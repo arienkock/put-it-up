@@ -28,6 +28,7 @@ body {
   cursor: grab;
   display: flex;
   padding: 5px;
+  user-select: none; /* Prevent native text selection on sticky containers */
 }
 .sticky-container.selected {
   background-color: rgba(70, 70, 216, 0.5);
@@ -44,11 +45,13 @@ body {
   resize: none;
   border: none;
   hyphens: auto;
+  user-select: text; /* Explicitly allow text selection in textareas */
 }
 .board {
   background-color: #f9f9f9;
   transform-origin: 0 0;
   border: 1px solid #777777;
+  user-select: none; /* Prevent native text selection on the board */
 }
 .app {
   min-height: 100vh;
@@ -83,6 +86,7 @@ body {
   position: absolute;
   pointer-events: none;
   z-index: -1;
+  user-select: none; /* Prevent native text selection on connectors */
 }
 
 .connector-container.selected .connector-path {
@@ -333,6 +337,17 @@ body {
   cursor: ew-resize;
 }
 
+/* Image containers */
+.image-container {
+  user-select: none;
+  cursor: grab;
+}
+
+.image-container img {
+  user-select: none;
+  pointer-events: none; /* Allow events to pass through to container */
+}
+
 /* Image resize handles */
 .image-container .resize-handle {
   position: absolute;
@@ -357,4 +372,6 @@ body {
 .image-container.selected {
   outline: 3px solid rgba(70, 70, 216, 0.7);
   outline-offset: -3px;
+  user-select: none; /* Disable selection on selected containers */
 }
+
