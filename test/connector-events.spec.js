@@ -302,6 +302,42 @@ describe("Connector Events Logic Tests", () => {
       expect(movedConnector.originPoint).toBeUndefined();
       expect(movedConnector.destinationPoint).toBeUndefined();
     });
+
+    it("should move connector smoothly with multiple incremental movements", () => {
+      // Create a disconnected connector
+      const connectorId = board.putConnector({
+        originPoint: { x: 100, y: 100 },
+        destinationPoint: { x: 200, y: 200 },
+        color: "#000000"
+      });
+
+      // Simulate multiple drag events with incremental movements
+      // This tests the fix for unnatural movement where deltas would accumulate
+      
+      // First movement: 10, 10
+      board.moveConnector(connectorId, 10, 10);
+      let connector = board.getConnector(connectorId);
+      expect(connector.originPoint).toEqual({ x: 110, y: 110 });
+      expect(connector.destinationPoint).toEqual({ x: 210, y: 210 });
+
+      // Second incremental movement: another 10, 10
+      board.moveConnector(connectorId, 10, 10);
+      connector = board.getConnector(connectorId);
+      expect(connector.originPoint).toEqual({ x: 120, y: 120 });
+      expect(connector.destinationPoint).toEqual({ x: 220, y: 220 });
+
+      // Third incremental movement: another 20, 30
+      board.moveConnector(connectorId, 20, 30);
+      connector = board.getConnector(connectorId);
+      expect(connector.originPoint).toEqual({ x: 140, y: 150 });
+      expect(connector.destinationPoint).toEqual({ x: 240, y: 250 });
+
+      // Verify final position matches cumulative movement (40, 50 total)
+      expect(connector.originPoint.x).toBe(100 + 10 + 10 + 20);
+      expect(connector.originPoint.y).toBe(100 + 10 + 10 + 30);
+      expect(connector.destinationPoint.x).toBe(200 + 10 + 10 + 20);
+      expect(connector.destinationPoint.y).toBe(200 + 10 + 10 + 30);
+    });
   });
 
   describe("Connector State Validation", () => {

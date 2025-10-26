@@ -160,6 +160,7 @@ class DragStateMachine extends StateMachine {
     this.stateData.initiatingItemId = itemId;
     this.stateData.initiatingItemType = itemType;
     this.stateData.dragStart = { x: event.clientX, y: event.clientY };
+    this.stateData.lastPosition = { x: event.clientX, y: event.clientY };
     this.stateData.boardScale = boardScale;
     this.stateData.originalLocations = {};
     
@@ -231,12 +232,24 @@ class DragStateMachine extends StateMachine {
       });
     }
     
-    // Move all selected connectors (connectors use direct delta movement)
+    // Move all selected connectors (connectors use incremental delta movement)
     if (this.stateData.originalLocations.connectors) {
+      // Calculate incremental delta for connectors from last position
+      const connectorDelta = calculateMovementDelta(
+        this.stateData.lastPosition.x,
+        this.stateData.lastPosition.y,
+        event.clientX,
+        event.clientY,
+        this.stateData.boardScale
+      );
+      
       this.stateData.originalLocations.connectors.forEach((_, id) => {
-        this.board.moveConnector(id, delta.dx, delta.dy);
+        this.board.moveConnector(id, connectorDelta.dx, connectorDelta.dy);
       });
     }
+    
+    // Update last position for next move (used for connectors)
+    this.stateData.lastPosition = { x: event.clientX, y: event.clientY };
   }
   
   /**
