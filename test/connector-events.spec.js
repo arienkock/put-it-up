@@ -3,7 +3,7 @@
  */
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
-import { setupConnectorEvents } from "../scripts/board-items/connector-events-refactored.js";
+import { setupConnectorEvents } from "../scripts/board-items/connector-events.js";
 import { StateMachineValidator } from "../scripts/ui/state-machine-validator.js";
 import { StateMachineTester } from "../scripts/ui/state-machine-testing.js";
 

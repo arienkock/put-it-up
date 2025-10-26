@@ -1,404 +1,363 @@
-// Image Events Refactored Implementation
-// Based on the refactoring plan to eliminate scattered boolean flags and improve maintainability
+import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
+import { createStateConfig } from "../ui/state-config-pattern.js";
 
-import { moveItemFromOriginal, calculateMovementDelta } from "../ui/movement-utils.js";
-
-// Centralized state machine
+/**
+ * Image State Machine
+ * Centralized state management for image events
+ */
 const ImageState = {
   IDLE: 'idle',
-  DRAGGING: 'dragging',
   RESIZING: 'resizing'
 };
 
-// Global listener management - simpler approach
-let activeListeners = new Map(); // type -> handler
-
-function setListeners(listenerMap) {
-  clearAllListeners();
-  
-  Object.entries(listenerMap).forEach(([eventType, handler]) => {
-    document.addEventListener(eventType, handler);
-    activeListeners.set(eventType, handler);
-  });
-}
-
-function clearAllListeners() {
-  activeListeners.forEach((handler, eventType) => {
-    document.removeEventListener(eventType, handler);
-  });
-  activeListeners.clear();
-}
-
-// Debug mode - controlled by global window.DEBUG_MODE
-// Use a function to check DEBUG_MODE dynamically
-const isDebugMode = () => window.DEBUG_MODE || false;
-
-// Global state and data
-let currentState = ImageState.IDLE;
-let stateData = {
-  imageId: null,
-  dragStart: null,
-  originalLocations: {},
-  resizeSide: null,
-  originalSize: null,
-  aspectRatio: null,
-  resizeStart: null
-};
-
-// No longer needed - using direct functions
-
-// Helper function to extract resize side from class name
-function extractResizeSide(handle) {
-  if (!handle) return null;
-  
-  const classNames = handle.className.split(' ');
-  for (const className of classNames) {
-    if (className.startsWith('resize-handle-')) {
-      return className.replace('resize-handle-', '');
-    }
-  }
-  return null;
-}
-
-// Helper function to get cursor for resize side
-function getCursorForResizeSide(resizeSide) {
-  switch (resizeSide) {
-    case 'left':
-    case 'right':
-      return 'ew-resize';
-    case 'top':
-    case 'bottom':
-      return 'ns-resize';
-    default:
-      return 'default';
-  }
-}
-
-// Explicit state transitions with logging
-function transitionState(newState, reason, data = {}) {
-  const oldState = currentState;
-  
-  if (isDebugMode()) {
-    console.log(`[ImageState] ${oldState} → ${newState}`, {
-      reason,
-      data,
-      timestamp: Date.now()
-    });
-  }
-  
-  // Clean up old state
-  switch (oldState) {
-    case ImageState.DRAGGING:
-      clearAllListeners();
-      document.body.style.cursor = '';
-      break;
-    case ImageState.RESIZING:
-      clearAllListeners();
-      document.body.style.cursor = '';
-      break;
-  }
-  
-  currentState = newState;
-  
-  // Set up new state
-  switch (newState) {
-    case ImageState.IDLE:
-      stateData = {
-        imageId: null,
-        dragStart: null,
-        originalLocations: {},
-        resizeSide: null,
-        originalSize: null,
-        aspectRatio: null,
-        resizeStart: null
-      };
-      break;
-    case ImageState.DRAGGING:
-      document.body.style.cursor = "grabbing";
-      setListeners({
-        'mousemove': handleImageDrag,
-        'mouseup': handleImageDragEnd
-      });
-      break;
-    case ImageState.RESIZING:
-      document.body.style.cursor = getCursorForResizeSide(stateData.resizeSide);
-      setListeners({
-        'mousemove': handleImageResize,
-        'mouseup': handleImageResizeEnd
-      });
-      break;
-  }
-}
-
-// Event handling wrapper with debug logging
-function handleEvent(eventName, event, handlerFn) {
-  if (isDebugMode()) {
-    console.log(`[ImageEvent] ${eventName} in ${currentState}`, {
-      target: event.target?.className || 'unknown',
-      handler: handlerFn.name,
-      stateData: { ...stateData }
-    });
-  }
-  
-  try {
-    return handlerFn(event, stateData);
-  } catch (error) {
-    console.error(`[ImageError] in ${handlerFn.name}:`, error);
-    // Reset to safe state
-    transitionState(ImageState.IDLE, 'error recovery');
-    throw error;
-  }
-}
-
-// Handler factory functions to create handlers with proper scope
-function createResizeHandler(id, getImageLocation, selectionManager, store) {
-  return {
-    canHandle: (event, state, appState) => {
-      const handle = event.target?.closest?.('.resize-handle');
-      return state === ImageState.IDLE && 
-             handle !== null &&
-             !appState.ui.nextClickCreatesConnector;
-    },
+/**
+ * Image State Machine Implementation
+ * Uses the new StateMachine base class for consistent behavior
+ */
+class ImageStateMachine extends StateMachine {
+  constructor(container, id, getImageLocation, selectionManager, store) {
+    const stateConfig = createStateConfig(ImageState);
     
-    onMouseDown: (event, stateData) => {
-      const handle = event.target.closest('.resize-handle');
-      const resizeSide = extractResizeSide(handle);
-      
-      if (!resizeSide) {
-        console.error('Could not determine resize side from class name:', handle.className);
-        return;
-      }
-      
-      event.preventDefault();
-      event.stopPropagation();
-      
-      stateData.imageId = id;
-      stateData.resizeSide = resizeSide;
-      stateData.resizeStart = { x: event.clientX, y: event.clientY };
-      
-      // Guard against missing image id
-      let image;
-      try {
-        image = store.getImage(id);
-      } catch (e) {
-        console.warn('[ImageWarning] Missing image on resize start, aborting', { id, error: e?.message });
-        return;
-      }
-      stateData.originalSize = { width: image.width, height: image.height };
-      stateData.aspectRatio = image.naturalWidth / image.naturalHeight;
-      
-      transitionState(ImageState.RESIZING, 'resize started');
-    }
-  };
-}
-
-function createDragHandler(id, getImageLocation, selectionManager, store) {
-  return {
-    canHandle: (event, state, appState) => {
-      const handle = event.target?.closest?.('.resize-handle');
-      return state === ImageState.IDLE && 
-             handle === null &&
-             !appState.ui.nextClickCreatesConnector;
-    },
-    
-    onMouseDown: (event, stateData) => {
-      // Store drag start info but don't prevent events yet
-      // Let click events fire normally for selection
-      
-      stateData.imageId = id;
-      stateData.dragStart = { x: event.clientX, y: event.clientY };
-      
-      // Check if this image is part of a multi-selection
-      const selectedImages = selectionManager.getSelection('images');
-      if (selectedImages && selectedImages.isSelected(id)) {
-        // Multi-selection: store all selected image locations
-        stateData.originalLocations = {};
-        selectedImages.forEach((imageId) => {
-          try {
-            stateData.originalLocations[imageId] = getImageLocation(imageId);
-          } catch (e) {
-            console.warn('[ImageWarning] Missing image location', { imageId, error: e?.message });
-          }
-        });
-        // Don't clear selection - preserve it for multi-drag
-      } else {
-        // Single image: store only this image location
-        stateData.originalLocations = {};
-        try {
-          stateData.originalLocations[id] = getImageLocation(id);
-        } catch (e) {
-          console.warn('[ImageWarning] Missing image on drag start, aborting', { id, error: e?.message });
-          return;
+    // Configure each state
+    stateConfig[ImageState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+          stateMachine.resetCursor();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
         }
       }
-      
-      // Set up mousemove listener to detect actual drag
-      const handleMouseMove = (moveEvent) => {
-        const dx = moveEvent.clientX - stateData.dragStart.x;
-        const dy = moveEvent.clientY - stateData.dragStart.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+    };
+    
+    
+    stateConfig[ImageState.RESIZING] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.setCursor(stateMachine.getCursorForResizeSide(stateData.resizeSide));
+          stateMachine.setupResizeListeners();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+          stateMachine.resetCursor();
+        }
+      }
+    };
+    
+    super(ImageState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
+    this.container = container;
+    this.id = id;
+    this.getImageLocation = getImageLocation;
+    this.selectionManager = selectionManager;
+    this.store = store;
+    
+    // Global listener manager
+    this.globalListeners = new GlobalListenerManager();
+    
+    this.setupEventListeners();
+  }
+  
+  clearAllListeners() {
+    this.globalListeners.clearAll();
+  }
+  
+  resetCursor() {
+    document.body.style.cursor = '';
+  }
+  
+  setCursor(cursor) {
+    document.body.style.cursor = cursor;
+  }
+  
+  setupResizeListeners() {
+    this.globalListeners.setListeners({
+      'mousemove': this.handleImageResize.bind(this),
+      'mouseup': this.handleImageResizeEnd.bind(this)
+    });
+  }
+  
+  /**
+   * Helper function to extract resize side from class name
+   */
+  extractResizeSide(handle) {
+    if (!handle) return null;
+    
+    const classNames = handle.className.split(' ');
+    for (const className of classNames) {
+      if (className.startsWith('resize-handle-')) {
+        return className.replace('resize-handle-', '');
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Helper function to get cursor for resize side
+   */
+  getCursorForResizeSide(resizeSide) {
+    switch (resizeSide) {
+      case 'left':
+      case 'right':
+        return 'ew-resize';
+      case 'top':
+      case 'bottom':
+        return 'ns-resize';
+      default:
+        return 'default';
+    }
+  }
+  
+  /**
+   * Event handling wrapper with debug logging
+   */
+  handleEvent(eventName, event, handlerFn) {
+    if (this.isDebugMode()) {
+      console.log(`[ImageEvent] ${eventName} in ${this.currentState}`, {
+        target: event.target?.className || 'unknown',
+        handler: handlerFn.name,
+        stateData: { ...this.stateData }
+      });
+    }
+    
+    try {
+      return handlerFn(event, this.stateData);
+    } catch (error) {
+      console.error(`[ImageError] in ${handlerFn.name}:`, error);
+      // Reset to safe state
+      this.transitionTo(ImageState.IDLE, 'error recovery');
+      throw error;
+    }
+  }
+  
+  /**
+   * Sub-handler architecture with explicit precedence
+   */
+  getImageHandlers() {
+    return {
+      // Handler for resize operations
+      resizeHandler: {
+        canHandle: (event, state, appState) => {
+          const handle = event.target?.closest?.('.resize-handle');
+          return state === ImageState.IDLE && 
+                 handle !== null &&
+                 !appState.ui.nextClickCreatesConnector;
+        },
         
-        // If mouse moved more than 5 pixels, start drag
-        if (distance > 5) {
-          // Remove the temporary listener
-          document.removeEventListener('mousemove', handleMouseMove);
-          document.removeEventListener('mouseup', handleMouseUp);
+        onMouseDown: (event, stateData) => {
+          const handle = event.target.closest('.resize-handle');
+          const resizeSide = this.extractResizeSide(handle);
           
-          // Only clear/replace selection if image wasn't already selected
-          if (!selectedImages || !selectedImages.isSelected(id)) {
-            selectionManager.clearAllSelections();
-            selectionManager.getSelection('images').replaceSelection(id);
+          if (!resizeSide) {
+            console.error('Could not determine resize side from class name:', handle.className);
+            return;
           }
           
-          // Now prevent events and start drag
-          moveEvent.preventDefault();
-          moveEvent.stopPropagation();
-          transitionState(ImageState.DRAGGING, 'drag started');
+          event.preventDefault();
+          event.stopPropagation();
+          
+          stateData.imageId = this.id;
+          stateData.resizeSide = resizeSide;
+          stateData.resizeStart = { x: event.clientX, y: event.clientY };
+          
+          const image = this.store.getImage(this.id);
+          stateData.originalSize = { width: image.width, height: image.height };
+          stateData.aspectRatio = image.naturalWidth / image.naturalHeight;
+          
+          this.transitionTo(ImageState.RESIZING, 'resize started');
         }
-      };
+      },
       
-      const handleMouseUp = () => {
-        // Remove listeners if mouse is released without dragging
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
+      // Handler for dragging
+      dragHandler: {
+        canHandle: (event, state, appState) => {
+          const handle = event.target?.closest?.('.resize-handle');
+          return state === ImageState.IDLE && 
+                 handle === null &&
+                 !appState.ui.nextClickCreatesConnector &&
+                 window.dragManager;
+        },
+        
+        onMouseDown: (event, stateData) => {
+          // Delegate to global drag manager
+          if (window.dragManager && window.dragManager.startDrag(this.id, 'image', event)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }
+      },
       
-      // Add temporary listeners
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-  };
-}
-
-function createSelectionHandler(id, getImageLocation, selectionManager, store) {
-  return {
-    canHandle: (event, state, appState) => {
-      return state === ImageState.IDLE && 
-             appState.ui.nextClickCreatesConnector;
-    },
-    
-    onClick: (event, stateData) => {
-      event.stopPropagation();
+      // Handler for selection in connector mode
+      selectionHandler: {
+        canHandle: (event, state, appState) => {
+          return state === ImageState.IDLE && 
+                 appState.ui.nextClickCreatesConnector;
+        },
+        
+        onClick: (event, stateData) => {
+          event.stopPropagation();
+          
+          if (!event.shiftKey) {
+            this.selectionManager.clearAllSelections();
+          }
+          
+          this.selectionManager.getSelection('images').toggleSelected(this.id);
+        }
+      },
       
-      if (!event.shiftKey) {
-        selectionManager.clearAllSelections();
+      // Handler for normal selection
+      normalSelectionHandler: {
+        canHandle: (event, state, appState) => {
+          return state === ImageState.IDLE && 
+                 !appState.ui.nextClickCreatesConnector;
+        },
+        
+        onClick: (event, stateData) => {
+          event.stopPropagation();
+          
+          if (!event.shiftKey) {
+            this.selectionManager.clearAllSelections();
+          }
+          
+          this.selectionManager.getSelection('images').toggleSelected(this.id);
+        }
       }
-      
-      selectionManager.getSelection('images').toggleSelected(id);
-    }
-  };
-}
-
-function createNormalSelectionHandler(id, getImageLocation, selectionManager, store) {
-  return {
-    canHandle: (event, state, appState) => {
-      return state === ImageState.IDLE && 
-             !appState.ui.nextClickCreatesConnector;
-    },
-    
-    onClick: (event, stateData) => {
-      event.stopPropagation();
-      
-      if (!event.shiftKey) {
-        selectionManager.clearAllSelections();
-      }
-      
-      selectionManager.getSelection('images').toggleSelected(id);
-    }
-  };
-}
-
-// Explicit priority order
-const HANDLER_PRIORITY = [
-  'resizeHandler',     // Highest - resize takes precedence over drag
-  'dragHandler',       // Mid priority
-  'normalSelectionHandler', // Normal selection (not in connector mode)
-  'selectionHandler',  // Lowest - only if in connector mode
-];
-
-// Handler registry removed - now instance-specific per image
-
-// Global references for mouse move handlers
-let globalStore = null;
-
-// Mouse move handler for dragging
-function handleImageDrag(event) {
-  if (currentState !== ImageState.DRAGGING) return;
-  
-  const appState = globalStore.getAppState();
-  const boardScale = appState.ui.boardScale || 1;
-  
-  // Calculate movement delta using movement utils
-  const delta = calculateMovementDelta(
-    stateData.dragStart.x,
-    stateData.dragStart.y,
-    event.clientX,
-    event.clientY,
-    boardScale
-  );
-  
-  // Move all images in the selection
-  Object.keys(stateData.originalLocations).forEach((imageId) => {
-    const originalLocation = stateData.originalLocations[imageId];
-    moveItemFromOriginal(imageId, originalLocation, delta.dx, delta.dy, window.board, 'image');
-  });
-}
-
-// Mouse up handler for dragging
-function handleImageDragEnd() {
-  if (currentState !== ImageState.DRAGGING) return;
-  
-  transitionState(ImageState.IDLE, 'drag ended');
-}
-
-// Mouse move handler for resizing
-function handleImageResize(event) {
-  if (currentState !== ImageState.RESIZING) return;
-  
-  const appState = globalStore.getAppState();
-  const boardScale = appState.ui.boardScale || 1;
-  
-  const dx = event.clientX - stateData.resizeStart.x;
-  const dy = event.clientY - stateData.resizeStart.y;
-  
-  // Calculate resize based on side, accounting for board scale
-  let delta = 0;
-  
-  switch (stateData.resizeSide) {
-    case 'left':
-      delta = -dx / boardScale;
-      break;
-    case 'right':
-      delta = dx / boardScale;
-      break;
-    case 'top':
-      delta = -dy / boardScale;
-      break;
-    case 'bottom':
-      delta = dy / boardScale;
-      break;
+    };
   }
   
-  // Only resize if there's significant movement (threshold of 5 pixels)
-  if (Math.abs(delta) >= 5) {
-    const isGrow = delta > 0;
+  /**
+   * Explicit priority order
+   */
+  getHandlerPriority() {
+    return [
+      'resizeHandler',     // Highest - resize takes precedence over drag
+      'dragHandler',       // Mid priority
+      'normalSelectionHandler', // Normal selection (not in connector mode)
+      'selectionHandler',  // Lowest - only if in connector mode
+    ];
+  }
+  
+  /**
+   * Single entry point with routing
+   */
+  routeMouseDown(event) {
+    const appState = this.store.getAppState();
+    const handlers = this.getImageHandlers();
     
-    // Resize the image (this will be handled by the board)
-    window.board.resizeImage(stateData.imageId, isGrow, stateData.resizeSide);
+    // Route to appropriate handler based on current state and context
+    for (const handlerName of this.getHandlerPriority()) {
+      const handler = handlers[handlerName];
+      if (handler.canHandle && handler.canHandle(event, this.currentState, appState)) {
+        if (handler.onMouseDown) {
+          return this.handleEvent('mousedown', event, handler.onMouseDown);
+        }
+      }
+    }
+  }
+  
+  routeClick(event) {
+    const appState = this.store.getAppState();
+    const handlers = this.getImageHandlers();
     
-    // Update resize start to prevent accumulation
-    stateData.resizeStart = { x: event.clientX, y: event.clientY };
+    // Route to appropriate handler based on current state and context
+    for (const handlerName of this.getHandlerPriority()) {
+      const handler = handlers[handlerName];
+      if (handler.canHandle && handler.canHandle(event, this.currentState, appState)) {
+        if (handler.onClick) {
+          return this.handleEvent('click', event, handler.onClick);
+        }
+      }
+    }
+  }
+  
+  // Mouse move handler for resizing
+  handleImageResize(event) {
+    if (this.currentState !== ImageState.RESIZING) return;
+    
+    const appState = this.store.getAppState();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    const dx = event.clientX - this.stateData.resizeStart.x;
+    const dy = event.clientY - this.stateData.resizeStart.y;
+    
+    // Calculate resize based on side, accounting for board scale
+    let delta = 0;
+    
+    switch (this.stateData.resizeSide) {
+      case 'left':
+        delta = -dx / boardScale;
+        break;
+      case 'right':
+        delta = dx / boardScale;
+        break;
+      case 'top':
+        delta = -dy / boardScale;
+        break;
+      case 'bottom':
+        delta = dy / boardScale;
+        break;
+    }
+    
+    // Only resize if there's significant movement (threshold of 5 pixels)
+    if (Math.abs(delta) >= 5) {
+      const isGrow = delta > 0;
+      
+      // Resize the image (this will be handled by the board)
+      window.board.resizeImage(this.stateData.imageId, isGrow, this.stateData.resizeSide);
+      
+      // Update resize start to prevent accumulation
+      this.stateData.resizeStart = { x: event.clientX, y: event.clientY };
+    }
+  }
+  
+  // Mouse up handler for resizing
+  handleImageResizeEnd() {
+    if (this.currentState !== ImageState.RESIZING) return;
+    
+    this.transitionTo(ImageState.IDLE, 'resize ended');
+  }
+  
+  setupEventListeners() {
+    // Single mousedown handler with routing
+    this.container.onmousedown = (event) => {
+      this.routeMouseDown(event);
+    };
+
+    // Click handler for selection
+    this.container.onclick = (event) => {
+      this.routeClick(event);
+    };
+  }
+  
+  cleanup() {
+    this.clearAllListeners();
+    this.resetCursor();
+    this.transitionTo(ImageState.IDLE, 'cleanup');
+  }
+  
+  // Debug functions
+  getCurrentState() {
+    return this.currentState;
+  }
+  
+  getStateData() {
+    return { ...this.stateData };
+  }
+  
+  getActiveListeners() {
+    return this.globalListeners.getActiveListeners();
   }
 }
 
-// Mouse up handler for resizing
-function handleImageResizeEnd() {
-  if (currentState !== ImageState.RESIZING) return;
-  
-  transitionState(ImageState.IDLE, 'resize ended');
-}
-
-// Main setup function - replaces the old setupImageEvents
+/**
+ * Setup function that creates and returns an ImageStateMachine instance
+ */
 export function setupImageEvents(
   container,
   id,
@@ -406,55 +365,21 @@ export function setupImageEvents(
   selectionManager,
   store
 ) {
-  // Store global reference for mouse move handlers
-  globalStore = store;
+  const stateMachine = new ImageStateMachine(container, id, getImageLocation, selectionManager, store);
   
-  // Create handlers for this specific image instance - each image gets its own handlers
-  const imageHandlers = {
-    resizeHandler: createResizeHandler(id, getImageLocation, selectionManager, store),
-    dragHandler: createDragHandler(id, getImageLocation, selectionManager, store),
-    normalSelectionHandler: createNormalSelectionHandler(id, getImageLocation, selectionManager, store),
-    selectionHandler: createSelectionHandler(id, getImageLocation, selectionManager, store)
-  };
-  
-  // Single mousedown handler with routing
-  container.onmousedown = (event) => {
-    const appState = store.getAppState();
+  return {
+    // Cleanup function
+    cleanup: () => stateMachine.cleanup(),
     
-    // Route to appropriate handler based on current state and context
-    for (const handlerName of HANDLER_PRIORITY) {
-      const handler = imageHandlers[handlerName];
-      if (handler.canHandle && handler.canHandle(event, currentState, appState)) {
-        if (handler.onMouseDown) {
-          return handleEvent('mousedown', event, handler.onMouseDown);
-        }
-      }
-    }
-  };
-
-  // Click handler for selection
-  container.onclick = (event) => {
-    const appState = store.getAppState();
-    
-    // Route to appropriate handler based on current state and context
-    for (const handlerName of HANDLER_PRIORITY) {
-      const handler = imageHandlers[handlerName];
-      if (handler.canHandle && handler.canHandle(event, currentState, appState)) {
-        if (handler.onClick) {
-          return handleEvent('click', event, handler.onClick);
-        }
-      }
-    }
+    // Debug functions
+    getCurrentState: () => stateMachine.getCurrentState(),
+    getStateData: () => stateMachine.getStateData(),
+    getActiveListeners: () => stateMachine.getActiveListeners()
   };
 }
 
 // Export for testing
 export {
   ImageState,
-  currentState,
-  stateData,
-  transitionState,
-  HANDLER_PRIORITY,
-  setListeners,
-  clearAllListeners
+  ImageStateMachine
 };

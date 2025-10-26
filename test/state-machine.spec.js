@@ -2,10 +2,10 @@ import { StateMachine, GlobalListenerManager } from '../scripts/ui/state-machine
 import { createStateConfig } from '../scripts/ui/state-config-pattern.js';
 import { StateMachineValidator } from '../scripts/ui/state-machine-validator.js';
 import { StateMachineTester } from '../scripts/ui/state-machine-testing.js';
-import { setupConnectorEvents } from '../scripts/board-items/connector-events-refactored.js';
-import { KeyboardStateMachine } from '../scripts/ui/keyboard-handlers-refactored.js';
-import { ImageStateMachine } from '../scripts/board-items/image-events-refactored.js';
-import { StickyResizeStateMachine } from '../scripts/board-items/sticky-events-refactored.js';
+import { setupConnectorEvents } from '../scripts/board-items/connector-events.js';
+import { KeyboardStateMachine } from '../scripts/ui/keyboard-handlers.js';
+import { ImageStateMachine } from '../scripts/board-items/image-events.js';
+import { StickyResizeStateMachine } from '../scripts/board-items/sticky-events.js';
 
 // Mock window global for unit tests
 if (typeof window === 'undefined') {

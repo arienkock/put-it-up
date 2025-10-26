@@ -1,316 +1,414 @@
+import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
+import { createStateConfig } from "../ui/state-config-pattern.js";
 import { fitContentInSticky } from "./text-fitting.js";
-import { STICKY_TYPE } from "./sticky.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 
-// ============================================================================
-// STICKY RESIZE STATE MACHINE
-// ============================================================================
-
+/**
+ * Sticky Resize State Machine
+ * Centralized state management for sticky resize events
+ */
 const StickyResizeState = {
   IDLE: 'idle',
   RESIZING: 'resizing'
 };
 
-let currentResizeState = StickyResizeState.IDLE;
-let resizeStateData = {
-  stickyId: null,
-  side: null,
-  startX: null,
-  startY: null,
-  startSize: null,
-  startLocation: null,
-  currentSize: null,
-  currentLocation: null
-};
+const STICKY_SIZE = 70; // pixels per size unit
 
-// ============================================================================
-// STICKY RESIZE LISTENER MANAGER
-// ============================================================================
-
-class StickyResizeListenerManager {
-  constructor() {
-    this.activeListeners = new Map(); // type -> Set of handlers
+/**
+ * Sticky Resize State Machine Implementation
+ * Uses the new StateMachine base class for consistent behavior
+ */
+class StickyResizeStateMachine extends StateMachine {
+  constructor(container, id, updateTextById, getStickyLocation, selectionManager, store) {
+    const stateConfig = createStateConfig(StickyResizeState);
+    
+    // Configure each state
+    stateConfig[StickyResizeState.IDLE] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+          stateMachine.resetCursor();
+          stateMachine.resetUserSelect();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+          stateMachine.resetCursor();
+          stateMachine.resetUserSelect();
+        }
+      }
+    };
+    
+    stateConfig[StickyResizeState.RESIZING] = {
+      setup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.setCursor(stateMachine.getCursorForSide(stateData.side));
+          stateMachine.setUserSelect('none');
+          stateMachine.setupResizeListeners();
+        }
+      },
+      cleanup: (stateData, stateMachine) => {
+        if (stateMachine.globalListeners) {
+          stateMachine.clearAllListeners();
+          stateMachine.resetCursor();
+          stateMachine.resetUserSelect();
+        }
+      }
+    };
+    
+    
+    super(StickyResizeState.IDLE, stateConfig);
+    
+    // Initialize properties after super constructor
+    this.container = container;
+    this.id = id;
+    this.updateTextById = updateTextById;
+    this.getStickyLocation = getStickyLocation;
+    this.selectionManager = selectionManager;
+    this.store = store;
+    
+    // Global listener manager
+    this.globalListeners = new GlobalListenerManager();
+    
+    this.setupEventListeners();
+  }
+  
+  clearAllListeners() {
+    this.globalListeners.clearAll();
+  }
+  
+  resetCursor() {
+    document.body.style.cursor = '';
+  }
+  
+  setCursor(cursor) {
+    document.body.style.cursor = cursor;
+  }
+  
+  resetUserSelect() {
+    document.body.style.userSelect = '';
+  }
+  
+  setUserSelect(userSelect) {
+    document.body.style.userSelect = userSelect;
+  }
+  
+  setupResizeListeners() {
+    this.globalListeners.setListeners({
+      'mousemove': this.handleResizeMove.bind(this),
+      'mouseup': this.handleResizeEnd.bind(this)
+    });
+  }
+  
+  
+  /**
+   * Returns the appropriate cursor for the given resize side
+   */
+  getCursorForSide(side) {
+    switch (side) {
+      case 'top':
+      case 'bottom':
+        return 'ns-resize';
+      case 'left':
+      case 'right':
+        return 'ew-resize';
+      default:
+        return 'default';
+    }
   }
   
   /**
-   * Set listeners for resize operations
-   * Automatically removes any existing listeners first
+   * Extract resize side from handle element
    */
-  setResizeListeners(moveHandler, upHandler) {
-    this.clearAll();
+  extractResizeSide(handle) {
+    if (!handle) return null;
     
-    document.addEventListener('mousemove', moveHandler);
-    document.addEventListener('mouseup', upHandler);
+    const classList = handle.className;
+    if (classList.includes('resize-handle-top')) return 'top';
+    if (classList.includes('resize-handle-right')) return 'right';
+    if (classList.includes('resize-handle-bottom')) return 'bottom';
+    if (classList.includes('resize-handle-left')) return 'left';
     
-    this.activeListeners.set('mousemove', new Set([moveHandler]));
-    this.activeListeners.set('mouseup', new Set([upHandler]));
+    return null;
   }
   
-  clearAll() {
-    this.activeListeners.forEach((handlers, eventType) => {
-      handlers.forEach(handler => {
-        document.removeEventListener(eventType, handler);
+  /**
+   * Event handling wrapper with debug logging
+   */
+  handleResizeEvent(eventName, event, handlerFn, ...args) {
+    if (this.isDebugMode()) {
+      console.log(`[StickyResizeEvent] ${eventName} in ${this.currentState}`, {
+        target: event.target?.className || 'unknown',
+        handler: handlerFn.name,
+        resizeStateData: { ...this.stateData }
+      });
+    }
+    
+    try {
+      return handlerFn(event, this.stateData, ...args);
+    } catch (error) {
+      console.error(`[StickyResizeError] in ${handlerFn.name}:`, error);
+      // Reset to safe state
+      this.transitionTo(StickyResizeState.IDLE, 'error recovery');
+      throw error;
+    }
+  }
+  
+  /**
+   * Sub-handler architecture with explicit precedence
+   */
+  getStickyResizeHandlers() {
+    return {
+      // Handler for starting resize operations
+      resizeStartHandler: {
+        canHandle: (event, state) => {
+          const handle = event.target.closest('[class*="resize-handle"]');
+          return state === StickyResizeState.IDLE && handle !== null;
+        },
+        
+        onMouseDown: (event, stateData) => {
+          const handle = event.target.closest('[class*="resize-handle"]');
+          const side = this.extractResizeSide(handle);
+          
+          event.preventDefault();
+          event.stopPropagation();
+          
+          const sticky = this.store.getSticky(this.id);
+          if (!sticky) return;
+
+          const currentSize = {
+            x: (sticky.size && sticky.size.x) || 1,
+            y: (sticky.size && sticky.size.y) || 1
+          };
+
+          const currentLocation = {
+            x: sticky.location.x,
+            y: sticky.location.y
+          };
+
+          stateData.stickyId = this.id;
+          stateData.side = side;
+          stateData.startX = event.pageX;
+          stateData.startY = event.pageY;
+          stateData.startSize = { ...currentSize };
+          stateData.startLocation = { ...currentLocation };
+          stateData.currentSize = { ...currentSize };
+          stateData.currentLocation = { ...currentLocation };
+
+          this.transitionTo(StickyResizeState.RESIZING, 'resize started');
+        }
+      },
+      
+      // Handler for resize completion
+      resizeEndHandler: {
+        canHandle: (event, state) => {
+          return state === StickyResizeState.RESIZING;
+        },
+        
+        onMouseUp: (event, stateData) => {
+          event.preventDefault();
+          
+          const finalSize = {
+            x: Math.max(1, Math.round(stateData.currentSize.x)),
+            y: Math.max(1, Math.round(stateData.currentSize.y))
+          };
+          
+          // Recalculate location for left/top resizing to ensure proper snapping
+          let finalLocation = { ...stateData.currentLocation };
+          if (stateData.side === 'left') {
+            finalLocation.x = stateData.startLocation.x + 
+              (stateData.startSize.x - finalSize.x) * STICKY_SIZE;
+          }
+          if (stateData.side === 'top') {
+            finalLocation.y = stateData.startLocation.y + 
+              (stateData.startSize.y - finalSize.y) * STICKY_SIZE;
+          }
+          
+          this.store.updateSize(stateData.stickyId, finalSize);
+          this.store.setLocation(stateData.stickyId, finalLocation);
+          
+          this.transitionTo(StickyResizeState.IDLE, 'resize completed');
+        }
+      },
+      
+      // Handler for starting drag operations
+      dragStartHandler: {
+        canHandle: (event, state, appState) => {
+          const handle = event.target.closest('[class*="resize-handle"]');
+          return state === StickyResizeState.IDLE && 
+                 handle === null &&
+                 !appState.ui.nextClickCreatesConnector &&
+                 window.dragManager;
+        },
+        
+        onMouseDown: (event, stateData) => {
+          // Delegate to global drag manager
+          if (window.dragManager && window.dragManager.startDrag(this.id, 'sticky', event)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }
+      },
+      
+    };
+  }
+  
+  /**
+   * Single entry point with routing
+   */
+  routeMouseDown(event) {
+    const appState = this.store.getAppState();
+    const handlers = this.getStickyResizeHandlers();
+    
+    // Route to appropriate handler based on current state and context
+    const handlerPriority = ['resizeStartHandler', 'dragStartHandler'];
+    for (const handlerName of handlerPriority) {
+      const handler = handlers[handlerName];
+      if (handler.canHandle && handler.canHandle(event, this.currentState, appState)) {
+        if (handler.onMouseDown) {
+          return this.handleResizeEvent('mousedown', event, handler.onMouseDown);
+        }
+      }
+    }
+  }
+  
+  routeMouseUp(event) {
+    const handlers = this.getStickyResizeHandlers();
+    
+    // Route to appropriate handler based on current state
+    const handlerPriority = ['resizeEndHandler'];
+    for (const handlerName of handlerPriority) {
+      const handler = handlers[handlerName];
+      if (handler.canHandle && handler.canHandle(event, this.currentState)) {
+        if (handler.onMouseUp) {
+          return this.handleResizeEvent('mouseup', event, handler.onMouseUp);
+        }
+      }
+    }
+  }
+  
+  // Mouse move handler for resizing
+  handleResizeMove(event) {
+    if (this.currentState !== StickyResizeState.RESIZING || !this.stateData.stickyId) return;
+
+    event.preventDefault();
+    
+    const deltaX = event.pageX - this.stateData.startX;
+    const deltaY = event.pageY - this.stateData.startY;
+    
+    // Calculate new size based on which side is being dragged
+    let newSize = { ...this.stateData.startSize };
+    let newLocation = { ...this.stateData.startLocation };
+    
+    switch (this.stateData.side) {
+      case 'right':
+        newSize.x = Math.max(1, this.stateData.startSize.x + deltaX / STICKY_SIZE);
+        break;
+      case 'left':
+        newSize.x = Math.max(1, this.stateData.startSize.x - deltaX / STICKY_SIZE);
+        newLocation.x = this.stateData.startLocation.x + 
+          (this.stateData.startSize.x - newSize.x) * STICKY_SIZE;
+        break;
+      case 'bottom':
+        newSize.y = Math.max(1, this.stateData.startSize.y + deltaY / STICKY_SIZE);
+        break;
+      case 'top':
+        newSize.y = Math.max(1, this.stateData.startSize.y - deltaY / STICKY_SIZE);
+        newLocation.y = this.stateData.startLocation.y + 
+          (this.stateData.startSize.y - newSize.y) * STICKY_SIZE;
+        break;
+    }
+
+    // Find the container element for this sticky
+    const container = document.querySelector(`[data-sticky-id="${this.stateData.stickyId}"]`);
+    if (!container) return;
+
+    // Update DOM for live preview
+    const widthPx = newSize.x * STICKY_SIZE;
+    const heightPx = newSize.y * STICKY_SIZE;
+    container.style.width = widthPx + 'px';
+    container.style.height = heightPx + 'px';
+    
+    // Update position for left/top resizing
+    if (this.stateData.side === 'left' || this.stateData.side === 'top') {
+      const appState = this.store.getAppState();
+      if (appState) {
+        const origin = appState.board.origin;
+        container.style.left = (newLocation.x - origin.x) + 'px';
+        container.style.top = (newLocation.y - origin.y) + 'px';
+      }
+    }
+
+    this.stateData.currentSize = newSize;
+    this.stateData.currentLocation = newLocation;
+  }
+  
+  // Mouse up handler for resizing
+  handleResizeEnd(event) {
+    if (this.currentState !== StickyResizeState.RESIZING) return;
+    
+    this.routeMouseUp(event);
+  }
+  
+  
+  setupEventListeners() {
+    // Add data attribute for container identification
+    this.container.setAttribute('data-sticky-id', this.id);
+
+    // Get all resize handles
+    const handles = {
+      top: this.container.querySelector('.resize-handle-top'),
+      right: this.container.querySelector('.resize-handle-right'),
+      bottom: this.container.querySelector('.resize-handle-bottom'),
+      left: this.container.querySelector('.resize-handle-left')
+    };
+
+    // Add mousedown event to each handle using new architecture
+    Object.entries(handles).forEach(([side, handle]) => {
+      if (!handle) return;
+
+      handle.addEventListener('mousedown', (event) => {
+        this.routeMouseDown(event);
       });
     });
-    this.activeListeners.clear();
+
+    // Prevent handle clicks from triggering sticky selection
+    Object.values(handles).forEach(handle => {
+      if (!handle) return;
+      handle.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+    });
+    
+    // Add mousedown event to sticky element for drag functionality
+    if (this.container.sticky) {
+      this.container.sticky.addEventListener('mousedown', (event) => {
+        this.routeMouseDown(event);
+      });
+    }
   }
   
-  // Debug: log active listeners
+  cleanup() {
+    this.clearAllListeners();
+    this.resetCursor();
+    this.resetUserSelect();
+    this.transitionTo(StickyResizeState.IDLE, 'cleanup');
+  }
+  
+  // Debug functions
+  getCurrentState() {
+    return this.currentState;
+  }
+  
+  getStateData() {
+    return { ...this.stateData };
+  }
+  
   getActiveListeners() {
-    const result = {};
-    this.activeListeners.forEach((handlers, eventType) => {
-      result[eventType] = handlers.size;
-    });
-    return result;
+    return this.globalListeners.getActiveListeners();
   }
 }
-
-const resizeListeners = new StickyResizeListenerManager();
-
-// Global store reference for resize operations
-let currentStore = null;
-
-// ============================================================================
-// CENTRALIZED RESIZE EVENT HANDLERS (DEFINED EARLY FOR REFERENCE)
-// ============================================================================
-
-function handleResizeMove(event) {
-  if (currentResizeState !== StickyResizeState.RESIZING || !resizeStateData.stickyId) return;
-
-  event.preventDefault();
-  
-  const deltaX = event.pageX - resizeStateData.startX;
-  const deltaY = event.pageY - resizeStateData.startY;
-  
-  // Calculate new size based on which side is being dragged
-  let newSize = { ...resizeStateData.startSize };
-  let newLocation = { ...resizeStateData.startLocation };
-  
-  switch (resizeStateData.side) {
-    case 'right':
-      newSize.x = Math.max(1, resizeStateData.startSize.x + deltaX / STICKY_SIZE);
-      break;
-    case 'left':
-      newSize.x = Math.max(1, resizeStateData.startSize.x - deltaX / STICKY_SIZE);
-      newLocation.x = resizeStateData.startLocation.x + 
-        (resizeStateData.startSize.x - newSize.x) * STICKY_SIZE;
-      break;
-    case 'bottom':
-      newSize.y = Math.max(1, resizeStateData.startSize.y + deltaY / STICKY_SIZE);
-      break;
-    case 'top':
-      newSize.y = Math.max(1, resizeStateData.startSize.y - deltaY / STICKY_SIZE);
-      newLocation.y = resizeStateData.startLocation.y + 
-        (resizeStateData.startSize.y - newSize.y) * STICKY_SIZE;
-      break;
-  }
-
-  // Find the container element for this sticky
-  const container = document.querySelector(`[data-sticky-id="${resizeStateData.stickyId}"]`);
-  if (!container) return;
-
-  // Update DOM for live preview
-  const widthPx = newSize.x * STICKY_SIZE;
-  const heightPx = newSize.y * STICKY_SIZE;
-  container.style.width = widthPx + 'px';
-  container.style.height = heightPx + 'px';
-  
-  // Update position for left/top resizing
-  if (resizeStateData.side === 'left' || resizeStateData.side === 'top') {
-    // We need to get the store reference - this will be handled by the setup function
-    const appState = currentStore?.getAppState();
-    if (appState) {
-      const origin = appState.board.origin;
-      container.style.left = (newLocation.x - origin.x) + 'px';
-      container.style.top = (newLocation.y - origin.y) + 'px';
-    }
-  }
-
-  resizeStateData.currentSize = newSize;
-  resizeStateData.currentLocation = newLocation;
-}
-
-function handleResizeEnd(event) {
-  if (currentResizeState !== StickyResizeState.RESIZING) return;
-  
-  const handler = stickyResizeHandlers.resizeEndHandler;
-  if (handler.onMouseUp) {
-    return handleResizeEvent('mouseup', event, handler.onMouseUp);
-  }
-}
-
-// ============================================================================
-// RESIZE STATE TRANSITIONS WITH LOGGING
-// ============================================================================
-
-// Debug mode - controlled by global window.DEBUG_MODE
-// Use a function to check DEBUG_MODE dynamically
-const isDebugMode = () => window.DEBUG_MODE || false;
-
-function transitionResizeState(newState, reason, data = {}) {
-  const oldState = currentResizeState;
-  
-  if (isDebugMode()) {
-    console.log(`[StickyResizeState] ${oldState} → ${newState}`, {
-      reason,
-      data,
-      timestamp: Date.now()
-    });
-  }
-  
-  // Clean up old state
-  switch (oldState) {
-    case StickyResizeState.RESIZING:
-      resizeListeners.clearAll();
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      break;
-  }
-  
-  currentResizeState = newState;
-  
-  // Set up new state
-  switch (newState) {
-    case StickyResizeState.IDLE:
-      resizeStateData = {
-        stickyId: null,
-        side: null,
-        startX: null,
-        startY: null,
-        startSize: null,
-        startLocation: null,
-        currentSize: null,
-        currentLocation: null
-      };
-      break;
-    case StickyResizeState.RESIZING:
-      document.body.style.cursor = getCursorForSide(resizeStateData.side);
-      document.body.style.userSelect = 'none';
-      resizeListeners.setResizeListeners(handleResizeMove, handleResizeEnd);
-      break;
-  }
-}
-
-// ============================================================================
-// RESIZE EVENT HANDLING WRAPPER WITH DEBUG LOGGING
-// ============================================================================
-
-function handleResizeEvent(eventName, event, handlerFn, ...args) {
-  if (isDebugMode()) {
-    console.log(`[StickyResizeEvent] ${eventName} in ${currentResizeState}`, {
-      target: event.target?.className || 'unknown',
-      handler: handlerFn.name,
-      resizeStateData: { ...resizeStateData }
-    });
-  }
-  
-  try {
-    return handlerFn(event, resizeStateData, ...args);
-  } catch (error) {
-    console.error(`[StickyResizeError] in ${handlerFn.name}:`, error);
-    // Reset to safe state
-    transitionResizeState(StickyResizeState.IDLE, 'error recovery');
-    throw error;
-  }
-}
-
-// ============================================================================
-// RESIZE HANDLER ARCHITECTURE
-// ============================================================================
-
-const stickyResizeHandlers = {
-  // Handler for starting resize operations
-  resizeStartHandler: {
-    canHandle: (event, state) => {
-      const handle = event.target.closest('[class*="resize-handle"]');
-      return state === StickyResizeState.IDLE && handle !== null;
-    },
-    
-    onMouseDown: (event, resizeStateData, stickyId, store) => {
-      const handle = event.target.closest('[class*="resize-handle"]');
-      const side = extractResizeSide(handle);
-      
-      event.preventDefault();
-      event.stopPropagation();
-      
-      const sticky = store.getSticky(stickyId);
-      if (!sticky) return;
-
-      const currentSize = {
-        x: (sticky.size && sticky.size.x) || 1,
-        y: (sticky.size && sticky.size.y) || 1
-      };
-
-      const currentLocation = {
-        x: sticky.location.x,
-        y: sticky.location.y
-      };
-
-      resizeStateData.stickyId = stickyId;
-      resizeStateData.side = side;
-      resizeStateData.startX = event.pageX;
-      resizeStateData.startY = event.pageY;
-      resizeStateData.startSize = { ...currentSize };
-      resizeStateData.startLocation = { ...currentLocation };
-      resizeStateData.currentSize = { ...currentSize };
-      resizeStateData.currentLocation = { ...currentLocation };
-
-      transitionResizeState(StickyResizeState.RESIZING, 'resize started');
-    }
-  },
-  
-  // Handler for resize completion
-  resizeEndHandler: {
-    canHandle: (event, state) => {
-      return state === StickyResizeState.RESIZING;
-    },
-    
-    onMouseUp: (event, resizeStateData) => {
-      event.preventDefault();
-      
-      const finalSize = {
-        x: Math.max(1, Math.round(resizeStateData.currentSize.x)),
-        y: Math.max(1, Math.round(resizeStateData.currentSize.y))
-      };
-      
-      // Recalculate location for left/top resizing to ensure proper snapping
-      let finalLocation = { ...resizeStateData.currentLocation };
-      if (resizeStateData.side === 'left') {
-        finalLocation.x = resizeStateData.startLocation.x + 
-          (resizeStateData.startSize.x - finalSize.x) * STICKY_SIZE;
-      }
-      if (resizeStateData.side === 'top') {
-        finalLocation.y = resizeStateData.startLocation.y + 
-          (resizeStateData.startSize.y - finalSize.y) * STICKY_SIZE;
-      }
-      
-      if (currentStore) {
-        currentStore.updateSize(resizeStateData.stickyId, finalSize);
-        currentStore.setLocation(resizeStateData.stickyId, finalLocation);
-      }
-      
-      transitionResizeState(StickyResizeState.IDLE, 'resize completed');
-    }
-  }
-};
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-function extractResizeSide(handle) {
-  if (!handle) return null;
-  
-  const classList = handle.className;
-  if (classList.includes('resize-handle-top')) return 'top';
-  if (classList.includes('resize-handle-right')) return 'right';
-  if (classList.includes('resize-handle-bottom')) return 'bottom';
-  if (classList.includes('resize-handle-left')) return 'left';
-  
-  return null;
-}
-
-const STICKY_SIZE = 70; // pixels per size unit
 
 /**
  * Sets up all event handlers for a sticky note
@@ -332,32 +430,14 @@ export function setupStickyEvents(
   store
 ) {
   const appState = store.getAppState();
-  // Drag start event
-  container.ondragstart = (event) => {
-    // Don't start sticky drag if we're in connector creation mode
-    if (appState.ui.nextClickCreatesConnector) {
-      event.preventDefault();
-      return;
-    }
-    
-    const { pageX: x, pageY: y } = event;
-    let originalLocations = {};
-    
-    const selectedStickies = selectionManager.getSelection('stickies');
-    if (selectedStickies && selectedStickies.isSelected(id)) {
-      selectedStickies.forEach((sid) => {
-        originalLocations[sid] = getStickyLocation(sid);
-      });
-    } else {
-      originalLocations[id] = getStickyLocation(id);
-    }
-    
-    event.dataTransfer.setData(
-      STICKY_TYPE,
-      JSON.stringify({ originalLocations, dragStart: { x, y } })
-    );
-    moveToFront();
-  };
+  
+  // Create sticky resize state machine
+  const resizeStateMachine = new StickyResizeStateMachine(
+    container, id, updateTextById, getStickyLocation, selectionManager, store
+  );
+  
+  // Custom drag is now handled by the state machine
+  // No HTML5 drag handlers needed
 
   // Editable state management
   function setEditable(enabled) {
@@ -449,79 +529,21 @@ export function setupStickyEvents(
   // Initial state
   moveToFront();
 
-  // Setup resize handle events with new architecture
-  setupResizeHandlesRefactored(container, id, store);
-
   return {
-    // Could add cleanup functions here if needed
+    // Cleanup function
     cleanup: () => {
-      // Clean up resize state if needed
-      if (currentResizeState !== StickyResizeState.IDLE) {
-        transitionResizeState(StickyResizeState.IDLE, 'cleanup');
-      }
-    }
+      resizeStateMachine.cleanup();
+    },
+    
+    // Debug functions
+    getCurrentState: () => resizeStateMachine.getCurrentState(),
+    getStateData: () => resizeStateMachine.getStateData(),
+    getActiveListeners: () => resizeStateMachine.getActiveListeners()
   };
 }
 
-/**
- * Sets up resize handle event handlers for a sticky using the new refactored architecture
- * 
- * @param {HTMLElement} container - The sticky container element
- * @param {string} id - Sticky ID
- * @param {Object} store - Store instance for state access
- */
-function setupResizeHandlesRefactored(container, id, store) {
-  // Set global store reference for resize operations
-  currentStore = store;
-  
-  // Add data attribute for container identification
-  container.setAttribute('data-sticky-id', id);
-
-  // Get all resize handles
-  const handles = {
-    top: container.querySelector('.resize-handle-top'),
-    right: container.querySelector('.resize-handle-right'),
-    bottom: container.querySelector('.resize-handle-bottom'),
-    left: container.querySelector('.resize-handle-left')
-  };
-
-  // Add mousedown event to each handle using new architecture
-  Object.entries(handles).forEach(([side, handle]) => {
-    if (!handle) return;
-
-    handle.addEventListener('mousedown', (event) => {
-      const handler = stickyResizeHandlers.resizeStartHandler;
-      if (handler.canHandle && handler.canHandle(event, currentResizeState)) {
-        if (handler.onMouseDown) {
-          return handleResizeEvent('mousedown', event, handler.onMouseDown, id, store);
-        }
-      }
-    });
-  });
-
-  // Prevent handle clicks from triggering sticky selection
-  Object.values(handles).forEach(handle => {
-    if (!handle) return;
-    handle.addEventListener('click', (event) => {
-      event.stopPropagation();
-    });
-  });
-}
-
-/**
- * Returns the appropriate cursor for the given resize side
- * @param {string} side - The resize side ('top', 'right', 'bottom', 'left')
- * @returns {string} CSS cursor value
- */
-function getCursorForSide(side) {
-  switch (side) {
-    case 'top':
-    case 'bottom':
-      return 'ns-resize';
-    case 'left':
-    case 'right':
-      return 'ew-resize';
-    default:
-      return 'default';
-  }
-}
+// Export for testing
+export {
+  StickyResizeState,
+  StickyResizeStateMachine
+};

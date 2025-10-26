@@ -65,7 +65,7 @@ import {
   createRenderer as createImageRenderer,
   IMAGE_TYPE,
 } from "../board-items/image.js";
-import { setupConnectorEvents } from "../board-items/connector-events-refactored.js";
+import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { Selection } from "./selection.js";
 import { SelectionManager } from "./selection-manager.js";
 import { createDragManager } from "./drag-manager.js";

@@ -4,7 +4,7 @@ import {
   getKeyboardState, 
   forceKeyboardStateTransition,
   completeKeyboardAction
-} from "../scripts/ui/keyboard-handlers-refactored.js";
+} from "../scripts/ui/keyboard-handlers.js";
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
 
