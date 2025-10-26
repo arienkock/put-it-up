@@ -1,6 +1,6 @@
 import { createImageContainerDOM, removePx } from "./image-dom.js";
 import { setImageStyles } from "./image-styling.js";
-import { setupImageEvents } from "./image-events.js";
+import { setupImageEvents } from "./image-events-refactored.js";
 
 export const IMAGE_TYPE = "application/image";
 
