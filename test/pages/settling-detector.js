@@ -7,6 +7,11 @@ export function installSettlingDetector(observer) {
       "Settling detector only works with observer of type BufferedObserver"
     );
   }
+  
+  // Declare variables first before using them
+  let errors = [];
+  let transitionsInProgress = [];
+  
   window.printTransitionsInProgress = () => {
     return JSON.stringify(transitionsInProgress);
   };
@@ -36,19 +41,17 @@ export function installSettlingDetector(observer) {
         }
       }
     });
-  let errors = [];
+  
   window.addEventListener("error", (event) => {
     errors.push(event.error);
   });
-
-  let transitionsInProgress = [];
   window.addEventListener("transitionrun", (event) =>
     addTransitionsInProgress(event.target, event.propertyName)
   );
-  window.addEventListener("transitionend", () =>
+  window.addEventListener("transitionend", (event) =>
     removeTransitionsInProgress(event.target, event.propertyName)
   );
-  window.addEventListener("transitioncancel", () =>
+  window.addEventListener("transitioncancel", (event) =>
     removeTransitionsInProgress(event.target, event.propertyName)
   );
 

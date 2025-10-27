@@ -140,9 +140,9 @@ class DragStateMachine extends StateMachine {
     }
     
     // Check if item is currently selected
-    const stickySelection = this.selectionManager.getSelection('stickies');
-    const imageSelection = this.selectionManager.getSelection('images');
-    const connectorSelection = this.selectionManager.getSelection('connectors');
+    let stickySelection = this.selectionManager.getSelection('stickies');
+    let imageSelection = this.selectionManager.getSelection('images');
+    let connectorSelection = this.selectionManager.getSelection('connectors');
     
     // DEBUG: Log current selections
     console.log('[DRAG START] Before checking selection:', {
