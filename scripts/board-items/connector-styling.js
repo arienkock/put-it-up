@@ -166,8 +166,9 @@ export function setConnectorStyles(
   
   // Resolve control point or self-loop parameters
   // Check if origin and destination are the same item (self-connection)
-  const isSelfConnection = connector.originId === connector.destinationId || 
-                           connector.originImageId === connector.destinationImageId;
+  // Only treat as self-connection if IDs actually exist AND match
+  const isSelfConnection = (connector.originId && connector.originId === connector.destinationId) || 
+                           (connector.originImageId && connector.originImageId === connector.destinationImageId);
 
   // Compute an effective control point used for traditional 2-segment curves and handle placement
   let effectiveControlPoint = null;
