@@ -25,10 +25,24 @@ class ImageStateMachine extends StateMachine {
           stateMachine.clearAllListeners();
           stateMachine.resetCursor();
         }
+        
+        // Clean up any leftover mousemove listeners
+        if (stateData.mouseMoveListener) {
+          document.removeEventListener('mousemove', stateData.mouseMoveListener);
+          stateData.mouseMoveListener = null;
+        }
+        stateData.mouseDownPos = null;
+        stateData.dragStarted = false;
       },
       cleanup: (stateData, stateMachine) => {
         if (stateMachine.globalListeners) {
           stateMachine.clearAllListeners();
+        }
+        
+        // Clean up any leftover mousemove listeners
+        if (stateData.mouseMoveListener) {
+          document.removeEventListener('mousemove', stateData.mouseMoveListener);
+          stateData.mouseMoveListener = null;
         }
       }
     };
@@ -194,11 +208,33 @@ class ImageStateMachine extends StateMachine {
         },
         
         onMouseDown: (event, stateData) => {
-          // Delegate to global drag manager
-          if (window.dragManager && window.dragManager.startDrag(this.id, 'image', event)) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
+          // Store mousedown position for drag detection
+          stateData.mouseDownPos = { x: event.pageX, y: event.pageY };
+          stateData.dragStarted = false;
+          
+          console.log('[IMAGE MOUSEDOWN] Tracking mouse position', stateData.mouseDownPos);
+          
+          // Add mousemove listener to detect drag
+          stateData.mouseMoveListener = (moveEvent) => {
+            const movedX = Math.abs(moveEvent.pageX - stateData.mouseDownPos.x);
+            const movedY = Math.abs(moveEvent.pageY - stateData.mouseDownPos.y);
+            
+            // Only start drag if mouse has moved more than 5 pixels
+            if (movedX > 5 || movedY > 5) {
+              console.log('[IMAGE MOUSEMOVE] Starting drag', { movedX, movedY });
+              document.removeEventListener('mousemove', stateData.mouseMoveListener);
+              
+              stateData.dragStarted = true; // Mark that we started a drag
+              
+              // Start the drag
+              if (window.dragManager && window.dragManager.startDrag(this.id, 'image', moveEvent)) {
+                moveEvent.preventDefault();
+                moveEvent.stopPropagation();
+              }
+            }
+          };
+          
+          document.addEventListener('mousemove', stateData.mouseMoveListener);
         }
       },
       
@@ -210,10 +246,27 @@ class ImageStateMachine extends StateMachine {
         },
         
         onClick: (event, stateData) => {
+          console.log('[IMAGE CLICK] Click event fired (connector mode)', { id: this.id, shiftKey: event.shiftKey, target: event.target });
+          
+          // Clean up mousemove listener if it exists
+          if (stateData.mouseMoveListener) {
+            document.removeEventListener('mousemove', stateData.mouseMoveListener);
+            stateData.mouseMoveListener = null;
+          }
+          
+          // Check if this was actually a drag - only return early if a drag actually started
+          if (stateData.dragStarted) {
+            console.log('[IMAGE CLICK] This was a drag, not a click');
+            stateData.mouseDownPos = null;
+            stateData.dragStarted = false;
+            return;
+          }
+          
+          stateData.mouseDownPos = null;
+          
           // Ignore click if we just completed a drag
           if (window.dragManager && window.dragManager.justCompletedDrag) {
             console.log('[IMAGE CLICK] Ignoring click after drag');
-            event.stopPropagation();
             return;
           }
           
@@ -235,10 +288,27 @@ class ImageStateMachine extends StateMachine {
         },
         
         onClick: (event, stateData) => {
+          console.log('[IMAGE CLICK] Click event fired', { id: this.id, shiftKey: event.shiftKey, target: event.target });
+          
+          // Clean up mousemove listener if it exists
+          if (stateData.mouseMoveListener) {
+            document.removeEventListener('mousemove', stateData.mouseMoveListener);
+            stateData.mouseMoveListener = null;
+          }
+          
+          // Check if this was actually a drag - only return early if a drag actually started
+          if (stateData.dragStarted) {
+            console.log('[IMAGE CLICK] This was a drag, not a click');
+            stateData.mouseDownPos = null;
+            stateData.dragStarted = false;
+            return;
+          }
+          
+          stateData.mouseDownPos = null;
+          
           // Ignore click if we just completed a drag
           if (window.dragManager && window.dragManager.justCompletedDrag) {
             console.log('[IMAGE CLICK] Ignoring click after drag');
-            event.stopPropagation();
             return;
           }
           
