@@ -233,23 +233,11 @@ class StickyResizeStateMachine extends StateMachine {
         }
       },
       
-      // Handler for starting drag operations
+      // Handler for starting drag operations - always returns false to let clicks work
       dragStartHandler: {
         canHandle: (event, state, appState) => {
-          const handle = event.target.closest('[class*="resize-handle"]');
-          return state === StickyResizeState.IDLE && 
-                 handle === null &&
-                 !appState.ui.nextClickCreatesConnector &&
-                 window.dragManager;
-        },
-        
-        onMouseDown: (event, stateData) => {
-          console.log('[STICKY EVENT] mousedown on sticky', { id: this.id });
-          // Delegate to global drag manager
-          if (window.dragManager && window.dragManager.startDrag(this.id, 'sticky', event)) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
+          // Always return false - we'll handle drag start differently
+          return false;
         }
       },
       
@@ -383,12 +371,8 @@ class StickyResizeStateMachine extends StateMachine {
       });
     });
     
-    // Add mousedown event to sticky element for drag functionality
-    if (this.container.sticky) {
-      this.container.sticky.addEventListener('mousedown', (event) => {
-        this.routeMouseDown(event);
-      });
-    }
+    // Mousedown handler moved to setupStickyEvents function to avoid conflict
+    // with onclick handler
   }
   
   cleanup() {
@@ -505,9 +489,64 @@ export function setupStickyEvents(
     fitContentInSticky(container.sticky, container.inputElement);
   });
 
+  // Track mousedown position for drag detection
+  let mouseDownPos = null;
+  let mouseMoveListener = null;
+  
+  container.sticky.onmousedown = (event) => {
+    // Only track mousedown if not on textarea
+    if (event.target !== container.inputElement) {
+      mouseDownPos = { x: event.pageX, y: event.pageY };
+      console.log('[STICKY MOUSEDOWN] Tracking mouse position', mouseDownPos);
+      
+      // Add mousemove listener to detect drag
+      mouseMoveListener = (moveEvent) => {
+        const movedX = Math.abs(moveEvent.pageX - mouseDownPos.x);
+        const movedY = Math.abs(moveEvent.pageY - mouseDownPos.y);
+        
+        // Only start drag if mouse has moved more than 5 pixels
+        if (movedX > 5 || movedY > 5) {
+          console.log('[STICKY MOUSEMOVE] Starting drag', { movedX, movedY });
+          document.removeEventListener('mousemove', mouseMoveListener);
+          
+          // Start the drag
+          if (window.dragManager) {
+            window.dragManager.startDrag(id, 'sticky', moveEvent);
+            moveEvent.preventDefault();
+            moveEvent.stopPropagation();
+          }
+        }
+      };
+      
+      document.addEventListener('mousemove', mouseMoveListener);
+    }
+  };
+  
   // Sticky click event for selection
   container.sticky.onclick = (event) => {
     console.log('[STICKY CLICK] Click event fired', { id, shiftKey: event.shiftKey, target: event.target });
+    
+    // Clean up mousemove listener if it exists
+    if (mouseMoveListener) {
+      document.removeEventListener('mousemove', mouseMoveListener);
+      mouseMoveListener = null;
+    }
+    
+    // Check if this was actually a drag
+    if (mouseDownPos) {
+      const movedX = Math.abs(event.pageX - mouseDownPos.x);
+      const movedY = Math.abs(event.pageY - mouseDownPos.y);
+      console.log('[STICKY CLICK] Mouse movement', { movedX, movedY, mouseDownPos });
+      
+      // If mouse moved more than 5 pixels, this was a drag, not a click
+      if (movedX > 5 || movedY > 5) {
+        console.log('[STICKY CLICK] This was a drag, not a click');
+        mouseDownPos = null;
+        return;
+      }
+    }
+    
+    mouseDownPos = null;
     
     // Ignore click if we just completed a drag
     if (window.dragManager && window.dragManager.justCompletedDrag) {
