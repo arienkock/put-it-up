@@ -30,6 +30,9 @@ export class Selection {
    */
   toggleSelected(id) {
     const appState = this.store.getAppState();
+    if (!appState.ui[this.selectionKey]) {
+      appState.ui[this.selectionKey] = {};
+    }
     const data = appState.ui[this.selectionKey];
     if (data[id]) {
       delete data[id];

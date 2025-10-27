@@ -492,11 +492,13 @@ export function setupStickyEvents(
   // Track mousedown position for drag detection
   let mouseDownPos = null;
   let mouseMoveListener = null;
+  let dragStarted = false;
   
   container.sticky.onmousedown = (event) => {
     // Only track mousedown if not on textarea
     if (event.target !== container.inputElement) {
       mouseDownPos = { x: event.pageX, y: event.pageY };
+      dragStarted = false;
       console.log('[STICKY MOUSEDOWN] Tracking mouse position', mouseDownPos);
       
       // Add mousemove listener to detect drag
@@ -508,6 +510,8 @@ export function setupStickyEvents(
         if (movedX > 5 || movedY > 5) {
           console.log('[STICKY MOUSEMOVE] Starting drag', { movedX, movedY });
           document.removeEventListener('mousemove', mouseMoveListener);
+          
+          dragStarted = true; // Mark that we started a drag
           
           // Start the drag
           if (window.dragManager) {
@@ -532,18 +536,12 @@ export function setupStickyEvents(
       mouseMoveListener = null;
     }
     
-    // Check if this was actually a drag
-    if (mouseDownPos) {
-      const movedX = Math.abs(event.pageX - mouseDownPos.x);
-      const movedY = Math.abs(event.pageY - mouseDownPos.y);
-      console.log('[STICKY CLICK] Mouse movement', { movedX, movedY, mouseDownPos });
-      
-      // If mouse moved more than 5 pixels, this was a drag, not a click
-      if (movedX > 5 || movedY > 5) {
-        console.log('[STICKY CLICK] This was a drag, not a click');
-        mouseDownPos = null;
-        return;
-      }
+    // Check if this was actually a drag - only return early if a drag actually started
+    if (dragStarted) {
+      console.log('[STICKY CLICK] This was a drag, not a click');
+      mouseDownPos = null;
+      dragStarted = false;
+      return;
     }
     
     mouseDownPos = null;
