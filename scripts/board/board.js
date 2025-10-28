@@ -222,6 +222,26 @@ export function Board(aStore) {
     store.setImageLocation(id, newLocation);
   };
 
+  /**
+   * Move a connector's curve handle by delta
+   * This is a separate method that can be called independently
+   * 
+   * @param {string} connectorId - Connector ID
+   * @param {number} deltaX - Delta X movement
+   * @param {number} deltaY - Delta Y movement
+   */
+  this.moveConnectorCurveHandle = (connectorId, deltaX, deltaY) => {
+    const connector = store.getConnector(connectorId);
+    
+    if (connector.curveControlPoint) {
+      const newCurveControlPoint = {
+        x: connector.curveControlPoint.x + deltaX,
+        y: connector.curveControlPoint.y + deltaY
+      };
+      store.updateCurveControlPoint(connectorId, newCurveControlPoint);
+    }
+  };
+
   this.moveConnector = (id, deltaX, deltaY) => {
     const connector = store.getConnector(id);
     
@@ -251,13 +271,82 @@ export function Board(aStore) {
     }
     
     // Always move the curve handle if it exists
-    if (connector.curveControlPoint) {
-      const newCurveControlPoint = {
-        x: connector.curveControlPoint.x + deltaX,
-        y: connector.curveControlPoint.y + deltaY
-      };
-      store.updateCurveControlPoint(id, newCurveControlPoint);
-    }
+    this.moveConnectorCurveHandle(id, deltaX, deltaY);
+  };
+
+  /**
+   * Move curve handles of connectors connected to a sticky
+   * 
+   * @param {string} stickyId - The sticky ID
+   * @param {number} deltaX - Movement delta X
+   * @param {number} deltaY - Movement delta Y
+   */
+  this.moveConnectorsConnectedToSticky = (stickyId, deltaX, deltaY) => {
+    const state = store.getState();
+    
+    // Find all connectors connected to this sticky
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      const isConnected = connector.originId == stickyId || connector.destinationId == stickyId;
+      
+      if (isConnected) {
+        // Use the existing connector movement logic to move the curve handle
+        this.moveConnectorCurveHandle(connectorId, deltaX, deltaY);
+      }
+    });
+  };
+
+  /**
+   * Move curve handles of connectors connected to an image
+   * 
+   * @param {string} imageId - The image ID
+   * @param {number} deltaX - Movement delta X
+   * @param {number} deltaY - Movement delta Y
+   */
+  this.moveConnectorsConnectedToImage = (imageId, deltaX, deltaY) => {
+    const state = store.getState();
+    
+    // Find all connectors connected to this image
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      const isConnected = connector.originImageId == imageId || connector.destinationImageId == imageId;
+      
+      if (isConnected) {
+        // Use the existing connector movement logic to move the curve handle
+        this.moveConnectorCurveHandle(connectorId, deltaX, deltaY);
+      }
+    });
+  };
+
+  /**
+   * Move curve handles of connectors connected to a set of items
+   * Tracks which connectors have been moved to avoid double movement
+   * 
+   * @param {Array<string>} stickyIds - Array of sticky IDs being moved
+   * @param {Array<string>} imageIds - Array of image IDs being moved
+   * @param {number} deltaX - Movement delta X
+   * @param {number} deltaY - Movement delta Y
+   */
+  this.moveConnectorsConnectedToItems = (stickyIds, imageIds, deltaX, deltaY, movedConnectors = new Set()) => {
+    const state = store.getState();
+    const stickyIdSet = new Set(stickyIds);
+    const imageIdSet = new Set(imageIds);
+    
+    // Find all connectors connected to any of the moved items
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      // Skip if already moved
+      if (movedConnectors.has(connectorId)) return;
+      
+      // Check if connector is connected to any moved sticky or image
+      const connectedToMovedSticky = connector.originId && stickyIdSet.has(connector.originId) ||
+                                      connector.destinationId && stickyIdSet.has(connector.destinationId);
+      const connectedToMovedImage = connector.originImageId && imageIdSet.has(connector.originImageId) ||
+                                     connector.destinationImageId && imageIdSet.has(connector.destinationImageId);
+      
+      if (connectedToMovedSticky || connectedToMovedImage) {
+        // Move the curve handle only once, even if connected to multiple moved items
+        this.moveConnectorCurveHandle(connectorId, deltaX, deltaY);
+        movedConnectors.add(connectorId);
+      }
+    });
   };
 
   this.getState = () => store.getState();

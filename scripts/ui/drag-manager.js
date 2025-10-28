@@ -187,13 +187,21 @@ class DragStateMachine extends StateMachine {
     this.stateData.boardScale = boardScale;
     this.stateData.originalLocations = {};
     
+    // Track last positions for calculating incremental deltas for connectors
+    this.stateData.lastLocations = {
+      stickies: new Map(),
+      images: new Map()
+    };
+    
     // Collect all selected items across all types and store their original locations
     if (stickySelection && stickySelection.hasItems()) {
       this.stateData.originalLocations.stickies = new Map();
       stickySelection.forEach((id) => {
         const sticky = this.store.getSticky(id);
         if (sticky) {
-          this.stateData.originalLocations.stickies.set(id, { ...sticky.location });
+          const location = { ...sticky.location };
+          this.stateData.originalLocations.stickies.set(id, location);
+          this.stateData.lastLocations.stickies.set(id, location);
         }
       });
     }
@@ -203,7 +211,9 @@ class DragStateMachine extends StateMachine {
       imageSelection.forEach((id) => {
         const image = this.store.getImage(id);
         if (image) {
-          this.stateData.originalLocations.images.set(id, { ...image.location });
+          const location = { ...image.location };
+          this.stateData.originalLocations.images.set(id, location);
+          this.stateData.lastLocations.images.set(id, location);
         }
       });
     }
@@ -241,9 +251,14 @@ class DragStateMachine extends StateMachine {
       this.stateData.boardScale
     );
     
+    // Collect IDs of items being moved
+    const stickyIds = [];
+    const imageIds = [];
+    
     // Move all selected stickies
     if (this.stateData.originalLocations.stickies) {
       this.stateData.originalLocations.stickies.forEach((originalLocation, id) => {
+        stickyIds.push(id);
         moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, this.board, 'sticky');
       });
     }
@@ -251,6 +266,7 @@ class DragStateMachine extends StateMachine {
     // Move all selected images
     if (this.stateData.originalLocations.images) {
       this.stateData.originalLocations.images.forEach((originalLocation, id) => {
+        imageIds.push(id);
         moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, this.board, 'image');
       });
     }
@@ -270,6 +286,51 @@ class DragStateMachine extends StateMachine {
         this.board.moveConnector(id, connectorDelta.dx, connectorDelta.dy);
       });
     }
+    
+    // Move connectors connected to moved items with actual deltas
+    // (accounting for snapping and boundary constraints)
+    // Track which connectors have been moved to avoid double movement
+    const movedConnectors = new Set();
+    
+    stickyIds.forEach((id) => {
+      const lastLocation = this.stateData.lastLocations.stickies?.get(id);
+      if (lastLocation) {
+        const newLocation = this.board.getStickyLocation(id);
+        // Calculate incremental delta from last position to current position
+        const actualDeltaX = newLocation.x - lastLocation.x;
+        const actualDeltaY = newLocation.y - lastLocation.y;
+        
+        // Only move connectors if movement exceeds threshold (same as sticky movement threshold)
+        const movementThreshold = 1; // pixels - only move if actual movement is significant
+        const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
+        
+        if (movementDistance > movementThreshold) {
+          this.board.moveConnectorsConnectedToItems([id], [], actualDeltaX, actualDeltaY, movedConnectors);
+          // Update last position for next incremental calculation
+          this.stateData.lastLocations.stickies.set(id, { ...newLocation });
+        }
+      }
+    });
+    
+    imageIds.forEach((id) => {
+      const lastLocation = this.stateData.lastLocations.images?.get(id);
+      if (lastLocation) {
+        const newLocation = this.board.getImageLocation(id);
+        // Calculate incremental delta from last position to current position
+        const actualDeltaX = newLocation.x - lastLocation.x;
+        const actualDeltaY = newLocation.y - lastLocation.y;
+        
+        // Only move connectors if movement exceeds threshold
+        const movementThreshold = 1; // pixels - only move if actual movement is significant
+        const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
+        
+        if (movementDistance > movementThreshold) {
+          this.board.moveConnectorsConnectedToItems([], [id], actualDeltaX, actualDeltaY, movedConnectors);
+          // Update last position for next incremental calculation
+          this.stateData.lastLocations.images.set(id, { ...newLocation });
+        }
+      }
+    });
     
     // Update last position for next move (used for connectors)
     this.stateData.lastPosition = { x: event.clientX, y: event.clientY };

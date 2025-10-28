@@ -522,6 +522,122 @@ describe("Connector Functionality Tests", () => {
       expect(movedConnector.originPoint).toBeUndefined();
       expect(movedConnector.destinationPoint).toBeUndefined();
     });
+
+    it("should move curve handle when sticky moves", () => {
+      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      
+      // Create a fully connected connector with curve handle
+      const connectorId = board.putConnector({
+        originId: sticky1Id,
+        destinationId: sticky2Id,
+        curveControlPoint: { x: 150, y: 150 },
+        color: "orange"
+      });
+
+      const originalConnector = board.getConnector(connectorId);
+      expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
+
+      // Move the sticky
+      board.moveSticky(sticky1Id, { x: 150, y: 120 });
+      
+      // Manually trigger connector movement after moving the sticky
+      // Calculate actual delta after snapping (sticky snaps to grid 10)
+      const originalLocation = { x: 100, y: 100 };
+      const newLocation = board.getStickyLocation(sticky1Id);
+      const deltaX = newLocation.x - originalLocation.x;
+      const deltaY = newLocation.y - originalLocation.y;
+      board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+
+      const connectorAfterMove = board.getConnector(connectorId);
+      // Curve handle should move by the same delta as the sticky (50, 20)
+      expect(connectorAfterMove.curveControlPoint).toEqual({ x: 200, y: 170 });
+    });
+
+    it("should move curve handles for multiple connectors when sticky moves", () => {
+      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky3Id = board.putSticky({ text: "sticky3", location: { x: 300, y: 300 } });
+      
+      // Create two connectors connected to the same sticky
+      const connector1Id = board.putConnector({
+        originId: sticky1Id,
+        destinationId: sticky2Id,
+        curveControlPoint: { x: 150, y: 150 },
+        color: "red"
+      });
+
+      const connector2Id = board.putConnector({
+        originId: sticky1Id,
+        destinationId: sticky3Id,
+        curveControlPoint: { x: 180, y: 180 },
+        color: "blue"
+      });
+
+      // Move sticky1
+      board.moveSticky(sticky1Id, { x: 150, y: 120 });
+      
+      // Manually trigger connector movement after moving the sticky
+      // Calculate actual delta after snapping (sticky snaps to grid 10)
+      const originalLocation = { x: 100, y: 100 };
+      const newLocation = board.getStickyLocation(sticky1Id);
+      const deltaX = newLocation.x - originalLocation.x;
+      const deltaY = newLocation.y - originalLocation.y;
+      board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+
+      // Both connectors' curve handles should move by the same delta (50, 20)
+      const connector1 = board.getConnector(connector1Id);
+      expect(connector1.curveControlPoint).toEqual({ x: 200, y: 170 });
+
+      const connector2 = board.getConnector(connector2Id);
+      expect(connector2.curveControlPoint).toEqual({ x: 230, y: 200 });
+    });
+
+    it("should move curve handle when image moves", () => {
+      const image1Id = board.putImage({ 
+        location: { x: 100, y: 100 }, 
+        width: 150, 
+        height: 100,
+        src: "test-image.jpg",
+        dataUrl: "data:image/jpeg;base64,test",
+        naturalWidth: 300,
+        naturalHeight: 200
+      });
+      const image2Id = board.putImage({ 
+        location: { x: 200, y: 200 }, 
+        width: 150, 
+        height: 100,
+        src: "test-image.jpg",
+        dataUrl: "data:image/jpeg;base64,test",
+        naturalWidth: 300,
+        naturalHeight: 200
+      });
+      
+      // Create a connector between images with curve handle
+      const connectorId = board.putConnector({
+        originImageId: image1Id,
+        destinationImageId: image2Id,
+        curveControlPoint: { x: 150, y: 150 },
+        color: "purple"
+      });
+
+      const originalConnector = board.getConnector(connectorId);
+      expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
+
+      // Move the image
+      board.moveImage(image1Id, { x: 150, y: 120 });
+      
+      // Manually trigger connector movement after moving the image
+      const originalLocation = { x: 100, y: 100 };
+      const newLocation = board.getImageLocation(image1Id);
+      const deltaX = newLocation.x - originalLocation.x;
+      const deltaY = newLocation.y - originalLocation.y;
+      board.moveConnectorsConnectedToItems([], [image1Id], deltaX, deltaY);
+
+      const connectorAfterMove = board.getConnector(connectorId);
+      // Curve handle should move by the same delta as the image (50, 20)
+      expect(connectorAfterMove.curveControlPoint).toEqual({ x: 200, y: 170 });
+    });
   });
 
   describe("Connector Error Handling", () => {
