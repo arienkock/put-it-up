@@ -444,6 +444,13 @@ export function mount(board, root, Observer, store) {
       return;
     }
     
+    // Check if browser has already restored scroll position (e.g., on refresh)
+    // If scrollX or scrollY is non-zero, the browser has restored scroll position,
+    // so we should NOT perform our automatic scrolling
+    if (window.scrollX !== 0 || window.scrollY !== 0) {
+      return;
+    }
+    
     const appState = store.getAppState();
     const boardScale = appState.ui.boardScale || zoomScale[zoomScale.length - 1];
     
@@ -469,11 +476,11 @@ export function mount(board, root, Observer, store) {
     const scrollX = targetX - viewportCenterX;
     const scrollY = targetY - viewportCenterY;
     
-    // Apply the scroll position
+    // Apply the scroll position instantly (not smooth)
     window.scrollTo({
       left: Math.max(0, scrollX),
       top: Math.max(0, scrollY),
-      behavior: 'smooth'
+      behavior: 'auto'
     });
   }
   
