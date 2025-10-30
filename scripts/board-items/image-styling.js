@@ -30,10 +30,6 @@ export function setImageStyles(image, container, shouldAnimateMove, isSelected, 
     });
   }
   
-  // Handle animation
-  if (shouldAnimateMove) {
-    container.style.transition = "left 0.2s ease, top 0.2s ease";
-  } else {
-    container.style.transition = "none";
-  }
+  // Disable movement animation for images to ensure instant snapping
+  container.style.transition = "none";
 }

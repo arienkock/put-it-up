@@ -208,17 +208,20 @@ export function Board(aStore) {
   };
 
   this.moveImage = (id, newLocation) => {
-    // Images move freely without grid snapping
     const { origin, limit } = getBoardInternal();
     const image = store.getImage(id);
     const widthPx = image.width;
     const heightPx = image.height;
-    
-    // Still respect board boundaries
-    newLocation = {
-      x: Math.min(limit.x - widthPx, Math.max(origin.x, newLocation.x || 0)),
-      y: Math.min(limit.y - heightPx, Math.max(origin.y, newLocation.y || 0))
-    };
+
+    // Snap images to grid just like stickies, while respecting boundaries
+    newLocation = snapLocationWithSize(
+      newLocation || { x: 0, y: 0 },
+      gridSize,
+      origin,
+      limit,
+      widthPx,
+      heightPx
+    );
     store.setImageLocation(id, newLocation);
   };
 
