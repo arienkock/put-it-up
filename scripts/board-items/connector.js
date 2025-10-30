@@ -25,13 +25,17 @@ export const createRenderer = (
       // Ensure connector has a color
       board.ensureConnectorHasColor(connectorId);
       
-      // Get generic items using unified API
-      const originItem = (connector.originId || connector.originImageId) 
-        ? board.getBoardItem(connector.originId || connector.originImageId) 
-        : null;
-      const destItem = (connector.destinationId || connector.destinationImageId)
-        ? board.getBoardItem(connector.destinationId || connector.destinationImageId)
-        : null;
+      // Resolve endpoints respecting type to avoid ID collisions
+      const originItem = connector.originId
+        ? board.getStickySafe(connector.originId)
+        : connector.originImageId
+          ? board.getImageSafe(connector.originImageId)
+          : null;
+      const destItem = connector.destinationId
+        ? board.getStickySafe(connector.destinationId)
+        : connector.destinationImageId
+          ? board.getImageSafe(connector.destinationImageId)
+          : null;
       
       // Skip rendering if both endpoints are unconnected and have no points
       if (!originItem && !destItem && !connector.originPoint && !connector.destinationPoint) {
