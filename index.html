@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="styles/board.css" />
     <style>
-      #auth-error-retry:hover {
+      #error-retry:hover {
         background-color: #2a2a9e;
       }
-      #auth-error-retry:active {
+      #error-retry:active {
         transform: translateY(0.1em);
         background-color: #1f1f70;
       }
@@ -17,11 +17,11 @@
   </head>
   <body>
     <div class="app"></div>
-    <div id="auth-error-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
+    <div id="error-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
       <div style="background: #fff; padding: 24px; border-radius: 4px; width: min(420px, 90vw); box-shadow: 1px 1px 3px 0px rgba(0, 0, 0, 0.36); border: 1px solid #e0e0e0;">
-        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; color: #333;">Sign-in required</h3>
-        <div id="auth-error-message" style="margin: 0 0 20px 0; white-space: pre-line; font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; color: #333; line-height: 1.5;"></div>
-        <button id="auth-error-retry" style="padding: 8px 16px; border: none; border-radius: 4px; background-color: #4646d8; color: #fff; cursor: pointer; font-size: 16px; font-weight: 400; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; transition: background-color 0.2s ease;">Try again</button>
+        <h3 id="error-title" style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; color: #333;">Error</h3>
+        <div id="error-message" style="margin: 0 0 20px 0; white-space: pre-line; font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; color: #333; line-height: 1.5;"></div>
+        <button id="error-retry" style="padding: 8px 16px; border: none; border-radius: 4px; background-color: #4646d8; color: #fff; cursor: pointer; font-size: 16px; font-weight: 400; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; transition: background-color 0.2s ease;">Try again</button>
       </div>
     </div>
     <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
@@ -56,6 +56,42 @@
       
       // Check for offline query parameter
       const isOffline = urlParams.get('offline') === 'true';
+      // Get boardName from query string, default to "my-board2" if not provided
+      const boardName = urlParams.get('boardName');
+      
+      // Helper to show error UI and bind retry handler
+      function showError(message, onRetry, title = 'Error') {
+        const overlay = document.getElementById('error-overlay');
+        const errorMessage = document.getElementById('error-message');
+        const errorTitle = document.getElementById('error-title');
+        const retryButton = document.getElementById('error-retry');
+        
+        errorTitle.textContent = title;
+        errorMessage.textContent = message || 'An error occurred.';
+        overlay.style.display = 'flex';
+        
+        // Show or hide retry button based on whether onRetry is provided
+        if (onRetry) {
+          retryButton.style.display = 'block';
+          // Remove any existing handler and add new one
+          const newRetryButton = retryButton.cloneNode(true);
+          retryButton.parentNode.replaceChild(newRetryButton, retryButton);
+          newRetryButton.addEventListener('click', onRetry);
+        } else {
+          retryButton.style.display = 'none';
+        }
+        
+        return {
+          updateMessage(newMsg) { 
+            const msgEl = document.getElementById('error-message');
+            if (msgEl) msgEl.textContent = newMsg; 
+          },
+          hide() { 
+            const overlayEl = document.getElementById('error-overlay');
+            if (overlayEl) overlayEl.style.display = 'none'; 
+          }
+        };
+      }
       
       async function ensureAuthenticatedIfOnline() {
         if (isOffline) {
@@ -86,32 +122,6 @@
         });
         if (currentUser) {
           return currentUser;
-        }
-        
-        // Helper to show auth error UI and bind retry handler
-        function showAuthError(message, onRetry) {
-          const overlay = document.getElementById('auth-error-overlay');
-          const errorMessage = document.getElementById('auth-error-message');
-          const retryButton = document.getElementById('auth-error-retry');
-          
-          errorMessage.textContent = message || 'We could not authenticate you.';
-          overlay.style.display = 'flex';
-          
-          // Remove any existing handler and add new one
-          const newRetryButton = retryButton.cloneNode(true);
-          retryButton.parentNode.replaceChild(newRetryButton, retryButton);
-          newRetryButton.addEventListener('click', onRetry);
-          
-          return {
-            updateMessage(newMsg) { 
-              const msgEl = document.getElementById('auth-error-message');
-              if (msgEl) msgEl.textContent = newMsg; 
-            },
-            hide() { 
-              const overlayEl = document.getElementById('auth-error-overlay');
-              if (overlayEl) overlayEl.style.display = 'none'; 
-            }
-          };
         }
         
         // Attempt popup sign-in; on error, show UI and allow retries
@@ -187,12 +197,22 @@
           };
           let resolveRetry;
           const userPromise = new Promise((resolve) => { resolveRetry = resolve; });
-          overlay = showAuthError(formatAuthErrorMessage(e), handleRetry);
+          overlay = showError(formatAuthErrorMessage(e), handleRetry, 'Sign-in required');
           return await userPromise;
         }
       }
       
       async function bootstrap() {
+        // Check if boardName is required and provided (only needed when not offline)
+        if (!isOffline && !boardName) {
+          showError(
+            'A board name was not specified and is required.',
+            null,
+            'Board name required'
+          );
+          return; // Prevent bootstrap from continuing
+        }
+        
         await ensureAuthenticatedIfOnline();
         let store;
         let persistence;
@@ -206,7 +226,7 @@
           store.addObserver(persistence);
         } else {
           // Use Firestore
-          store = new FirestoreStore();
+          store = new FirestoreStore(boardName);
         }
         const board = new Board(store);
         mount(board, document.querySelector(".app"), BufferedObserver, store);

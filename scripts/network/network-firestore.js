@@ -6,10 +6,14 @@ const isDebugMode = () => window.DEBUG_MODE || false;
 
 export class FirestoreStore {
   connectCalled = false;
-  collectionName = "board-events";
-  boardName = "my-board2";
+  collectionName = "boards";
+  boardName;
   observers = [];
   readyForUse = false;
+
+  constructor(boardName) {
+    this.boardName = boardName;
+  }
 
   connect() {
     if (!this.connectCalled) {
