@@ -14,7 +14,9 @@ export class FirestoreStore {
   connect() {
     if (!this.connectCalled) {
       // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
+      if (!firebase.apps || firebase.apps.length === 0) {
+        firebase.initializeApp(firebaseConfig);
+      }
       this.db = firebase.firestore();
       this.connectCalled = true;
     }

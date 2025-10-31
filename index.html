@@ -8,9 +8,18 @@
   </head>
   <body>
     <div class="app"></div>
+    <div id="auth-error-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999;">
+      <div style="background: #fff; padding: 20px; border-radius: 8px; width: min(420px, 90vw); box-shadow: 0 10px 30px rgba(0,0,0,0.25);">
+        <h3 style="margin: 0 0 10px 0;">Sign-in required</h3>
+        <div id="auth-error-message" style="margin: 0 0 16px 0; white-space: pre-line;"></div>
+        <button id="auth-error-retry" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; background: #1a73e8; color: #fff; cursor: pointer;">Try again</button>
+      </div>
+    </div>
     <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
     <script>
+      // For Firebase JS SDK v7.20.0 and later, measurementId is optional
       const firebaseConfig = {
         apiKey: "AIzaSyDhvmtdhl4SNpA8XhvHeK_1mFyVfaEa66k",
         authDomain: "sticky-board-b7062.firebaseapp.com",
@@ -39,29 +48,165 @@
       // Check for offline query parameter
       const isOffline = urlParams.get('offline') === 'true';
       
-      let store;
-      let persistence;
-      
-      if (isOffline) {
-        // Use local storage
-        store = new LocalDatastore();
-        persistence = new LocalStoragePersistence();
+      async function ensureAuthenticatedIfOnline() {
+        if (isOffline) {
+          return null; // no auth required
+        }
+        // Initialize Firebase app if not already
+        if (!firebase.apps || firebase.apps.length === 0) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
         
-        // Initialize app state from LocalStorage
-        persistence.initializeAppState();
+        // Try to resolve a pending redirect result first (from prior session)
+        try {
+          const redirectResult = await auth.getRedirectResult();
+          if (redirectResult && redirectResult.user) {
+            return redirectResult.user;
+          }
+        } catch (e) {
+          // ignore here; we'll show UI below if needed
+        }
         
-        // Add persistence as an observer to the store
-        store.addObserver(persistence);
-      } else {
-        // Use Firestore
-        store = new FirestoreStore();
+        // Wait for current auth state
+        const currentUser = await new Promise((resolve) => {
+          const unsubscribe = auth.onAuthStateChanged((user) => {
+            unsubscribe();
+            resolve(user);
+          });
+        });
+        if (currentUser) {
+          return currentUser;
+        }
+        
+        // Helper to show auth error UI and bind retry handler
+        function showAuthError(message, onRetry) {
+          const overlay = document.getElementById('auth-error-overlay');
+          const errorMessage = document.getElementById('auth-error-message');
+          const retryButton = document.getElementById('auth-error-retry');
+          
+          errorMessage.textContent = message || 'We could not authenticate you.';
+          overlay.style.display = 'flex';
+          
+          // Remove any existing handler and add new one
+          const newRetryButton = retryButton.cloneNode(true);
+          retryButton.parentNode.replaceChild(newRetryButton, retryButton);
+          newRetryButton.addEventListener('click', onRetry);
+          
+          return {
+            updateMessage(newMsg) { 
+              const msgEl = document.getElementById('auth-error-message');
+              if (msgEl) msgEl.textContent = newMsg; 
+            },
+            hide() { 
+              const overlayEl = document.getElementById('auth-error-overlay');
+              if (overlayEl) overlayEl.style.display = 'none'; 
+            }
+          };
+        }
+        
+        // Attempt popup sign-in; on error, show UI and allow retries
+        const provider = new firebase.auth.GoogleAuthProvider();
+        async function attemptPopupSignIn() {
+          try {
+            const result = await firebase.auth().signInWithPopup(provider);
+            if (result && result.user) {
+              return result.user;
+            }
+            throw new Error('Sign-in completed but no user returned');
+          } catch (error) {
+            // Check for popup blocked error - in this case, fall back to redirect
+            if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+              // If popup is blocked, try redirect instead
+              throw new Error('Popup was blocked. Please allow popups for this site and try again, or the browser may redirect you automatically.');
+            }
+            // Re-throw other errors
+            throw error;
+          }
+        }
+        
+        function formatAuthErrorMessage(error) {
+          const code = error && error.code ? String(error.code) : '';
+          const msg = error && error.message ? String(error.message) : '';
+          if (code.includes('auth/unauthorized-domain')) {
+            return 'Sign-in is not allowed from this domain. In Firebase Console → Authentication → Settings, add this origin (e.g. localhost:9000) to Authorized domains.';
+          }
+          if (msg.includes('404') || code.includes('404')) {
+            return 'Authentication handler redirect failed. The redirect after sign-in returned a 404. This may indicate:\n- The redirect URL format is incorrect\n- A network or configuration issue\n\nPlease check the browser console for more details and ensure you are accessing the app from the correct URL (http://localhost:9000).';
+          }
+          if (code === 'auth/popup-blocked') {
+            return 'Popup was blocked by your browser. Please allow popups for this site and try again.';
+          }
+          if (code === 'auth/popup-closed-by-user') {
+            return 'Sign-in popup was closed before completing. Please try again.';
+          }
+          return msg || 'Authentication failed. Please try again.';
+        }
+
+        try {
+          const user = await attemptPopupSignIn();
+          return user;
+        } catch (e) {
+          // Log detailed error info to help debug the 404 redirect issue
+          if (window.DEBUG_MODE) {
+            console.error('[Auth Error]', {
+              code: e?.code,
+              message: e?.message,
+              email: e?.email,
+              credential: e?.credential,
+              error: e
+            });
+          }
+          
+          let overlay;
+          const handleRetry = async () => {
+            try {
+              overlay.updateMessage('Retrying sign-in...');
+              const user = await attemptPopupSignIn();
+              overlay.hide();
+              resolveRetry(user);
+            } catch (err) {
+              if (window.DEBUG_MODE) {
+                console.error('[Auth Retry Error]', {
+                  code: err?.code,
+                  message: err?.message,
+                  error: err
+                });
+              }
+              overlay.updateMessage(formatAuthErrorMessage(err));
+            }
+          };
+          let resolveRetry;
+          const userPromise = new Promise((resolve) => { resolveRetry = resolve; });
+          overlay = showAuthError(formatAuthErrorMessage(e), handleRetry);
+          return await userPromise;
+        }
       }
       
-      const board = new Board(store);
-      mount(board, document.querySelector(".app"), BufferedObserver, store);
-      store.connect();
-      // expose app state for debugging
-      window.appState = getAppState();
+      async function bootstrap() {
+        await ensureAuthenticatedIfOnline();
+        let store;
+        let persistence;
+        if (isOffline) {
+          // Use local storage
+          store = new LocalDatastore();
+          persistence = new LocalStoragePersistence();
+          // Initialize app state from LocalStorage
+          persistence.initializeAppState();
+          // Add persistence as an observer to the store
+          store.addObserver(persistence);
+        } else {
+          // Use Firestore
+          store = new FirestoreStore();
+        }
+        const board = new Board(store);
+        mount(board, document.querySelector(".app"), BufferedObserver, store);
+        store.connect();
+        // expose app state for debugging
+        window.appState = getAppState();
+      }
+      
+      bootstrap();
     </script>
   </body>
 </html>
