@@ -28,12 +28,30 @@ export class FirestoreStore {
       console.log("db", this.db);
     }
     this.docRef = this.db.collection(this.collectionName).doc(this.boardName);
-    this.docRef.onSnapshot((documentSnapshot) => {
+    this.docRef.onSnapshot(async (documentSnapshot) => {
       this.readyForUse = true;
       const data = documentSnapshot.data();
       const state = getAppState();
       if (data) {
         state.board = data;
+        // Check if board exists but lacks security fields (for migration of existing boards)
+        // Only migrate if ALL security fields are missing
+        if (data.creatorId === undefined && data.editors === undefined && data.viewers === undefined) {
+          const auth = firebase.auth();
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            // Update existing board with security fields
+            this.docRef.update({
+              creatorId: currentUser.uid,
+              editors: [],
+              viewers: []
+            }).catch((error) => {
+              if (isDebugMode()) {
+                console.error('[FirestoreStore] Error updating board with security fields:', error);
+              }
+            });
+          }
+        }
       }
       this.notifyBoardChange();
     });
@@ -87,10 +105,71 @@ export class FirestoreStore {
     if (!state.board) {
       state.board = defaults;
       if (this.docRef) {
-        this.docRef.set(state.board);
+        // Asynchronously check if document exists and initialize security fields if needed
+        // This is non-blocking so getBoard can return immediately
+        // initializeBoardIfNeeded will handle the Firestore write to ensure security fields are set
+        this.initializeBoardIfNeeded(defaults).catch((error) => {
+          if (isDebugMode()) {
+            console.error('[FirestoreStore] Error initializing board:', error);
+          }
+        });
       }
     }
     return clone(state.board);
+  };
+
+  initializeBoardIfNeeded = async (defaults) => {
+    if (!this.docRef) return;
+    
+    // Check if document exists
+    const docSnapshot = await this.docRef.get();
+    
+    if (!docSnapshot.exists) {
+      // Board doesn't exist yet - initialize with security fields
+      const auth = firebase.auth();
+      const currentUser = auth.currentUser;
+      
+      if (currentUser) {
+        const boardData = {
+          ...defaults,
+          creatorId: currentUser.uid,
+          editors: [],
+          viewers: []
+        };
+        
+        // Use set() to create the document with security fields
+        // This will overwrite any partial data that might have been set by getBoard
+        await this.docRef.set(boardData);
+        
+        // Update local state
+        const state = getAppState();
+        state.board = boardData;
+        this.notifyBoardChange();
+      } else {
+        // If no user is authenticated, log warning
+        // (this shouldn't happen in normal flow, but handle gracefully)
+        if (isDebugMode()) {
+          console.warn('[FirestoreStore] No authenticated user when creating board');
+        }
+      }
+    } else {
+      // Document exists - check if it has security fields, if not, update them
+      // (This case is also handled by the onSnapshot listener, but we keep it here for completeness)
+      const existingData = docSnapshot.data();
+      if (existingData && existingData.creatorId === undefined && existingData.editors === undefined && existingData.viewers === undefined) {
+        // Old board without security fields - update it
+        const auth = firebase.auth();
+        const currentUser = auth.currentUser;
+        
+        if (currentUser) {
+          await this.docRef.update({
+            creatorId: currentUser.uid,
+            editors: [],
+            viewers: []
+          });
+        }
+      }
+    }
   };
 
   getSticky = (id) => {

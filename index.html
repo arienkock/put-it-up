@@ -230,7 +230,7 @@
         }
         const board = new Board(store);
         mount(board, document.querySelector(".app"), BufferedObserver, store);
-        store.connect();
+        await store.connect();
         // expose app state for debugging
         window.appState = getAppState();
       }
