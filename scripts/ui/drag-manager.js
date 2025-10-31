@@ -65,6 +65,10 @@ class DragStateMachine extends StateMachine {
     
     // Flag to track if we just completed a drag to ignore subsequent clicks
     this.justCompletedDrag = false;
+
+    // rAF throttling for mousemove
+    this.rafPending = false;
+    this.lastMoveEvent = null;
   }
   
   clearAllListeners() {
@@ -81,7 +85,19 @@ class DragStateMachine extends StateMachine {
   
   setupDragListeners() {
     this.globalListeners.setListeners({
-      'mousemove': this.handleDragMove.bind(this),
+      'mousemove': (e) => {
+        // Throttle to once per animation frame
+        this.lastMoveEvent = e;
+        if (this.rafPending) return;
+        this.rafPending = true;
+        requestAnimationFrame(() => {
+          this.rafPending = false;
+          const event = this.lastMoveEvent;
+          if (event) {
+            this.handleDragMove(event);
+          }
+        });
+      },
       'mouseup': this.handleDragEnd.bind(this)
     });
   }

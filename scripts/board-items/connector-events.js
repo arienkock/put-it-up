@@ -124,6 +124,20 @@ class ConnectorStateMachine extends StateMachine {
     this.lastProximityUpdate = 0;
     this.PROXIMITY_THRESHOLD = 70; // pixels
     this.PROXIMITY_UPDATE_THROTTLE = 16; // ~60fps
+
+    // rAF throttling flags
+    this._raf = {
+      proximityPending: false,
+      proximityEvent: null,
+      dragPending: false,
+      dragEvent: null,
+      clickToClickPending: false,
+      clickToClickEvent: null,
+      handleDragPending: false,
+      handleDragEvent: null,
+      curveDragPending: false,
+      curveDragEvent: null
+    };
     
     this.setupEventListeners();
   }
@@ -131,7 +145,18 @@ class ConnectorStateMachine extends StateMachine {
   enableProximityDetection() {
     this.proximityDetectionActive = true;
     this.globalListeners.setListeners({
-      'mousemove': this.handleProximityDetection.bind(this)
+      'mousemove': (e) => {
+        if (!this.proximityDetectionActive) return;
+        // Prefer rAF over time-based throttle to align with frames
+        this._raf.proximityEvent = e;
+        if (this._raf.proximityPending) return;
+        this._raf.proximityPending = true;
+        requestAnimationFrame(() => {
+          this._raf.proximityPending = false;
+          const evt = this._raf.proximityEvent;
+          if (evt) this.handleProximityDetection(evt);
+        });
+      }
     });
   }
   
@@ -145,27 +170,63 @@ class ConnectorStateMachine extends StateMachine {
   
   setupDragListeners() {
     this.globalListeners.setListeners({
-      'mousemove': this.handleConnectorDrag.bind(this),
+      'mousemove': (e) => {
+        this._raf.dragEvent = e;
+        if (this._raf.dragPending) return;
+        this._raf.dragPending = true;
+        requestAnimationFrame(() => {
+          this._raf.dragPending = false;
+          const evt = this._raf.dragEvent;
+          if (evt) this.handleConnectorDrag(evt);
+        });
+      },
       'mouseup': this.handleConnectorDragEnd.bind(this)
     });
   }
   
   setupClickToClickListeners() {
     this.globalListeners.setListeners({
-      'mousemove': this.handleClickToClickMove.bind(this)
+      'mousemove': (e) => {
+        this._raf.clickToClickEvent = e;
+        if (this._raf.clickToClickPending) return;
+        this._raf.clickToClickPending = true;
+        requestAnimationFrame(() => {
+          this._raf.clickToClickPending = false;
+          const evt = this._raf.clickToClickEvent;
+          if (evt) this.handleClickToClickMove(evt);
+        });
+      }
     });
   }
   
   setupHandleDragListeners() {
     this.globalListeners.setListeners({
-      'mousemove': this.handleHandleDrag.bind(this),
+      'mousemove': (e) => {
+        this._raf.handleDragEvent = e;
+        if (this._raf.handleDragPending) return;
+        this._raf.handleDragPending = true;
+        requestAnimationFrame(() => {
+          this._raf.handleDragPending = false;
+          const evt = this._raf.handleDragEvent;
+          if (evt) this.handleHandleDrag(evt);
+        });
+      },
       'mouseup': this.handleHandleDragEnd.bind(this)
     });
   }
   
   setupCurveHandleDragListeners() {
     this.globalListeners.setListeners({
-      'mousemove': this.handleCurveHandleDrag.bind(this),
+      'mousemove': (e) => {
+        this._raf.curveDragEvent = e;
+        if (this._raf.curveDragPending) return;
+        this._raf.curveDragPending = true;
+        requestAnimationFrame(() => {
+          this._raf.curveDragPending = false;
+          const evt = this._raf.curveDragEvent;
+          if (evt) this.handleCurveHandleDrag(evt);
+        });
+      },
       'mouseup': this.handleCurveHandleDragEnd.bind(this)
     });
   }

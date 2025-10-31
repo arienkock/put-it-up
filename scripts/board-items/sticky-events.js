@@ -71,6 +71,9 @@ class StickyResizeStateMachine extends StateMachine {
     // Global listener manager
     this.globalListeners = new GlobalListenerManager();
     
+    // rAF throttling for resize mousemove
+    this._raf = { resizePending: false, lastEvent: null };
+    
     this.setupEventListeners();
   }
   
@@ -96,7 +99,16 @@ class StickyResizeStateMachine extends StateMachine {
   
   setupResizeListeners() {
     this.globalListeners.setListeners({
-      'mousemove': this.handleResizeMove.bind(this),
+      'mousemove': (e) => {
+        this._raf.lastEvent = e;
+        if (this._raf.resizePending) return;
+        this._raf.resizePending = true;
+        requestAnimationFrame(() => {
+          this._raf.resizePending = false;
+          const evt = this._raf.lastEvent;
+          if (evt) this.handleResizeMove(evt);
+        });
+      },
       'mouseup': this.handleResizeEnd.bind(this)
     });
   }
