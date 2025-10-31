@@ -108,8 +108,9 @@ describe("Image Interaction and Manipulation Tests", () => {
       board.moveImage(imageId, newLocation);
       
       const finalLocation = board.getImageLocation(imageId);
-      expect(finalLocation.x).toBe(125); // 100 + 50/2
-      expect(finalLocation.y).toBe(125); // 100 + 50/2
+      // Board snaps movement to a 10px grid; 125 snaps to 130
+      expect(finalLocation.x).toBe(130);
+      expect(finalLocation.y).toBe(130);
     });
 
     it("should handle image movement at different zoom levels", () => {
@@ -142,8 +143,15 @@ describe("Image Interaction and Manipulation Tests", () => {
         board.moveImage(imageId, newLocation);
         
         const finalLocation = board.getImageLocation(imageId);
-        expect(finalLocation.x).toBe(originalLocation.x + expectedMovement.x);
-        expect(finalLocation.y).toBe(originalLocation.y + expectedMovement.y);
+        // Account for 10px grid snapping when asserting final position
+        const snap = (v) => {
+          const grid = 10;
+          const remainder = v % grid;
+          const base = v - remainder;
+          return remainder >= grid / 2 ? base + grid : base;
+        };
+        expect(finalLocation.x).toBe(snap(originalLocation.x + expectedMovement.x));
+        expect(finalLocation.y).toBe(snap(originalLocation.y + expectedMovement.y));
       });
     });
 
