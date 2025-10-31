@@ -2,6 +2,7 @@ import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js
 import { createStateConfig } from "../ui/state-config-pattern.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
+import { isClickOnConnectorStroke, getConnectorsBelowPoint } from "./connector-hit-testing.js";
 
 /**
  * Connector State Machine
@@ -994,6 +995,12 @@ class ConnectorStateMachine extends StateMachine {
       const connectorContainer = event.target.closest('.connector-container');
       if (!connectorContainer) return;
       
+      // Check if click is on a curve control handle - no pass-through for curve handles
+      const isCurveHandleClick = event.target.classList.contains('curve-control-handle');
+      if (isCurveHandleClick) {
+        return; // Curve handles have their own handler in mousedown
+      }
+      
       // Only allow selection when clicking on the actual path or marker elements
       const isPathClick = event.target.classList.contains('connector-path');
       const isMarkerClick = event.target.closest('marker') !== null || 
@@ -1023,9 +1030,11 @@ class ConnectorStateMachine extends StateMachine {
         }
       }
       
-      event.stopPropagation();
-      
-      if (connectorId) {
+      // Markers and handles are part of the connector, so treat their clicks as direct hits
+      // (no pass-through needed)
+      if (isMarkerClick || isHandleClick) {
+        event.stopPropagation();
+        
         // Use selection manager to handle cross-type selection clearing
         this.selectionManager.selectItem('connectors', connectorId, {
           addToSelection: event.shiftKey
@@ -1033,6 +1042,63 @@ class ConnectorStateMachine extends StateMachine {
         
         // Trigger full render to update menu
         this.renderCallback();
+        return;
+      }
+      
+      // For path clicks, check if click actually hit the stroke
+      // Get the path element for hit testing
+      const pathElement = connectorContainer.querySelector('.connector-path');
+      
+      // Check if click actually hit this connector's stroke
+      const hitThisConnector = pathElement && isClickOnConnectorStroke(event, pathElement);
+      
+      if (hitThisConnector) {
+        // Click hit this connector's stroke - handle normally
+        event.stopPropagation();
+        
+        // Use selection manager to handle cross-type selection clearing
+        this.selectionManager.selectItem('connectors', connectorId, {
+          addToSelection: event.shiftKey
+        });
+        
+        // Trigger full render to update menu
+        this.renderCallback();
+      } else {
+        // Click did not hit this connector's stroke - try connectors below
+        const connectorsBelow = getConnectorsBelowPoint(connectorContainer, this.boardElement);
+        if (this.isDebugMode()) {
+          console.log('connectorsBelow', connectorsBelow);
+        }
+        // Try each connector below to see if the click hits its stroke
+        for (const lowerContainer of connectorsBelow) {
+          const lowerPathElement = lowerContainer.querySelector('.connector-path');
+          if (!lowerPathElement) continue;
+          
+          const hitLowerConnector = isClickOnConnectorStroke(event, lowerPathElement);
+          
+          if (hitLowerConnector) {
+            // Click hit a lower connector's stroke - select that connector instead
+            event.stopPropagation();
+            
+            const lowerConnectorIdClass = Array.from(lowerContainer.classList).find(cls => cls.startsWith('connector-'));
+            const lowerConnectorId = lowerConnectorIdClass ? lowerConnectorIdClass.replace('connector-', '') : null;
+            
+            if (lowerConnectorId) {
+              // Use selection manager to handle cross-type selection clearing
+              this.selectionManager.selectItem('connectors', lowerConnectorId, {
+                addToSelection: event.shiftKey
+              });
+              
+              // Trigger full render to update menu
+              this.renderCallback();
+            }
+            
+            return; // Found matching connector, stop searching
+          }
+        }
+        
+        // No connector stroke was hit - let event propagate normally
+        // (Don't call stopPropagation, let it bubble up)
       }
     });
 
