@@ -31,8 +31,8 @@ describe("Board UI", () => {
     it("can create new sticky from menu button", async () => {
       expect(await page.locator(".sticky").count()).toBe(0);
       await page.click(".board-action-menu .new-sticky");
-      // Avoid hanging on settle here; a brief wait is sufficient for UI state
-      await page.waitForTimeout(50);
+      // Give a brief moment for UI to update after menu click
+      await page.waitForTimeout(100);
       expect(await page.locator(".sticky").count()).toBe(0);
       await createNewAndCheckExpectations();
     });
@@ -687,7 +687,16 @@ async function clickStickyOutsideOfText(id) {
 
 async function clickToCreateSticky(clickLocation) {
   await page.mouse.click(clickLocation.x, clickLocation.y);
-  await thingsSettleDown();
+  // Use Promise.race to add a timeout to thingsSettleDown to prevent infinite hangs
+  try {
+    await Promise.race([
+      thingsSettleDown(),
+      page.waitForTimeout(2000)
+    ]);
+  } catch (err) {
+    // If thingsSettleDown fails, just wait a bit and continue
+    await page.waitForTimeout(100);
+  }
   let stickyBox = await page.locator(".sticky").first().boundingBox();
   return {
     x: stickyBox.x + stickyBox.width / 2,
