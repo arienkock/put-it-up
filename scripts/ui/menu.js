@@ -72,9 +72,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       },
       customLabel: (dom, label) => {
         if (!appState.ui.boardScale) {
-          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"> ${label}`;
+          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon"> ${label}`;
         } else {
-          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"> ${(appState.ui.boardScale * 100).toFixed(0)}%`;
+          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon"> ${(appState.ui.boardScale * 100).toFixed(0)}%`;
         }
       },
     },
@@ -180,7 +180,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
           "filled": "images/arrow-filled-icon.svg"
         };
         const currentIcon = arrowHeadIcons[appState.ui.currentArrowHead];
-        dom.innerHTML = `<img src="${currentIcon}" alt="${label}" style="width: 20px; height: 20px; vertical-align: text-bottom;">`;
+        dom.innerHTML = `<img src="${currentIcon}" alt="${label}" class="menu-icon-only">`;
       },
     },
     {
@@ -219,7 +219,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       if (item.icon) {
         if (item.icon.endsWith('.svg')) {
           // Handle SVG icons
-          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"> ${item.itemLabel}`;
+          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" class="menu-icon"> ${item.itemLabel}`;
         } else {
           // Handle emoji/text icons
           itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
