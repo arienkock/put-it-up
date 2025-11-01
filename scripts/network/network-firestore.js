@@ -123,8 +123,8 @@ export class FirestoreStore {
       if (this.docRef) {
         // Asynchronously check if document exists and initialize security fields if needed
         // This is non-blocking so getBoard can return immediately
-        // initializeBoardIfNeeded will handle the Firestore write to ensure security fields are set
-        this.initializeBoardIfNeeded(defaults).catch((error) => {
+        // _initializeBoardIfNeeded will handle the Firestore write to ensure security fields are set
+        this._initializeBoardIfNeeded(defaults).catch((error) => {
           if (isDebugMode()) {
             console.error('[FirestoreStore] Error initializing board:', error);
           }
@@ -134,29 +134,29 @@ export class FirestoreStore {
     return clone(state.board);
   };
 
-  initializeBoardIfNeeded = async (defaults) => {
+  _initializeBoardIfNeeded = async (defaults) => {
     if (!this.docRef) return;
     
     // Check if document exists
     let docSnapshot;
     try {
       if (isDebugMode()) {
-        console.log('[FirestoreStore.initializeBoardIfNeeded] Calling docRef.get() for board:', this.boardName);
-        console.trace('[FirestoreStore.initializeBoardIfNeeded] Stack trace before get()');
+        console.log('[FirestoreStore._initializeBoardIfNeeded] Calling docRef.get() for board:', this.boardName);
+        console.trace('[FirestoreStore._initializeBoardIfNeeded] Stack trace before get()');
       }
       docSnapshot = await this.docRef.get();
       if (isDebugMode()) {
-        console.log('[FirestoreStore.initializeBoardIfNeeded] docRef.get() completed successfully');
+        console.log('[FirestoreStore._initializeBoardIfNeeded] docRef.get() completed successfully');
       }
     } catch (error) {
-      console.error('[FirestoreStore.initializeBoardIfNeeded] ERROR in docRef.get() for board:', this.boardName);
-      console.error('[FirestoreStore.initializeBoardIfNeeded] Error details:', {
+      console.error('[FirestoreStore._initializeBoardIfNeeded] ERROR in docRef.get() for board:', this.boardName);
+      console.error('[FirestoreStore._initializeBoardIfNeeded] Error details:', {
         name: error.name,
         message: error.message,
         code: error.code,
         stack: error.stack
       });
-      console.trace('[FirestoreStore.initializeBoardIfNeeded] Stack trace at error catch');
+      console.trace('[FirestoreStore._initializeBoardIfNeeded] Stack trace at error catch');
       throw error; // Re-throw to preserve stack trace
     }
     
@@ -492,6 +492,56 @@ export class FirestoreStore {
 
   getAppState = () => {
     return getAppState();
+  };
+
+  // Get metadata for a specific board (instance method for parity with LocalDatastore)
+  getBoardMetadata = async (boardName) => {
+    if (!boardName) {
+      return null;
+    }
+    
+    try {
+      // Initialize Firebase if not already
+      initializeFirebaseApp();
+      const db = firebase.firestore();
+      const docRef = db.collection('boards').doc(boardName);
+      const docSnapshot = await docRef.get();
+      
+      if (docSnapshot.exists) {
+        const data = docSnapshot.data();
+        return {
+          name: boardName,
+          title: data.title || boardName,
+          createOn: data.createOn || null,
+          creatorId: data.creatorId || null,
+          ...data
+        };
+      }
+      return null;
+    } catch (error) {
+      console.warn('[FirestoreStore.getBoardMetadata] Failed to get board metadata:', error);
+      return null;
+    }
+  };
+
+  // Instance method to search boards (for parity with LocalDatastore)
+  // This is a simplified version that matches LocalDatastore signature
+  searchBoards = async (query = '') => {
+    try {
+      // Get current user if available
+      const auth = firebase.auth();
+      const currentUser = auth.currentUser;
+      const userId = currentUser ? currentUser.uid : null;
+      
+      // Call the static method with default options
+      const result = await FirestoreStore.searchBoards(query, userId, { limit: 50 });
+      
+      // Return just the boards array to match LocalDatastore interface
+      return result.boards || [];
+    } catch (error) {
+      console.warn('[FirestoreStore.searchBoards] Failed to search boards:', error);
+      return [];
+    }
   };
 
   // Static method to search boards by name with pagination support

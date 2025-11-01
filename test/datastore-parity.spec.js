@@ -51,7 +51,11 @@ describe("Datastore Parity Tests", () => {
       firestoreStore.docRef = {
         update: jest.fn(),
         set: jest.fn(),
-        onSnapshot: jest.fn()
+        onSnapshot: jest.fn(),
+        get: jest.fn(() => Promise.resolve({
+          exists: true,
+          data: () => ({ title: 'Test Board', createOn: Date.now() })
+        }))
       };
       firestoreStore.stickyRef = {
         doc: jest.fn(() => ({
@@ -184,7 +188,11 @@ describe("Datastore Parity Tests", () => {
             store.docRef = {
               update: jest.fn(),
               set: jest.fn(),
-              onSnapshot: jest.fn()
+              onSnapshot: jest.fn(),
+              get: jest.fn(() => Promise.resolve({
+                exists: true,
+                data: () => ({ title: 'Test Board', createOn: Date.now() })
+              }))
             };
             store.stickyRef = {
               doc: jest.fn(() => ({
@@ -528,7 +536,11 @@ describe("Datastore Parity Tests", () => {
         firestoreStore.docRef = {
           update: jest.fn(),
           set: jest.fn(),
-          onSnapshot: jest.fn()
+          onSnapshot: jest.fn(),
+          get: jest.fn(() => Promise.resolve({
+            exists: true,
+            data: () => ({ title: 'Test Board', createOn: Date.now() })
+          }))
         };
         firestoreStore.stickyRef = {
           doc: jest.fn(() => ({
