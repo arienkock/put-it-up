@@ -213,7 +213,7 @@ export class LocalDatastore {
     return getAppState();
   };
 
-  // Search boards by name (empty query returns all boards)
+  // Search boards by title (empty query returns all boards)
   searchBoards = (query = '') => {
     const boardsData = localStorage.getItem('put-it-up-boards');
     if (!boardsData) {
@@ -226,19 +226,31 @@ export class LocalDatastore {
       
       if (!searchTerm) {
         // Return all boards
-        return Object.keys(boards).map(boardName => ({
-          name: boardName,
-          ...boards[boardName].metadata
-        }));
+        return Object.keys(boards).map(boardName => {
+          const metadata = boards[boardName].metadata || {};
+          return {
+            name: boardName,
+            title: metadata.title || boardName, // Use title or fallback to board name
+            ...metadata
+          };
+        });
       }
       
-      // Filter boards by name containing search term
+      // Filter boards by title containing search term (fallback to board name if no title)
       return Object.keys(boards)
-        .filter(boardName => boardName.toLowerCase().includes(searchTerm))
-        .map(boardName => ({
-          name: boardName,
-          ...boards[boardName].metadata
-        }));
+        .filter(boardName => {
+          const metadata = boards[boardName].metadata || {};
+          const title = (metadata.title || boardName).toLowerCase();
+          return title.includes(searchTerm);
+        })
+        .map(boardName => {
+          const metadata = boards[boardName].metadata || {};
+          return {
+            name: boardName,
+            title: metadata.title || boardName, // Use title or fallback to board name
+            ...metadata
+          };
+        });
     } catch (error) {
       console.warn('Failed to search boards:', error);
       return [];

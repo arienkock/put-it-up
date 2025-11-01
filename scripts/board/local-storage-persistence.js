@@ -52,12 +52,18 @@ export class LocalStoragePersistence {
       // Get or create metadata for this board
       const metadata = allBoards[this.boardName]?.metadata || {
         name: this.boardName,
+        title: this.boardName, // Default title to board name
         createOn: Date.now()
       };
       
       // If board doesn't have createOn, set it now (for existing boards)
       if (!metadata.createOn) {
         metadata.createOn = Date.now();
+      }
+      
+      // If board doesn't have title, set default (for existing boards)
+      if (!metadata.title) {
+        metadata.title = this.boardName;
       }
       
       // Save board data and metadata

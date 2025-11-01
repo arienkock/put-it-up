@@ -27,29 +27,46 @@ export class FirestoreStore {
       console.log("db", this.db);
     }
     this.docRef = this.db.collection(this.collectionName).doc(this.boardName);
-    this.docRef.onSnapshot(async (documentSnapshot) => {
+      this.docRef.onSnapshot(async (documentSnapshot) => {
       this.readyForUse = true;
       const data = documentSnapshot.data();
       const state = getAppState();
       if (data) {
         state.board = data;
-        // Check if board exists but lacks security fields (for migration of existing boards)
-        // Only migrate if ALL security fields are missing
+        // Check if board exists but lacks required fields (for migration of existing boards)
+        const updateData = {};
+        let needsUpdate = false;
+        
+        // Migrate security fields
         if (data.creatorId === undefined && data.editors === undefined && data.viewers === undefined) {
           const auth = firebase.auth();
           const currentUser = auth.currentUser;
           if (currentUser) {
-            // Update existing board with security fields
-            this.docRef.update({
-              creatorId: currentUser.uid,
-              editors: [],
-              viewers: []
-            }).catch((error) => {
-              if (isDebugMode()) {
-                console.error('[FirestoreStore] Error updating board with security fields:', error);
-              }
-            });
+            updateData.creatorId = currentUser.uid;
+            updateData.editors = [];
+            updateData.viewers = [];
+            needsUpdate = true;
           }
+        }
+        
+        // Add createOn if missing
+        if (!data.createOn) {
+          updateData.createOn = Date.now();
+          needsUpdate = true;
+        }
+        
+        // Add title if missing (use board name/ID as default)
+        if (!data.title) {
+          updateData.title = this.boardName;
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          this.docRef.update(updateData).catch((error) => {
+            if (isDebugMode()) {
+              console.error('[FirestoreStore] Error updating board with required fields:', error);
+            }
+          });
         }
       }
       this.notifyBoardChange();
@@ -144,7 +161,7 @@ export class FirestoreStore {
     }
     
     if (!docSnapshot.exists) {
-      // Board doesn't exist yet - initialize with security fields and createOn timestamp
+      // Board doesn't exist yet - initialize with security fields, createOn timestamp, and title
       const auth = firebase.auth();
       const currentUser = auth.currentUser;
       
@@ -154,7 +171,9 @@ export class FirestoreStore {
           creatorId: currentUser.uid,
           editors: [],
           viewers: [],
-          createOn: Date.now()
+          createOn: Date.now(),
+          // Set default title to board name (ID) if not provided in defaults
+          title: defaults?.title || this.boardName
         };
         
         // Use set() to create the document with security fields
@@ -173,33 +192,39 @@ export class FirestoreStore {
         }
       }
     } else {
-      // Document exists - check if it has security fields, if not, update them
+      // Document exists - check if it needs migration for security fields, createOn, or title
       // (This case is also handled by the onSnapshot listener, but we keep it here for completeness)
       const existingData = docSnapshot.data();
+      const updateData = {};
+      let needsUpdate = false;
+      
+      // Migrate security fields
       if (existingData && existingData.creatorId === undefined && existingData.editors === undefined && existingData.viewers === undefined) {
-        // Old board without security fields - update it
         const auth = firebase.auth();
         const currentUser = auth.currentUser;
         
         if (currentUser) {
-          const updateData = {
-            creatorId: currentUser.uid,
-            editors: [],
-            viewers: []
-          };
-          
-          // Add createOn if it doesn't exist
-          if (!existingData.createOn) {
-            updateData.createOn = Date.now();
-          }
-          
-          await this.docRef.update(updateData);
+          updateData.creatorId = currentUser.uid;
+          updateData.editors = [];
+          updateData.viewers = [];
+          needsUpdate = true;
         }
-      } else if (existingData && !existingData.createOn) {
-        // Board exists but lacks createOn timestamp - update it
-        await this.docRef.update({
-          createOn: Date.now()
-        });
+      }
+      
+      // Add createOn if missing
+      if (!existingData.createOn) {
+        updateData.createOn = Date.now();
+        needsUpdate = true;
+      }
+      
+      // Add title if missing (use board name/ID as default)
+      if (!existingData.title) {
+        updateData.title = this.boardName;
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
+        await this.docRef.update(updateData);
       }
     }
   };
@@ -476,150 +501,153 @@ export class FirestoreStore {
     // Initialize Firebase if not already
     initializeFirebaseApp();
     const db = firebase.firestore();
-    const collectionRef = db.collection('boards');
     
-    // Note: Firestore doesn't support efficient queries for:
-    // - Case-insensitive text search
-    // - Array-contains queries across multiple fields (creatorId, editors, viewers)
-    // 
-    // So we fetch all boards and filter client-side by:
-    // - Search term (name contains searchTerm, case-insensitive)
-    // - User permissions (user is creator, in editors array, or in viewers array)
+    // Note: Firestore limitations:
+    // - Case-insensitive text search: Firestore doesn't support this natively
+    //   We use range queries for prefix matching, then filter client-side for contains matching
+    // - User permissions: Firestore doesn't support OR queries across creatorId, editors, viewers
+    //   We use multiple queries and merge results, or filter client-side
     
-    // Apply search filter if searchTerm is provided
+    let query = db.collection('boards');
+    
+    // Apply where clause for search term on title field (prefix matching)
+    // Note: This requires a Firestore composite index on (title, createOn)
+    // Firestore will provide a link to create the index if it doesn't exist
+    // The where() query does prefix matching (case-sensitive), so we also do
+    // client-side filtering for contains matching (case-insensitive)
     if (searchTerm && searchTerm.trim()) {
-      // Firestore doesn't support case-insensitive search directly,
-      // so we'll fetch all boards and filter client-side
-      // For better performance, you could use a search index or Algolia
-      let snapshot;
-      try {
-        console.log('[FirestoreStore.searchBoards] Calling collectionRef.get() with searchTerm:', searchTerm);
-        console.log('[FirestoreStore.searchBoards] userId:', userId);
-        console.trace('[FirestoreStore.searchBoards] Stack trace before get() with searchTerm');
-        snapshot = await collectionRef.get();
-        console.log('[FirestoreStore.searchBoards] collectionRef.get() completed successfully (with searchTerm)');
-      } catch (error) {
-        console.error('[FirestoreStore.searchBoards] ERROR in collectionRef.get() with searchTerm:', searchTerm);
-        console.error('[FirestoreStore.searchBoards] Error details:', {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          stack: error.stack,
-          userId: userId,
-          searchTerm: searchTerm
-        });
-        console.trace('[FirestoreStore.searchBoards] Stack trace at error catch (with searchTerm)');
-        throw error; // Re-throw to preserve stack trace
-      }
-      const boards = [];
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const docName = doc.id.toLowerCase();
-        const searchLower = searchTerm.toLowerCase();
-        
-        // Check if user has access (creator, editor, or viewer)
-        let hasAccess = false;
-        if (!userId) {
-          hasAccess = true; // No auth check needed
-        } else {
-          hasAccess = 
-            data.creatorId === userId ||
-            (data.editors && data.editors.includes(userId)) ||
-            (data.viewers && data.viewers.includes(userId));
-        }
-        
-        // Check if name matches search term and user has access
-        if (hasAccess && docName.includes(searchLower)) {
-          boards.push({
-            name: doc.id,
-            createOn: data.createOn || null,
-            creatorId: data.creatorId || null,
-            ...data
-          });
-        }
-      });
-      
-      // Sort by createOn descending (newest first)
-      boards.sort((a, b) => {
-        const aTime = a.createOn || 0;
-        const bTime = b.createOn || 0;
-        return bTime - aTime;
-      });
-      
-      // Apply pagination
-      const startIndex = startAfter ? boards.findIndex(b => b.name === startAfter) + 1 : 0;
-      const paginatedBoards = boards.slice(startIndex, startIndex + limit);
-      const lastDoc = paginatedBoards.length > 0 ? paginatedBoards[paginatedBoards.length - 1] : null;
-      
-      return {
-        boards: paginatedBoards,
-        lastDoc: lastDoc ? lastDoc.name : null
-      };
-    } else {
-      // No search term - return all boards user has access to
-      let snapshot;
-      try {
-        console.log('[FirestoreStore.searchBoards] Calling collectionRef.get() without searchTerm');
-        console.log('[FirestoreStore.searchBoards] userId:', userId);
-        console.trace('[FirestoreStore.searchBoards] Stack trace before get() without searchTerm');
-        snapshot = await collectionRef.get();
-        console.log('[FirestoreStore.searchBoards] collectionRef.get() completed successfully (without searchTerm)');
-      } catch (error) {
-        console.error('[FirestoreStore.searchBoards] ERROR in collectionRef.get() without searchTerm');
-        console.error('[FirestoreStore.searchBoards] Error details:', {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          stack: error.stack,
-          userId: userId
-        });
-        console.trace('[FirestoreStore.searchBoards] Stack trace at error catch (without searchTerm)');
-        throw error; // Re-throw to preserve stack trace
-      }
-      const boards = [];
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        
-        // Check if user has access (creator, editor, or viewer)
-        let hasAccess = false;
-        if (!userId) {
-          hasAccess = true; // No auth check needed
-        } else {
-          hasAccess = 
-            data.creatorId === userId ||
-            (data.editors && data.editors.includes(userId)) ||
-            (data.viewers && data.viewers.includes(userId));
-        }
-        
-        if (hasAccess) {
-          boards.push({
-            name: doc.id,
-            createOn: data.createOn || null,
-            creatorId: data.creatorId || null,
-            ...data
-          });
-        }
-      });
-      
-      // Sort by createOn descending (newest first)
-      boards.sort((a, b) => {
-        const aTime = a.createOn || 0;
-        const bTime = b.createOn || 0;
-        return bTime - aTime;
-      });
-      
-      // Apply pagination
-      const startIndex = startAfter ? boards.findIndex(b => b.name === startAfter) + 1 : 0;
-      const paginatedBoards = boards.slice(startIndex, startIndex + limit);
-      const lastDoc = paginatedBoards.length > 0 ? paginatedBoards[paginatedBoards.length - 1] : null;
-      
-      return {
-        boards: paginatedBoards,
-        lastDoc: lastDoc ? lastDoc.name : null
-      };
+      const searchLower = searchTerm.trim();
+      const searchUpper = searchTerm.trim() + '\uf8ff';
+      // Note: For this to work optimally, titles should be stored in lowercase
+      // or we need to normalize them. For now, client-side filtering handles
+      // case-insensitive contains matching.
+      query = query.where('title', '>=', searchLower)
+                   .where('title', '<=', searchUpper);
     }
+    
+    // Apply orderBy - sort by createOn descending (newest first)
+    query = query.orderBy('createOn', 'desc');
+    
+    // Apply limit
+    query = query.limit(limit);
+    
+    // Apply startAfter for pagination
+    // startAfter can be:
+    // - A cursor object with { snapshot, name, createOn } (from previous query result)
+    // - A document snapshot directly
+    // - An object with { name, createOn } for backward compatibility
+    if (startAfter) {
+      if (startAfter.snapshot) {
+        // It's a cursor object from previous query
+        query = query.startAfter(startAfter.snapshot);
+      } else if (startAfter.id) {
+        // It's a document snapshot directly
+        query = query.startAfter(startAfter);
+      } else if (startAfter.name && startAfter.createOn !== undefined) {
+        // It's cursor data - get the document snapshot
+        try {
+          const lastDocRef = db.collection('boards').doc(startAfter.name);
+          const lastDoc = await lastDocRef.get();
+          if (lastDoc.exists) {
+            query = query.startAfter(lastDoc);
+          }
+        } catch (error) {
+          console.warn('[FirestoreStore.searchBoards] Error getting lastDoc for startAfter:', error);
+        }
+      }
+    }
+    
+    let snapshot;
+    try {
+      if (isDebugMode()) {
+        console.log('[FirestoreStore.searchBoards] Executing query with:', {
+          searchTerm,
+          userId,
+          limit,
+          startAfter: startAfter || 'none'
+        });
+      }
+      snapshot = await query.get();
+      if (isDebugMode()) {
+        console.log('[FirestoreStore.searchBoards] Query completed, got', snapshot.size, 'documents');
+      }
+    } catch (error) {
+      console.error('[FirestoreStore.searchBoards] ERROR in query:', error);
+      console.error('[FirestoreStore.searchBoards] Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+        userId,
+        searchTerm
+      });
+      throw error;
+    }
+    
+    const boards = [];
+    const searchLower = searchTerm ? searchTerm.trim().toLowerCase() : '';
+    const lastDocSnapshots = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const title = (data.title || doc.id).toLowerCase(); // Fallback to doc ID if no title
+      
+      // Check if title matches search term (client-side contains matching)
+      // This is needed because Firestore range query only does prefix matching
+      let matchesSearch = true;
+      if (searchLower) {
+        matchesSearch = title.includes(searchLower);
+      }
+      
+      if (!matchesSearch) {
+        return;
+      }
+      
+      // Check if user has access (creator, editor, or viewer)
+      let hasAccess = false;
+      if (!userId) {
+        hasAccess = true; // No auth check needed
+      } else {
+        hasAccess = 
+          data.creatorId === userId ||
+          (data.editors && Array.isArray(data.editors) && data.editors.includes(userId)) ||
+          (data.viewers && Array.isArray(data.viewers) && data.viewers.includes(userId));
+      }
+      
+      if (hasAccess) {
+        boards.push({
+          name: doc.id,
+          title: data.title || doc.id, // Use title field or fallback to doc ID
+          createOn: data.createOn || null,
+          creatorId: data.creatorId || null,
+          ...data
+        });
+        lastDocSnapshots.push(doc);
+      }
+    });
+    
+    // Get the last document snapshot for startAfter in next page
+    const lastDocSnapshot = lastDocSnapshots.length > 0 
+      ? lastDocSnapshots[lastDocSnapshots.length - 1] 
+      : null;
+    
+    // Return cursor info for next page
+    // Return the document snapshot itself, which can be passed directly to startAfter
+    const cursor = lastDocSnapshot ? {
+      snapshot: lastDocSnapshot,
+      name: lastDocSnapshot.id,
+      createOn: lastDocSnapshot.data().createOn || null
+    } : null;
+    
+    // Check if there might be more results
+    // If we got the full limit, there might be more (unless filtering removed everything)
+    const hasMore = snapshot.size === limit && lastDocSnapshot !== null;
+    
+    return {
+      boards,
+      cursor, // Pass this cursor object to next query's startAfter option
+      hasMore
+    };
   }
 }
 

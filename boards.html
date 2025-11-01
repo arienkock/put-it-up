@@ -231,8 +231,7 @@
           <span id="pagination-info-text"></span>
         </div>
         <div class="pagination-controls">
-          <button id="prev-button" class="pagination-button">Previous</button>
-          <button id="next-button" class="pagination-button">Next</button>
+          <button id="load-more-button" class="pagination-button">Load More</button>
         </div>
       </div>
     </div>
@@ -257,14 +256,18 @@
       const isOffline = urlParams.get('offline') === 'true';
       
       // State
-      let allBoards = [];
+      let allBoards = []; // Accumulated boards from Firestore (or all boards from local)
       let filteredBoards = [];
       let displayedBoards = [];
-      let currentPage = 1;
-      let pageSize = 20;
+      let pageSize = 50;
       let sortColumn = 'createOn';
       let sortDirection = 'desc';
       let searchTerm = '';
+      
+      // Firestore pagination state
+      let lastCursor = null; // Cursor for next page from Firestore
+      let hasMore = false; // Whether there are more results to load
+      let isLoadingMore = false; // Whether we're currently loading more results
       
       // DOM elements
       const searchInput = document.getElementById('search-input');
@@ -276,8 +279,7 @@
       const errorDiv = document.getElementById('error-message');
       const paginationDiv = document.getElementById('pagination');
       const paginationInfo = document.getElementById('pagination-info-text');
-      const prevButton = document.getElementById('prev-button');
-      const nextButton = document.getElementById('next-button');
+      const loadMoreButton = document.getElementById('load-more-button');
       
       // Format date
       function formatDate(timestamp) {
@@ -286,29 +288,68 @@
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
       }
       
-      // Load boards
-      async function loadBoards() {
+      // Load boards (initial load or search reset)
+      async function loadBoards(reset = true) {
         try {
-          loadingDiv.style.display = 'block';
-          boardsTable.style.display = 'none';
-          emptyState.style.display = 'none';
-          errorDiv.style.display = 'none';
+          if (reset) {
+            loadingDiv.style.display = 'block';
+            boardsTable.style.display = 'none';
+            emptyState.style.display = 'none';
+            errorDiv.style.display = 'none';
+            
+            // Reset pagination state
+            allBoards = [];
+            lastCursor = null;
+            hasMore = false;
+          } else {
+            // Loading more - just show loading indicator on button
+            isLoadingMore = true;
+            loadMoreButton.disabled = true;
+            loadMoreButton.textContent = 'Loading...';
+          }
           
           if (isOffline) {
-            // Use LocalDatastore
+            // Use LocalDatastore - no pagination, load all at once
             const datastore = new LocalDatastore();
-            allBoards = datastore.searchBoards('');
+            const searchResults = datastore.searchBoards(searchTerm);
+            if (reset) {
+              allBoards = searchResults;
+            } else {
+              // Local doesn't support pagination, so this shouldn't be called
+              allBoards = searchResults;
+            }
+            hasMore = false;
+            lastCursor = null;
           } else {
-            // Use FirestoreStore
+            // Use FirestoreStore with pagination
             const user = await ensureAuthenticatedIfOnline(isOffline);
             const userId = user ? user.uid : null;
-            const result = await FirestoreStore.searchBoards('', userId);
-            allBoards = result.boards;
+            const result = await FirestoreStore.searchBoards(searchTerm, userId, {
+              limit: pageSize,
+              startAfter: reset ? null : lastCursor
+            });
+            
+            if (reset) {
+              allBoards = result.boards;
+            } else {
+              // Append to existing boards
+              allBoards = [...allBoards, ...result.boards];
+            }
+            
+            lastCursor = result.cursor;
+            hasMore = result.hasMore || false;
           }
           
           applyFilters();
           renderBoards();
-          loadingDiv.style.display = 'none';
+          
+          if (reset) {
+            loadingDiv.style.display = 'none';
+          } else {
+            isLoadingMore = false;
+            loadMoreButton.disabled = false;
+            loadMoreButton.textContent = 'Load More';
+          }
         } catch (error) {
           // Log full error details including stack trace
           console.error('Error loading boards:', error);
@@ -330,23 +371,33 @@
           
           errorDiv.textContent = `Error loading boards: ${errorDetails}`;
           errorDiv.style.display = 'block';
-          loadingDiv.style.display = 'none';
+          
+          if (reset) {
+            loadingDiv.style.display = 'none';
+          } else {
+            isLoadingMore = false;
+            loadMoreButton.disabled = false;
+            loadMoreButton.textContent = 'Load More';
+          }
         }
       }
       
-      // Apply search filter
+      // Apply search filter and sorting
+      // Note: For Firestore, search filtering is done server-side, but we still filter here
+      // for local datastore and to handle any client-side filtering needs
       function applyFilters() {
         let filtered = [...allBoards];
         
-        // Apply search filter
-        if (searchTerm.trim()) {
+        // Apply search filter (for local datastore; Firestore already filters)
+        if (searchTerm.trim() && isOffline) {
           const searchLower = searchTerm.toLowerCase();
-          filtered = filtered.filter(board => 
-            board.name.toLowerCase().includes(searchLower)
-          );
+          filtered = filtered.filter(board => {
+            const title = (board.title || board.name).toLowerCase();
+            return title.includes(searchLower);
+          });
         }
         
-        // Apply sorting
+        // Apply sorting (Firestore already sorts, but we sort here for consistency and local)
         filtered.sort((a, b) => {
           let aVal = a[sortColumn];
           let bVal = b[sortColumn];
@@ -354,6 +405,10 @@
           if (sortColumn === 'createOn') {
             aVal = aVal || 0;
             bVal = bVal || 0;
+          } else if (sortColumn === 'name') {
+            // When sorting by name, use title instead
+            aVal = (a.title || a.name || '').toString().toLowerCase();
+            bVal = (b.title || b.name || '').toString().toLowerCase();
           } else {
             aVal = (aVal || '').toString().toLowerCase();
             bVal = (bVal || '').toString().toLowerCase();
@@ -367,17 +422,12 @@
         });
         
         filteredBoards = filtered;
-        
-        // Reset to first page
-        currentPage = 1;
       }
       
       // Render boards
       function renderBoards() {
-        // Calculate pagination
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        displayedBoards = filteredBoards.slice(startIndex, endIndex);
+        // Display all filtered boards (no client-side pagination)
+        displayedBoards = filteredBoards;
         
         // Clear table
         boardsTbody.innerHTML = '';
@@ -399,7 +449,8 @@
           const nameCell = document.createElement('td');
           const nameLink = document.createElement('a');
           nameLink.className = 'board-name';
-          nameLink.textContent = board.name;
+          // Display title instead of board ID, fallback to board ID if no title
+          nameLink.textContent = board.title || board.name;
           nameLink.href = `index.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
           nameCell.appendChild(nameLink);
           
@@ -421,16 +472,23 @@
           boardsTbody.appendChild(row);
         });
         
-        // Update pagination
-        const totalPages = Math.ceil(filteredBoards.length / pageSize);
-        const startItem = startIndex + 1;
-        const endItem = Math.min(endIndex, filteredBoards.length);
+        // Update pagination info and load more button
+        paginationInfo.textContent = `Showing ${displayedBoards.length} board${displayedBoards.length === 1 ? '' : 's'}`;
         
-        paginationInfo.textContent = `Showing ${startItem}-${endItem} of ${filteredBoards.length} boards`;
-        paginationDiv.style.display = 'flex';
-        
-        prevButton.disabled = currentPage === 1;
-        nextButton.disabled = currentPage >= totalPages;
+        // Show load more button only if there are more results (Firestore only)
+        if (!isOffline && hasMore) {
+          paginationDiv.style.display = 'flex';
+          loadMoreButton.style.display = 'block';
+        } else {
+          // Hide load more button if no more results
+          loadMoreButton.style.display = 'none';
+          // Still show pagination div if there are boards, to show count
+          if (displayedBoards.length > 0) {
+            paginationDiv.style.display = 'flex';
+          } else {
+            paginationDiv.style.display = 'none';
+          }
+        }
       }
       
       // Sort handler
@@ -457,8 +515,8 @@
       // Event listeners
       searchInput.addEventListener('input', (e) => {
         searchTerm = e.target.value;
-        applyFilters();
-        renderBoards();
+        // Reset and reload when search changes
+        loadBoards(true);
       });
       
       createButton.addEventListener('click', () => {
@@ -474,18 +532,9 @@
         });
       });
       
-      prevButton.addEventListener('click', () => {
-        if (currentPage > 1) {
-          currentPage--;
-          renderBoards();
-        }
-      });
-      
-      nextButton.addEventListener('click', () => {
-        const totalPages = Math.ceil(filteredBoards.length / pageSize);
-        if (currentPage < totalPages) {
-          currentPage++;
-          renderBoards();
+      loadMoreButton.addEventListener('click', () => {
+        if (!isLoadingMore && hasMore) {
+          loadBoards(false); // Load more without resetting
         }
       });
       
