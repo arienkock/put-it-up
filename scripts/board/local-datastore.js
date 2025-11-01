@@ -212,6 +212,60 @@ export class LocalDatastore {
   getAppState = () => {
     return getAppState();
   };
+
+  // Search boards by name (empty query returns all boards)
+  searchBoards = (query = '') => {
+    const boardsData = localStorage.getItem('put-it-up-boards');
+    if (!boardsData) {
+      return [];
+    }
+    
+    try {
+      const boards = JSON.parse(boardsData);
+      const searchTerm = query.toLowerCase().trim();
+      
+      if (!searchTerm) {
+        // Return all boards
+        return Object.keys(boards).map(boardName => ({
+          name: boardName,
+          ...boards[boardName].metadata
+        }));
+      }
+      
+      // Filter boards by name containing search term
+      return Object.keys(boards)
+        .filter(boardName => boardName.toLowerCase().includes(searchTerm))
+        .map(boardName => ({
+          name: boardName,
+          ...boards[boardName].metadata
+        }));
+    } catch (error) {
+      console.warn('Failed to search boards:', error);
+      return [];
+    }
+  };
+
+  // Get metadata for a specific board
+  getBoardMetadata = (boardName) => {
+    const boardsData = localStorage.getItem('put-it-up-boards');
+    if (!boardsData) {
+      return null;
+    }
+    
+    try {
+      const boards = JSON.parse(boardsData);
+      if (boards[boardName] && boards[boardName].metadata) {
+        return {
+          name: boardName,
+          ...boards[boardName].metadata
+        };
+      }
+      return null;
+    } catch (error) {
+      console.warn('Failed to get board metadata:', error);
+      return null;
+    }
+  };
 }
 
 function clone(data) {

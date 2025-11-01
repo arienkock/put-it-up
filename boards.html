@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Boards Overview - Whiteboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles/board.css" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      h1 {
+        margin: 0 0 24px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+      }
+      
+      .controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      
+      .search-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      
+      .create-button {
+        padding: 8px 16px;
+        background-color: #4646d8;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      
+      .create-button:hover {
+        background-color: #2a2a9e;
+      }
+      
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+      
+      thead th {
+        background-color: #f9f9f9;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+        color: #333;
+        border-bottom: 2px solid #ddd;
+        cursor: pointer;
+        user-select: none;
+      }
+      
+      thead th:hover {
+        background-color: #f0f0f0;
+      }
+      
+      thead th.sortable::after {
+        content: ' ↕';
+        opacity: 0.5;
+        font-size: 12px;
+      }
+      
+      thead th.sorted-asc::after {
+        content: ' ↑';
+        opacity: 1;
+      }
+      
+      thead th.sorted-desc::after {
+        content: ' ↓';
+        opacity: 1;
+      }
+      
+      tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+        color: #333;
+      }
+      
+      tbody tr:hover {
+        background-color: #f9f9f9;
+      }
+      
+      .board-name {
+        font-weight: 500;
+        color: #4646d8;
+        cursor: pointer;
+      }
+      
+      .board-name:hover {
+        text-decoration: underline;
+      }
+      
+      .action-button {
+        padding: 4px 12px;
+        background-color: #4646d8;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      
+      .action-button:hover {
+        background-color: #2a2a9e;
+      }
+      
+      .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+      }
+      
+      .pagination-info {
+        font-size: 14px;
+        color: #666;
+      }
+      
+      .pagination-controls {
+        display: flex;
+        gap: 8px;
+      }
+      
+      .pagination-button {
+        padding: 6px 12px;
+        background-color: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      
+      .pagination-button:hover:not(:disabled) {
+        background-color: #e0e0e0;
+      }
+      
+      .pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+      
+      .error {
+        padding: 16px;
+        background-color: #fee;
+        border: 1px solid #fcc;
+        border-radius: 4px;
+        color: #c00;
+        margin-bottom: 20px;
+      }
+      
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Boards</h1>
+      
+      <div id="error-message" class="error" style="display: none;"></div>
+      
+      <div class="controls">
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="Search boards by name..."
+        />
+        <button id="create-button" class="create-button">Create New Board</button>
+      </div>
+      
+      <div id="loading" class="loading" style="display: none;">Loading boards...</div>
+      
+      <table id="boards-table" style="display: none;">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="name">Name</th>
+            <th class="sortable" data-sort="createOn">Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="boards-tbody">
+        </tbody>
+      </table>
+      
+      <div id="empty-state" class="empty-state" style="display: none;">
+        <p>No boards found.</p>
+      </div>
+      
+      <div id="pagination" class="pagination" style="display: none;">
+        <div class="pagination-info">
+          <span id="pagination-info-text"></span>
+        </div>
+        <div class="pagination-controls">
+          <button id="prev-button" class="pagination-button">Previous</button>
+          <button id="next-button" class="pagination-button">Next</button>
+        </div>
+      </div>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
+    <script type="module">
+      import { initializeFirebaseApp } from "./scripts/config/firebase-config.js";
+      import { ensureAuthenticatedIfOnline } from "./scripts/ui/auth-helpers.js";
+      import { FirestoreStore } from "./scripts/network/network-firestore.js";
+      import { LocalDatastore } from "./scripts/board/local-datastore.js";
+      
+      // Global debug mode setting - controlled by query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      window.DEBUG_MODE = urlParams.get('debug') === 'true';
+      
+      // Initialize Firebase config
+      initializeFirebaseApp();
+      
+      // Check for offline query parameter
+      const isOffline = urlParams.get('offline') === 'true';
+      
+      // State
+      let allBoards = [];
+      let filteredBoards = [];
+      let displayedBoards = [];
+      let currentPage = 1;
+      let pageSize = 20;
+      let sortColumn = 'createOn';
+      let sortDirection = 'desc';
+      let searchTerm = '';
+      
+      // DOM elements
+      const searchInput = document.getElementById('search-input');
+      const createButton = document.getElementById('create-button');
+      const boardsTable = document.getElementById('boards-table');
+      const boardsTbody = document.getElementById('boards-tbody');
+      const emptyState = document.getElementById('empty-state');
+      const loadingDiv = document.getElementById('loading');
+      const errorDiv = document.getElementById('error-message');
+      const paginationDiv = document.getElementById('pagination');
+      const paginationInfo = document.getElementById('pagination-info-text');
+      const prevButton = document.getElementById('prev-button');
+      const nextButton = document.getElementById('next-button');
+      
+      // Format date
+      function formatDate(timestamp) {
+        if (!timestamp) return 'Unknown';
+        const date = new Date(timestamp);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      }
+      
+      // Load boards
+      async function loadBoards() {
+        try {
+          loadingDiv.style.display = 'block';
+          boardsTable.style.display = 'none';
+          emptyState.style.display = 'none';
+          errorDiv.style.display = 'none';
+          
+          if (isOffline) {
+            // Use LocalDatastore
+            const datastore = new LocalDatastore();
+            allBoards = datastore.searchBoards('');
+          } else {
+            // Use FirestoreStore
+            const user = await ensureAuthenticatedIfOnline(isOffline);
+            const userId = user ? user.uid : null;
+            const result = await FirestoreStore.searchBoards('', userId);
+            allBoards = result.boards;
+          }
+          
+          applyFilters();
+          renderBoards();
+          loadingDiv.style.display = 'none';
+        } catch (error) {
+          // Log full error details including stack trace
+          console.error('Error loading boards:', error);
+          console.error('Error stack:', error.stack);
+          console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            fullError: error
+          });
+          
+          // Show detailed error message
+          const errorDetails = [
+            error.message || 'Unknown error',
+            error.stack ? `\n\nStack trace:\n${error.stack}` : '',
+            error.code ? `\n\nError code: ${error.code}` : ''
+          ].filter(Boolean).join('');
+          
+          errorDiv.textContent = `Error loading boards: ${errorDetails}`;
+          errorDiv.style.display = 'block';
+          loadingDiv.style.display = 'none';
+        }
+      }
+      
+      // Apply search filter
+      function applyFilters() {
+        let filtered = [...allBoards];
+        
+        // Apply search filter
+        if (searchTerm.trim()) {
+          const searchLower = searchTerm.toLowerCase();
+          filtered = filtered.filter(board => 
+            board.name.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        // Apply sorting
+        filtered.sort((a, b) => {
+          let aVal = a[sortColumn];
+          let bVal = b[sortColumn];
+          
+          if (sortColumn === 'createOn') {
+            aVal = aVal || 0;
+            bVal = bVal || 0;
+          } else {
+            aVal = (aVal || '').toString().toLowerCase();
+            bVal = (bVal || '').toString().toLowerCase();
+          }
+          
+          if (sortDirection === 'asc') {
+            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+          } else {
+            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+          }
+        });
+        
+        filteredBoards = filtered;
+        
+        // Reset to first page
+        currentPage = 1;
+      }
+      
+      // Render boards
+      function renderBoards() {
+        // Calculate pagination
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        displayedBoards = filteredBoards.slice(startIndex, endIndex);
+        
+        // Clear table
+        boardsTbody.innerHTML = '';
+        
+        if (displayedBoards.length === 0) {
+          boardsTable.style.display = 'none';
+          emptyState.style.display = 'block';
+          paginationDiv.style.display = 'none';
+          return;
+        }
+        
+        boardsTable.style.display = 'table';
+        emptyState.style.display = 'none';
+        
+        // Render rows
+        displayedBoards.forEach(board => {
+          const row = document.createElement('tr');
+          
+          const nameCell = document.createElement('td');
+          const nameLink = document.createElement('a');
+          nameLink.className = 'board-name';
+          nameLink.textContent = board.name;
+          nameLink.href = `index.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
+          nameCell.appendChild(nameLink);
+          
+          const dateCell = document.createElement('td');
+          dateCell.textContent = formatDate(board.createOn);
+          
+          const actionCell = document.createElement('td');
+          const openButton = document.createElement('button');
+          openButton.className = 'action-button';
+          openButton.textContent = 'Open';
+          openButton.onclick = () => {
+            window.location.href = `index.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
+          };
+          actionCell.appendChild(openButton);
+          
+          row.appendChild(nameCell);
+          row.appendChild(dateCell);
+          row.appendChild(actionCell);
+          boardsTbody.appendChild(row);
+        });
+        
+        // Update pagination
+        const totalPages = Math.ceil(filteredBoards.length / pageSize);
+        const startItem = startIndex + 1;
+        const endItem = Math.min(endIndex, filteredBoards.length);
+        
+        paginationInfo.textContent = `Showing ${startItem}-${endItem} of ${filteredBoards.length} boards`;
+        paginationDiv.style.display = 'flex';
+        
+        prevButton.disabled = currentPage === 1;
+        nextButton.disabled = currentPage >= totalPages;
+      }
+      
+      // Sort handler
+      function handleSort(column) {
+        if (sortColumn === column) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = column;
+          sortDirection = 'asc';
+        }
+        
+        // Update sort indicators
+        document.querySelectorAll('.sortable').forEach(th => {
+          th.classList.remove('sorted-asc', 'sorted-desc');
+          if (th.dataset.sort === sortColumn) {
+            th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+          }
+        });
+        
+        applyFilters();
+        renderBoards();
+      }
+      
+      // Event listeners
+      searchInput.addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        applyFilters();
+        renderBoards();
+      });
+      
+      createButton.addEventListener('click', () => {
+        const boardName = prompt('Enter board name:');
+        if (boardName) {
+          window.location.href = `index.html?boardName=${encodeURIComponent(boardName)}${isOffline ? '&offline=true' : ''}`;
+        }
+      });
+      
+      document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+          handleSort(th.dataset.sort);
+        });
+      });
+      
+      prevButton.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderBoards();
+        }
+      });
+      
+      nextButton.addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredBoards.length / pageSize);
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderBoards();
+        }
+      });
+      
+      // Initialize
+      loadBoards();
+    </script>
+  </body>
+</html>

@@ -1,4 +1,5 @@
 import { getAppState } from "../app-state.js";
+import { firebaseConfig, initializeFirebaseApp } from "../config/firebase-config.js";
 
 // Debug mode - controlled by global window.DEBUG_MODE
 // Use a function to check DEBUG_MODE dynamically
@@ -18,9 +19,7 @@ export class FirestoreStore {
   connect() {
     if (!this.connectCalled) {
       // Initialize Firebase
-      if (!firebase.apps || firebase.apps.length === 0) {
-        firebase.initializeApp(firebaseConfig);
-      }
+      initializeFirebaseApp();
       this.db = firebase.firestore();
       this.connectCalled = true;
     }
@@ -122,10 +121,30 @@ export class FirestoreStore {
     if (!this.docRef) return;
     
     // Check if document exists
-    const docSnapshot = await this.docRef.get();
+    let docSnapshot;
+    try {
+      if (isDebugMode()) {
+        console.log('[FirestoreStore.initializeBoardIfNeeded] Calling docRef.get() for board:', this.boardName);
+        console.trace('[FirestoreStore.initializeBoardIfNeeded] Stack trace before get()');
+      }
+      docSnapshot = await this.docRef.get();
+      if (isDebugMode()) {
+        console.log('[FirestoreStore.initializeBoardIfNeeded] docRef.get() completed successfully');
+      }
+    } catch (error) {
+      console.error('[FirestoreStore.initializeBoardIfNeeded] ERROR in docRef.get() for board:', this.boardName);
+      console.error('[FirestoreStore.initializeBoardIfNeeded] Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      console.trace('[FirestoreStore.initializeBoardIfNeeded] Stack trace at error catch');
+      throw error; // Re-throw to preserve stack trace
+    }
     
     if (!docSnapshot.exists) {
-      // Board doesn't exist yet - initialize with security fields
+      // Board doesn't exist yet - initialize with security fields and createOn timestamp
       const auth = firebase.auth();
       const currentUser = auth.currentUser;
       
@@ -134,7 +153,8 @@ export class FirestoreStore {
           ...defaults,
           creatorId: currentUser.uid,
           editors: [],
-          viewers: []
+          viewers: [],
+          createOn: Date.now()
         };
         
         // Use set() to create the document with security fields
@@ -162,12 +182,24 @@ export class FirestoreStore {
         const currentUser = auth.currentUser;
         
         if (currentUser) {
-          await this.docRef.update({
+          const updateData = {
             creatorId: currentUser.uid,
             editors: [],
             viewers: []
-          });
+          };
+          
+          // Add createOn if it doesn't exist
+          if (!existingData.createOn) {
+            updateData.createOn = Date.now();
+          }
+          
+          await this.docRef.update(updateData);
         }
+      } else if (existingData && !existingData.createOn) {
+        // Board exists but lacks createOn timestamp - update it
+        await this.docRef.update({
+          createOn: Date.now()
+        });
       }
     }
   };
@@ -436,6 +468,159 @@ export class FirestoreStore {
   getAppState = () => {
     return getAppState();
   };
+
+  // Static method to search boards by name with pagination support
+  static async searchBoards(searchTerm = '', userId, options = {}) {
+    const { limit = 50, startAfter = null } = options;
+    
+    // Initialize Firebase if not already
+    initializeFirebaseApp();
+    const db = firebase.firestore();
+    const collectionRef = db.collection('boards');
+    
+    // Note: Firestore doesn't support efficient queries for:
+    // - Case-insensitive text search
+    // - Array-contains queries across multiple fields (creatorId, editors, viewers)
+    // 
+    // So we fetch all boards and filter client-side by:
+    // - Search term (name contains searchTerm, case-insensitive)
+    // - User permissions (user is creator, in editors array, or in viewers array)
+    
+    // Apply search filter if searchTerm is provided
+    if (searchTerm && searchTerm.trim()) {
+      // Firestore doesn't support case-insensitive search directly,
+      // so we'll fetch all boards and filter client-side
+      // For better performance, you could use a search index or Algolia
+      let snapshot;
+      try {
+        console.log('[FirestoreStore.searchBoards] Calling collectionRef.get() with searchTerm:', searchTerm);
+        console.log('[FirestoreStore.searchBoards] userId:', userId);
+        console.trace('[FirestoreStore.searchBoards] Stack trace before get() with searchTerm');
+        snapshot = await collectionRef.get();
+        console.log('[FirestoreStore.searchBoards] collectionRef.get() completed successfully (with searchTerm)');
+      } catch (error) {
+        console.error('[FirestoreStore.searchBoards] ERROR in collectionRef.get() with searchTerm:', searchTerm);
+        console.error('[FirestoreStore.searchBoards] Error details:', {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: error.stack,
+          userId: userId,
+          searchTerm: searchTerm
+        });
+        console.trace('[FirestoreStore.searchBoards] Stack trace at error catch (with searchTerm)');
+        throw error; // Re-throw to preserve stack trace
+      }
+      const boards = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const docName = doc.id.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Check if user has access (creator, editor, or viewer)
+        let hasAccess = false;
+        if (!userId) {
+          hasAccess = true; // No auth check needed
+        } else {
+          hasAccess = 
+            data.creatorId === userId ||
+            (data.editors && data.editors.includes(userId)) ||
+            (data.viewers && data.viewers.includes(userId));
+        }
+        
+        // Check if name matches search term and user has access
+        if (hasAccess && docName.includes(searchLower)) {
+          boards.push({
+            name: doc.id,
+            createOn: data.createOn || null,
+            creatorId: data.creatorId || null,
+            ...data
+          });
+        }
+      });
+      
+      // Sort by createOn descending (newest first)
+      boards.sort((a, b) => {
+        const aTime = a.createOn || 0;
+        const bTime = b.createOn || 0;
+        return bTime - aTime;
+      });
+      
+      // Apply pagination
+      const startIndex = startAfter ? boards.findIndex(b => b.name === startAfter) + 1 : 0;
+      const paginatedBoards = boards.slice(startIndex, startIndex + limit);
+      const lastDoc = paginatedBoards.length > 0 ? paginatedBoards[paginatedBoards.length - 1] : null;
+      
+      return {
+        boards: paginatedBoards,
+        lastDoc: lastDoc ? lastDoc.name : null
+      };
+    } else {
+      // No search term - return all boards user has access to
+      let snapshot;
+      try {
+        console.log('[FirestoreStore.searchBoards] Calling collectionRef.get() without searchTerm');
+        console.log('[FirestoreStore.searchBoards] userId:', userId);
+        console.trace('[FirestoreStore.searchBoards] Stack trace before get() without searchTerm');
+        snapshot = await collectionRef.get();
+        console.log('[FirestoreStore.searchBoards] collectionRef.get() completed successfully (without searchTerm)');
+      } catch (error) {
+        console.error('[FirestoreStore.searchBoards] ERROR in collectionRef.get() without searchTerm');
+        console.error('[FirestoreStore.searchBoards] Error details:', {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: error.stack,
+          userId: userId
+        });
+        console.trace('[FirestoreStore.searchBoards] Stack trace at error catch (without searchTerm)');
+        throw error; // Re-throw to preserve stack trace
+      }
+      const boards = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Check if user has access (creator, editor, or viewer)
+        let hasAccess = false;
+        if (!userId) {
+          hasAccess = true; // No auth check needed
+        } else {
+          hasAccess = 
+            data.creatorId === userId ||
+            (data.editors && data.editors.includes(userId)) ||
+            (data.viewers && data.viewers.includes(userId));
+        }
+        
+        if (hasAccess) {
+          boards.push({
+            name: doc.id,
+            createOn: data.createOn || null,
+            creatorId: data.creatorId || null,
+            ...data
+          });
+        }
+      });
+      
+      // Sort by createOn descending (newest first)
+      boards.sort((a, b) => {
+        const aTime = a.createOn || 0;
+        const bTime = b.createOn || 0;
+        return bTime - aTime;
+      });
+      
+      // Apply pagination
+      const startIndex = startAfter ? boards.findIndex(b => b.name === startAfter) + 1 : 0;
+      const paginatedBoards = boards.slice(startIndex, startIndex + limit);
+      const lastDoc = paginatedBoards.length > 0 ? paginatedBoards[paginatedBoards.length - 1] : null;
+      
+      return {
+        boards: paginatedBoards,
+        lastDoc: lastDoc ? lastDoc.name : null
+      };
+    }
+  }
 }
 
 function clone(data) {
