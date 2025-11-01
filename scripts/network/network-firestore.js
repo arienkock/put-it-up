@@ -5,6 +5,95 @@ import { firebaseConfig, initializeFirebaseApp } from "../config/firebase-config
 // Use a function to check DEBUG_MODE dynamically
 const isDebugMode = () => window.DEBUG_MODE || false;
 
+/**
+ * Manages debounced Firestore writes to reduce the number of write calls.
+ * Batches updates to the same document within the debounce window.
+ */
+class FirestoreWriteDebouncer {
+  constructor(debounceMs = 400) {
+    this.debounceMs = debounceMs;
+    this.pendingWrites = new Map(); // documentPath -> { timer, mergedData, docRef }
+  }
+
+  /**
+   * Schedule a debounced update to a Firestore document.
+   * @param {firebase.firestore.DocumentReference} docRef - The Firestore document reference
+   * @param {Object} updateData - The data to update
+   */
+  debounceUpdate(docRef, updateData) {
+    const docPath = docRef.path;
+    
+    // Cancel any existing timer for this document
+    if (this.pendingWrites.has(docPath)) {
+      const pending = this.pendingWrites.get(docPath);
+      clearTimeout(pending.timer);
+      // Merge with existing pending data (last write wins)
+      pending.mergedData = { ...pending.mergedData, ...updateData };
+    } else {
+      // Create new pending write
+      this.pendingWrites.set(docPath, {
+        docRef,
+        mergedData: { ...updateData }
+      });
+    }
+
+    // Schedule the write
+    const pending = this.pendingWrites.get(docPath);
+    pending.timer = setTimeout(() => {
+      this.executeWrite(docPath);
+    }, this.debounceMs);
+  }
+
+  /**
+   * Execute a pending write and remove it from the queue.
+   * @param {string} docPath - The document path
+   */
+  executeWrite(docPath) {
+    const pending = this.pendingWrites.get(docPath);
+    if (!pending) return;
+
+    // Remove from pending writes before executing
+    this.pendingWrites.delete(docPath);
+
+    // Execute the write
+    if (isDebugMode()) {
+      console.log(`[FirestoreWriteDebouncer] Executing debounced write to ${docPath}`, pending.mergedData);
+    }
+
+    pending.docRef.update(pending.mergedData).catch((error) => {
+      if (isDebugMode()) {
+        console.error(`[FirestoreWriteDebouncer] Error executing debounced write to ${docPath}:`, error);
+      }
+    });
+  }
+
+  /**
+   * Cancel any pending write for a document (e.g., when document is deleted).
+   * @param {string} docPath - The document path
+   */
+  cancelWrite(docPath) {
+    const pending = this.pendingWrites.get(docPath);
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pendingWrites.delete(docPath);
+    }
+  }
+
+  /**
+   * Flush all pending writes immediately (useful for cleanup or testing).
+   */
+  flushAll() {
+    const docPaths = Array.from(this.pendingWrites.keys());
+    docPaths.forEach(docPath => {
+      const pending = this.pendingWrites.get(docPath);
+      if (pending) {
+        clearTimeout(pending.timer);
+        this.executeWrite(docPath);
+      }
+    });
+  }
+}
+
 export class FirestoreStore {
   connectCalled = false;
   collectionName = "boards";
@@ -12,8 +101,9 @@ export class FirestoreStore {
   observers = [];
   readyForUse = false;
 
-  constructor(boardName) {
+  constructor(boardName, debounceMs = 400) {
     this.boardName = boardName;
+    this.debouncer = new FirestoreWriteDebouncer(debounceMs);
   }
 
   connect() {
@@ -247,7 +337,10 @@ export class FirestoreStore {
 
   deleteSticky = (id) => {
     if (this.stickyRef) {
-      this.stickyRef.doc(id).delete();
+      const docRef = this.stickyRef.doc(id);
+      // Cancel any pending writes for this document
+      this.debouncer.cancelWrite(docRef.path);
+      docRef.delete();
     }
     // Update local state immediately
     const state = getAppState();
@@ -257,7 +350,8 @@ export class FirestoreStore {
 
   updateText = (id, text) => {
     if (this.stickyRef) {
-      this.stickyRef.doc(id).update({ text });
+      const docRef = this.stickyRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { text });
     }
     // Update local state immediately
     const sticky = this.getSticky(id);
@@ -267,7 +361,8 @@ export class FirestoreStore {
 
   updateColor = (id, color) => {
     if (this.stickyRef) {
-      this.stickyRef.doc(id).update({ color });
+      const docRef = this.stickyRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { color });
     }
     // Update local state immediately
     const sticky = this.getSticky(id);
@@ -277,7 +372,8 @@ export class FirestoreStore {
 
   setLocation = (id, location) => {
     if (this.stickyRef) {
-      this.stickyRef.doc(id).update({ location });
+      const docRef = this.stickyRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { location });
     }
     // Update local state immediately
     const sticky = this.getSticky(id);
@@ -287,7 +383,8 @@ export class FirestoreStore {
 
   updateSize = (id, size) => {
     if (this.stickyRef) {
-      this.stickyRef.doc(id).update({ size });
+      const docRef = this.stickyRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { size });
     }
     // Update local state immediately
     const sticky = this.getSticky(id);
@@ -297,7 +394,7 @@ export class FirestoreStore {
 
   updateBoard = (board) => {
     if (this.docRef) {
-      this.docRef.update(board);
+      this.debouncer.debounceUpdate(this.docRef, board);
     }
     // Also update local state for immediate access
     const state = getAppState();
@@ -340,7 +437,10 @@ export class FirestoreStore {
 
   deleteConnector = (id) => {
     if (this.connectorRef) {
-      this.connectorRef.doc(id).delete();
+      const docRef = this.connectorRef.doc(id);
+      // Cancel any pending writes for this document
+      this.debouncer.cancelWrite(docRef.path);
+      docRef.delete();
     }
     // Update local state immediately
     const state = getAppState();
@@ -350,7 +450,10 @@ export class FirestoreStore {
 
   deleteImage = (id) => {
     if (this.imageRef) {
-      this.imageRef.doc(id).delete();
+      const docRef = this.imageRef.doc(id);
+      // Cancel any pending writes for this document
+      this.debouncer.cancelWrite(docRef.path);
+      docRef.delete();
     }
     // Update local state immediately
     const state = getAppState();
@@ -360,7 +463,8 @@ export class FirestoreStore {
 
   updateArrowHead = (id, arrowHead) => {
     if (this.connectorRef) {
-      this.connectorRef.doc(id).update({ arrowHead });
+      const docRef = this.connectorRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { arrowHead });
     }
     // Update local state immediately
     const connector = this.getConnector(id);
@@ -370,7 +474,8 @@ export class FirestoreStore {
 
   updateConnectorColor = (id, color) => {
     if (this.connectorRef) {
-      this.connectorRef.doc(id).update({ color });
+      const docRef = this.connectorRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { color });
     }
     // Update local state immediately
     const connector = this.getConnector(id);
@@ -383,7 +488,10 @@ export class FirestoreStore {
     const connector = this.getConnector(id);
     if (!connector.color) {
       connector.color = "#000000"; // Default connector color (black)
-      this.connectorRef.doc(id).update({ color: "#000000" });
+      if (this.connectorRef) {
+        const docRef = this.connectorRef.doc(id);
+        this.debouncer.debounceUpdate(docRef, { color: "#000000" });
+      }
     }
   };
 
@@ -419,7 +527,8 @@ export class FirestoreStore {
       }
     }
     if (this.connectorRef) {
-      this.connectorRef.doc(id).update(updateData);
+      const docRef = this.connectorRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, updateData);
     }
     // Update local state immediately
     const connector = this.getConnector(id);
@@ -429,7 +538,8 @@ export class FirestoreStore {
 
   updateCurveControlPoint = (id, point) => {
     if (this.connectorRef) {
-      this.connectorRef.doc(id).update({ curveControlPoint: point });
+      const docRef = this.connectorRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { curveControlPoint: point });
     }
     // Update local state immediately
     const connector = this.getConnector(id);
@@ -439,7 +549,8 @@ export class FirestoreStore {
 
   setImageLocation = (id, location) => {
     if (this.imageRef) {
-      this.imageRef.doc(id).update({ location });
+      const docRef = this.imageRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { location });
     }
     // Update local state immediately
     const image = this.getImage(id);
@@ -449,7 +560,8 @@ export class FirestoreStore {
 
   updateImageSize = (id, width, height) => {
     if (this.imageRef) {
-      this.imageRef.doc(id).update({ width, height });
+      const docRef = this.imageRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, { width, height });
     }
     // Update local state immediately
     const image = this.getImage(id);
