@@ -2,6 +2,7 @@ import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js
 import { createStateConfig } from "../ui/state-config-pattern.js";
 import { fitContentInSticky } from "./text-fitting.js";
 import { SelectionManager } from "../ui/selection-manager.js";
+import { getEventPageCoordinates } from "../ui/movement-utils.js";
 
 /**
  * Sticky Resize State Machine
@@ -109,7 +110,22 @@ class StickyResizeStateMachine extends StateMachine {
           if (evt) this.handleResizeMove(evt);
         });
       },
-      'mouseup': this.handleResizeEnd.bind(this)
+      'mouseup': this.handleResizeEnd.bind(this),
+      'touchmove': (e) => {
+        e.preventDefault(); // Prevent scrolling during resize
+        this._raf.lastEvent = e;
+        if (this._raf.resizePending) return;
+        this._raf.resizePending = true;
+        requestAnimationFrame(() => {
+          this._raf.resizePending = false;
+          const evt = this._raf.lastEvent;
+          if (evt) this.handleResizeMove(evt);
+        });
+      },
+      'touchend': (e) => {
+        e.preventDefault();
+        this.handleResizeEnd(e);
+      }
     });
   }
   
@@ -199,10 +215,14 @@ class StickyResizeStateMachine extends StateMachine {
             y: sticky.location.y
           };
 
+          // Extract page coordinates from touch or mouse event
+          const pageCoords = getEventPageCoordinates(event);
+          if (!pageCoords) return;
+
           stateData.stickyId = this.id;
           stateData.side = side;
-          stateData.startX = event.pageX;
-          stateData.startY = event.pageY;
+          stateData.startX = pageCoords.pageX;
+          stateData.startY = pageCoords.pageY;
           stateData.startSize = { ...currentSize };
           stateData.startLocation = { ...currentLocation };
           stateData.currentSize = { ...currentSize };
@@ -290,14 +310,18 @@ class StickyResizeStateMachine extends StateMachine {
     }
   }
   
-  // Mouse move handler for resizing
+  // Mouse/touch move handler for resizing
   handleResizeMove(event) {
     if (this.currentState !== StickyResizeState.RESIZING || !this.stateData.stickyId) return;
 
     event.preventDefault();
     
-    const deltaX = event.pageX - this.stateData.startX;
-    const deltaY = event.pageY - this.stateData.startY;
+    // Extract page coordinates from touch or mouse event
+    const pageCoords = getEventPageCoordinates(event);
+    if (!pageCoords) return;
+    
+    const deltaX = pageCoords.pageX - this.stateData.startX;
+    const deltaY = pageCoords.pageY - this.stateData.startY;
     
     // Calculate new size based on which side is being dragged
     let newSize = { ...this.stateData.startSize };
@@ -366,11 +390,16 @@ class StickyResizeStateMachine extends StateMachine {
       left: this.container.querySelector('.resize-handle-left')
     };
 
-    // Add mousedown event to each handle using new architecture
+    // Add mousedown and touchstart events to each handle using new architecture
     Object.entries(handles).forEach(([side, handle]) => {
       if (!handle) return;
 
       handle.addEventListener('mousedown', (event) => {
+        this.routeMouseDown(event);
+      });
+      
+      handle.addEventListener('touchstart', (event) => {
+        event.preventDefault(); // Prevent default touch behavior
         this.routeMouseDown(event);
       });
     });
@@ -501,27 +530,37 @@ export function setupStickyEvents(
     fitContentInSticky(container.sticky, container.inputElement);
   });
 
-  // Track mousedown position for drag detection
-  let mouseDownPos = null;
-  let mouseMoveListener = null;
+  // Track pointer down position for drag detection (works for both mouse and touch)
+  let pointerDownPos = null;
+  let pointerMoveListener = null;
+  let touchMoveListener = null;
   let dragStarted = false;
   
-  container.sticky.onmousedown = (event) => {
-    // Only track mousedown if not on textarea
+  const handlePointerDown = (event) => {
+    // Only track if not on textarea
     if (event.target !== container.inputElement) {
-      mouseDownPos = { x: event.pageX, y: event.pageY };
-      dragStarted = false;
-      console.log('[STICKY MOUSEDOWN] Tracking mouse position', mouseDownPos);
+      const pageCoords = getEventPageCoordinates(event);
+      if (!pageCoords) return;
       
-      // Add mousemove listener to detect drag
-      mouseMoveListener = (moveEvent) => {
-        const movedX = Math.abs(moveEvent.pageX - mouseDownPos.x);
-        const movedY = Math.abs(moveEvent.pageY - mouseDownPos.y);
+      pointerDownPos = { x: pageCoords.pageX, y: pageCoords.pageY };
+      dragStarted = false;
+      console.log('[STICKY POINTERDOWN] Tracking pointer position', pointerDownPos);
+      
+      // Add pointer move listeners to detect drag
+      pointerMoveListener = (moveEvent) => {
+        const moveCoords = getEventPageCoordinates(moveEvent);
+        if (!moveCoords) return;
         
-        // Only start drag if mouse has moved more than 5 pixels
+        const movedX = Math.abs(moveCoords.pageX - pointerDownPos.x);
+        const movedY = Math.abs(moveCoords.pageY - pointerDownPos.y);
+        
+        // Only start drag if pointer has moved more than 5 pixels
         if (movedX > 5 || movedY > 5) {
-          console.log('[STICKY MOUSEMOVE] Starting drag', { movedX, movedY });
-          document.removeEventListener('mousemove', mouseMoveListener);
+          console.log('[STICKY POINTERMOVE] Starting drag', { movedX, movedY });
+          document.removeEventListener('mousemove', pointerMoveListener);
+          if (touchMoveListener) {
+            document.removeEventListener('touchmove', touchMoveListener);
+          }
           
           dragStarted = true; // Mark that we started a drag
           
@@ -534,29 +573,49 @@ export function setupStickyEvents(
         }
       };
       
-      document.addEventListener('mousemove', mouseMoveListener);
+      touchMoveListener = (moveEvent) => {
+        moveEvent.preventDefault(); // Prevent scrolling
+        pointerMoveListener(moveEvent);
+      };
+      
+      document.addEventListener('mousemove', pointerMoveListener);
+      document.addEventListener('touchmove', touchMoveListener, { passive: false });
     }
   };
   
-  // Sticky click event for selection
+  container.sticky.onmousedown = handlePointerDown;
+  container.sticky.addEventListener('touchstart', (event) => {
+    handlePointerDown(event);
+  });
+  
+  // Cleanup function for pointer listeners
+  const cleanupPointerListeners = () => {
+    if (pointerMoveListener) {
+      document.removeEventListener('mousemove', pointerMoveListener);
+      pointerMoveListener = null;
+    }
+    if (touchMoveListener) {
+      document.removeEventListener('touchmove', touchMoveListener);
+      touchMoveListener = null;
+    }
+  };
+  
+  // Sticky click/touch event for selection
   container.sticky.onclick = (event) => {
     console.log('[STICKY CLICK] Click event fired', { id, shiftKey: event.shiftKey, target: event.target });
     
-    // Clean up mousemove listener if it exists
-    if (mouseMoveListener) {
-      document.removeEventListener('mousemove', mouseMoveListener);
-      mouseMoveListener = null;
-    }
+    // Clean up pointer listeners if they exist
+    cleanupPointerListeners();
     
     // Check if this was actually a drag - only return early if a drag actually started
     if (dragStarted) {
       console.log('[STICKY CLICK] This was a drag, not a click');
-      mouseDownPos = null;
+      pointerDownPos = null;
       dragStarted = false;
       return;
     }
     
-    mouseDownPos = null;
+    pointerDownPos = null;
     
     // Ignore click if we just completed a drag
     if (window.dragManager && window.dragManager.justCompletedDrag) {
@@ -591,6 +650,45 @@ export function setupStickyEvents(
       window.menuRenderCallback();
     }
   };
+  
+  // Handle touch end for selection (since touch devices may not fire click)
+  container.sticky.addEventListener('touchend', (event) => {
+    // Only handle if no drag was started
+    if (!dragStarted && pointerDownPos) {
+      cleanupPointerListeners();
+      
+      // Check if we just completed a drag
+      if (window.dragManager && window.dragManager.justCompletedDrag) {
+        pointerDownPos = null;
+        return;
+      }
+      
+      // Don't handle sticky selection if we're in connector creation mode
+      const currentAppState = store.getAppState();
+      if (currentAppState.ui.nextClickCreatesConnector) {
+        pointerDownPos = null;
+        return;
+      }
+      
+      moveToFront();
+      
+      // Use selection manager to handle selection
+      selectionManager.selectItem('stickies', id, {
+        addToSelection: false // Touch events don't have shift key
+      });
+      
+      if (!event.target.matches('textarea')) {
+        setEditable(false);
+      }
+      
+      if (window.menuRenderCallback) {
+        window.menuRenderCallback();
+      }
+      
+      pointerDownPos = null;
+      dragStarted = false;
+    }
+  });
 
   // Initial state
   moveToFront();

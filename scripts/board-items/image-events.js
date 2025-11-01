@@ -1,5 +1,6 @@
 import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
 import { createStateConfig } from "../ui/state-config-pattern.js";
+import { getEventCoordinates, getEventPageCoordinates } from "../ui/movement-utils.js";
 
 /**
  * Image State Machine
@@ -26,12 +27,16 @@ class ImageStateMachine extends StateMachine {
           stateMachine.resetCursor();
         }
         
-        // Clean up any leftover mousemove listeners
+        // Clean up any leftover pointer listeners
         if (stateData.mouseMoveListener) {
           document.removeEventListener('mousemove', stateData.mouseMoveListener);
           stateData.mouseMoveListener = null;
         }
-        stateData.mouseDownPos = null;
+        if (stateData.touchMoveListener) {
+          document.removeEventListener('touchmove', stateData.touchMoveListener);
+          stateData.touchMoveListener = null;
+        }
+        stateData.pointerDownPos = null;
         stateData.dragStarted = false;
       },
       cleanup: (stateData, stateMachine) => {
@@ -39,10 +44,14 @@ class ImageStateMachine extends StateMachine {
           stateMachine.clearAllListeners();
         }
         
-        // Clean up any leftover mousemove listeners
+        // Clean up any leftover pointer listeners
         if (stateData.mouseMoveListener) {
           document.removeEventListener('mousemove', stateData.mouseMoveListener);
           stateData.mouseMoveListener = null;
+        }
+        if (stateData.touchMoveListener) {
+          document.removeEventListener('touchmove', stateData.touchMoveListener);
+          stateData.touchMoveListener = null;
         }
       }
     };
@@ -93,7 +102,15 @@ class ImageStateMachine extends StateMachine {
   setupResizeListeners() {
     this.globalListeners.setListeners({
       'mousemove': this.handleImageResize.bind(this),
-      'mouseup': this.handleImageResizeEnd.bind(this)
+      'mouseup': this.handleImageResizeEnd.bind(this),
+      'touchmove': (e) => {
+        e.preventDefault(); // Prevent scrolling during resize
+        this.handleImageResize(e);
+      },
+      'touchend': (e) => {
+        e.preventDefault();
+        this.handleImageResizeEnd(e);
+      }
     });
   }
   
@@ -185,9 +202,13 @@ class ImageStateMachine extends StateMachine {
           event.preventDefault();
           event.stopPropagation();
           
+          // Extract coordinates from touch or mouse event
+          const coords = getEventCoordinates(event);
+          if (!coords) return;
+          
           stateData.imageId = this.id;
           stateData.resizeSide = resizeSide;
-          stateData.resizeStart = { x: event.clientX, y: event.clientY };
+          stateData.resizeStart = { x: coords.clientX, y: coords.clientY };
           
           const image = this.store.getImage(this.id);
           stateData.originalSize = { width: image.width, height: image.height };
@@ -208,21 +229,31 @@ class ImageStateMachine extends StateMachine {
         },
         
         onMouseDown: (event, stateData) => {
-          // Store mousedown position for drag detection
-          stateData.mouseDownPos = { x: event.pageX, y: event.pageY };
+          // Extract page coordinates from touch or mouse event
+          const pageCoords = getEventPageCoordinates(event);
+          if (!pageCoords) return;
+          
+          // Store pointer down position for drag detection
+          stateData.pointerDownPos = { x: pageCoords.pageX, y: pageCoords.pageY };
           stateData.dragStarted = false;
           
-          console.log('[IMAGE MOUSEDOWN] Tracking mouse position', stateData.mouseDownPos);
+          console.log('[IMAGE POINTERDOWN] Tracking pointer position', stateData.pointerDownPos);
           
-          // Add mousemove listener to detect drag
+          // Add pointer move listeners to detect drag
           stateData.mouseMoveListener = (moveEvent) => {
-            const movedX = Math.abs(moveEvent.pageX - stateData.mouseDownPos.x);
-            const movedY = Math.abs(moveEvent.pageY - stateData.mouseDownPos.y);
+            const moveCoords = getEventPageCoordinates(moveEvent);
+            if (!moveCoords) return;
             
-            // Only start drag if mouse has moved more than 5 pixels
+            const movedX = Math.abs(moveCoords.pageX - stateData.pointerDownPos.x);
+            const movedY = Math.abs(moveCoords.pageY - stateData.pointerDownPos.y);
+            
+            // Only start drag if pointer has moved more than 5 pixels
             if (movedX > 5 || movedY > 5) {
-              console.log('[IMAGE MOUSEMOVE] Starting drag', { movedX, movedY });
+              console.log('[IMAGE POINTERMOVE] Starting drag', { movedX, movedY });
               document.removeEventListener('mousemove', stateData.mouseMoveListener);
+              if (stateData.touchMoveListener) {
+                document.removeEventListener('touchmove', stateData.touchMoveListener);
+              }
               
               stateData.dragStarted = true; // Mark that we started a drag
               
@@ -234,7 +265,13 @@ class ImageStateMachine extends StateMachine {
             }
           };
           
+          stateData.touchMoveListener = (moveEvent) => {
+            moveEvent.preventDefault(); // Prevent scrolling
+            stateData.mouseMoveListener(moveEvent);
+          };
+          
           document.addEventListener('mousemove', stateData.mouseMoveListener);
+          document.addEventListener('touchmove', stateData.touchMoveListener, { passive: false });
         }
       },
       
@@ -248,21 +285,25 @@ class ImageStateMachine extends StateMachine {
         onClick: (event, stateData) => {
           console.log('[IMAGE CLICK] Click event fired (connector mode)', { id: this.id, shiftKey: event.shiftKey, target: event.target });
           
-          // Clean up mousemove listener if it exists
+          // Clean up pointer listeners if they exist
           if (stateData.mouseMoveListener) {
             document.removeEventListener('mousemove', stateData.mouseMoveListener);
             stateData.mouseMoveListener = null;
+          }
+          if (stateData.touchMoveListener) {
+            document.removeEventListener('touchmove', stateData.touchMoveListener);
+            stateData.touchMoveListener = null;
           }
           
           // Check if this was actually a drag - only return early if a drag actually started
           if (stateData.dragStarted) {
             console.log('[IMAGE CLICK] This was a drag, not a click');
-            stateData.mouseDownPos = null;
+            stateData.pointerDownPos = null;
             stateData.dragStarted = false;
             return;
           }
           
-          stateData.mouseDownPos = null;
+          stateData.pointerDownPos = null;
           
           // Ignore click if we just completed a drag
           if (window.dragManager && window.dragManager.justCompletedDrag) {
@@ -290,21 +331,25 @@ class ImageStateMachine extends StateMachine {
         onClick: (event, stateData) => {
           console.log('[IMAGE CLICK] Click event fired', { id: this.id, shiftKey: event.shiftKey, target: event.target });
           
-          // Clean up mousemove listener if it exists
+          // Clean up pointer listeners if they exist
           if (stateData.mouseMoveListener) {
             document.removeEventListener('mousemove', stateData.mouseMoveListener);
             stateData.mouseMoveListener = null;
+          }
+          if (stateData.touchMoveListener) {
+            document.removeEventListener('touchmove', stateData.touchMoveListener);
+            stateData.touchMoveListener = null;
           }
           
           // Check if this was actually a drag - only return early if a drag actually started
           if (stateData.dragStarted) {
             console.log('[IMAGE CLICK] This was a drag, not a click');
-            stateData.mouseDownPos = null;
+            stateData.pointerDownPos = null;
             stateData.dragStarted = false;
             return;
           }
           
-          stateData.mouseDownPos = null;
+          stateData.pointerDownPos = null;
           
           // Ignore click if we just completed a drag
           if (window.dragManager && window.dragManager.justCompletedDrag) {
@@ -369,15 +414,19 @@ class ImageStateMachine extends StateMachine {
     }
   }
   
-  // Mouse move handler for resizing
+  // Mouse/touch move handler for resizing
   handleImageResize(event) {
     if (this.currentState !== ImageState.RESIZING) return;
     
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
-    const dx = event.clientX - this.stateData.resizeStart.x;
-    const dy = event.clientY - this.stateData.resizeStart.y;
+    // Extract coordinates from touch or mouse event
+    const coords = getEventCoordinates(event);
+    if (!coords) return;
+    
+    const dx = coords.clientX - this.stateData.resizeStart.x;
+    const dy = coords.clientY - this.stateData.resizeStart.y;
     
     // Calculate resize based on side, accounting for board scale
     let delta = 0;
@@ -405,16 +454,20 @@ class ImageStateMachine extends StateMachine {
       window.board.resizeImage(this.stateData.imageId, isGrow, this.stateData.resizeSide);
       
       // Update resize start to prevent accumulation
-      this.stateData.resizeStart = { x: event.clientX, y: event.clientY };
+      this.stateData.resizeStart = { x: coords.clientX, y: coords.clientY };
     }
   }
   
   
   setupEventListeners() {
-    // Single mousedown handler with routing
+    // Single mousedown/touchstart handler with routing
     this.container.onmousedown = (event) => {
       this.routeMouseDown(event);
     };
+    
+    this.container.addEventListener('touchstart', (event) => {
+      this.routeMouseDown(event);
+    });
 
     // Click handler for selection
     this.container.onclick = (event) => {

@@ -5,6 +5,76 @@
  */
 
 /**
+ * Extract coordinates from touch or mouse event
+ * Returns clientX/Y for drag operations (matches mouse event behavior)
+ * 
+ * @param {Event} event - TouchEvent or MouseEvent
+ * @returns {Object} {x, y} coordinates or null if invalid
+ */
+export function getEventCoordinates(event) {
+  // Handle touch events
+  if (event.touches && event.touches.length > 0) {
+    return {
+      clientX: event.touches[0].clientX,
+      clientY: event.touches[0].clientY
+    };
+  }
+  
+  // Handle touch end events (use changedTouches)
+  if (event.changedTouches && event.changedTouches.length > 0) {
+    return {
+      clientX: event.changedTouches[0].clientX,
+      clientY: event.changedTouches[0].clientY
+    };
+  }
+  
+  // Handle mouse events
+  if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+    return {
+      clientX: event.clientX,
+      clientY: event.clientY
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Extract page coordinates from touch or mouse event
+ * Returns pageX/Y for resize operations (matches mouse event behavior)
+ * 
+ * @param {Event} event - TouchEvent or MouseEvent
+ * @returns {Object} {x, y} coordinates or null if invalid
+ */
+export function getEventPageCoordinates(event) {
+  // Handle touch events
+  if (event.touches && event.touches.length > 0) {
+    return {
+      pageX: event.touches[0].pageX,
+      pageY: event.touches[0].pageY
+    };
+  }
+  
+  // Handle touch end events (use changedTouches)
+  if (event.changedTouches && event.changedTouches.length > 0) {
+    return {
+      pageX: event.changedTouches[0].pageX,
+      pageY: event.changedTouches[0].pageY
+    };
+  }
+  
+  // Handle mouse events
+  if (typeof event.pageX === 'number' && typeof event.pageY === 'number') {
+    return {
+      pageX: event.pageX,
+      pageY: event.pageY
+    };
+  }
+  
+  return null;
+}
+
+/**
  * Move a single item by delta coordinates
  * 
  * @param {string} id - Item ID

@@ -3,6 +3,7 @@ import { createStateConfig } from "../ui/state-config-pattern.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 import { isClickOnConnectorStroke, getConnectorsBelowPoint } from "./connector-hit-testing.js";
+import { getEventCoordinates } from "../ui/movement-utils.js";
 
 /**
  * Connector State Machine
@@ -212,7 +213,22 @@ class ConnectorStateMachine extends StateMachine {
           if (evt) this.handleHandleDrag(evt);
         });
       },
-      'mouseup': this.handleHandleDragEnd.bind(this)
+      'mouseup': this.handleHandleDragEnd.bind(this),
+      'touchmove': (e) => {
+        e.preventDefault(); // Prevent scrolling during drag
+        this._raf.handleDragEvent = e;
+        if (this._raf.handleDragPending) return;
+        this._raf.handleDragPending = true;
+        requestAnimationFrame(() => {
+          this._raf.handleDragPending = false;
+          const evt = this._raf.handleDragEvent;
+          if (evt) this.handleHandleDrag(evt);
+        });
+      },
+      'touchend': (e) => {
+        e.preventDefault();
+        this.handleHandleDragEnd(e);
+      }
     });
   }
   
@@ -228,7 +244,22 @@ class ConnectorStateMachine extends StateMachine {
           if (evt) this.handleCurveHandleDrag(evt);
         });
       },
-      'mouseup': this.handleCurveHandleDragEnd.bind(this)
+      'mouseup': this.handleCurveHandleDragEnd.bind(this),
+      'touchmove': (e) => {
+        e.preventDefault(); // Prevent scrolling during drag
+        this._raf.curveDragEvent = e;
+        if (this._raf.curveDragPending) return;
+        this._raf.curveDragPending = true;
+        requestAnimationFrame(() => {
+          this._raf.curveDragPending = false;
+          const evt = this._raf.curveDragEvent;
+          if (evt) this.handleCurveHandleDrag(evt);
+        });
+      },
+      'touchend': (e) => {
+        e.preventDefault();
+        this.handleCurveHandleDragEnd(e);
+      }
     });
   }
   
@@ -837,22 +868,25 @@ class ConnectorStateMachine extends StateMachine {
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
+    // Extract coordinates from touch or mouse event
+    const coords = getEventCoordinates(event);
+    if (!coords) return;
+    
     // Validate coordinates
-    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
-        isNaN(event.clientX) || isNaN(event.clientY) ||
+    if (isNaN(coords.clientX) || isNaN(coords.clientY) ||
         !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
         isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
-      console.warn('Invalid mouse coordinates or board origin during handle drag:', { 
-        clientX: event.clientX, 
-        clientY: event.clientY, 
+      console.warn('Invalid pointer coordinates or board origin during handle drag:', { 
+        clientX: coords.clientX, 
+        clientY: coords.clientY, 
         boardOrigin 
       });
       return;
     }
     
     const point = {
-      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
-      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+      x: (coords.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (coords.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Update the dragged handle position
@@ -870,26 +904,29 @@ class ConnectorStateMachine extends StateMachine {
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
+    // Extract coordinates from touch or mouse event
+    const coords = getEventCoordinates(event);
+    if (!coords) return;
+    
     // Validate coordinates
-    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
-        isNaN(event.clientX) || isNaN(event.clientY) ||
+    if (isNaN(coords.clientX) || isNaN(coords.clientY) ||
         !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
         isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
-      console.warn('Invalid mouse coordinates or board origin during handle drag end:', { 
-        clientX: event.clientX, 
-        clientY: event.clientY, 
+      console.warn('Invalid pointer coordinates or board origin during handle drag end:', { 
+        clientX: coords.clientX, 
+        clientY: coords.clientY, 
         boardOrigin 
       });
       return;
     }
     
     const point = {
-      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
-      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+      x: (coords.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (coords.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Check if we're over a sticky or image
-    const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+    const elementBelow = document.elementFromPoint(coords.clientX, coords.clientY);
     const stickyContainer = elementBelow?.closest('.sticky-container');
     const imageContainer = elementBelow?.closest('.image-container');
     
@@ -927,22 +964,25 @@ class ConnectorStateMachine extends StateMachine {
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
+    // Extract coordinates from touch or mouse event
+    const coords = getEventCoordinates(event);
+    if (!coords) return;
+    
     // Validate coordinates
-    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number' ||
-        isNaN(event.clientX) || isNaN(event.clientY) ||
+    if (isNaN(coords.clientX) || isNaN(coords.clientY) ||
         !boardOrigin || typeof boardOrigin.x !== 'number' || typeof boardOrigin.y !== 'number' ||
         isNaN(boardOrigin.x) || isNaN(boardOrigin.y)) {
-      console.warn('Invalid mouse coordinates or board origin during curve handle drag:', { 
-        clientX: event.clientX, 
-        clientY: event.clientY, 
+      console.warn('Invalid pointer coordinates or board origin during curve handle drag:', { 
+        clientX: coords.clientX, 
+        clientY: coords.clientY, 
         boardOrigin 
       });
       return;
     }
     
     const point = {
-      x: (event.clientX - rect.left) / boardScale - boardOrigin.x,
-      y: (event.clientY - rect.top) / boardScale - boardOrigin.y
+      x: (coords.clientX - rect.left) / boardScale - boardOrigin.x,
+      y: (coords.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
     // Update the curve control point
@@ -989,6 +1029,22 @@ class ConnectorStateMachine extends StateMachine {
     // Single entry point event listeners
     this.boardElement.addEventListener('mousedown', this.routeMouseDown.bind(this));
     this.boardElement.addEventListener('mouseup', this.routeMouseUp.bind(this));
+    this.boardElement.addEventListener('touchstart', (event) => {
+      // Handle touch start on connector handles
+      const handle = event.target.closest('.connector-handle');
+      if (handle) {
+        event.preventDefault(); // Prevent default touch behavior
+        this.routeMouseDown(event);
+      }
+    });
+    this.boardElement.addEventListener('touchend', (event) => {
+      // Only route touchend if we're in a drag state
+      if (this.currentState === ConnectorState.DRAGGING_HANDLE ||
+          this.currentState === ConnectorState.DRAGGING_CURVE_HANDLE) {
+        event.preventDefault();
+        this.routeMouseUp(event);
+      }
+    });
     
     // Handle connector selection
     this.boardElement.addEventListener('click', (event) => {

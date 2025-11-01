@@ -1,6 +1,6 @@
 import { StateMachine, GlobalListenerManager } from "./state-machine-base.js";
 import { createStateConfig } from "./state-config-pattern.js";
-import { moveItemFromOriginal, calculateMovementDelta } from "./movement-utils.js";
+import { moveItemFromOriginal, calculateMovementDelta, getEventCoordinates } from "./movement-utils.js";
 
 /**
  * Drag State Machine
@@ -98,7 +98,25 @@ class DragStateMachine extends StateMachine {
           }
         });
       },
-      'mouseup': this.handleDragEnd.bind(this)
+      'mouseup': this.handleDragEnd.bind(this),
+      'touchmove': (e) => {
+        e.preventDefault(); // Prevent scrolling during drag
+        // Throttle to once per animation frame
+        this.lastMoveEvent = e;
+        if (this.rafPending) return;
+        this.rafPending = true;
+        requestAnimationFrame(() => {
+          this.rafPending = false;
+          const event = this.lastMoveEvent;
+          if (event) {
+            this.handleDragMove(event);
+          }
+        });
+      },
+      'touchend': (e) => {
+        e.preventDefault();
+        this.handleDragEnd(e);
+      }
     });
   }
   
@@ -141,17 +159,23 @@ class DragStateMachine extends StateMachine {
   
   /**
    * Start a drag operation
-   * Called by content type handlers when a mousedown occurs on a draggable item
+   * Called by content type handlers when a mousedown/touchstart occurs on a draggable item
    * 
    * @param {string} itemId - The initiating item ID
    * @param {string} itemType - Type of item ('sticky', 'image', 'connector')
-   * @param {MouseEvent} event - Mouse event that triggered the drag
+   * @param {MouseEvent|TouchEvent} event - Mouse or touch event that triggered the drag
    * @param {Object} options - Additional options for drag start
    */
   startDrag(itemId, itemType, event, options = {}) {
     // Check if we can start drag
     const appState = this.store.getAppState();
     if (!this.canStartDrag(itemId, itemType, appState)) {
+      return false;
+    }
+    
+    // Extract coordinates from touch or mouse event
+    const coords = getEventCoordinates(event);
+    if (!coords) {
       return false;
     }
     
@@ -198,8 +222,8 @@ class DragStateMachine extends StateMachine {
     const boardScale = appState.ui.boardScale || 1;
     this.stateData.initiatingItemId = itemId;
     this.stateData.initiatingItemType = itemType;
-    this.stateData.dragStart = { x: event.clientX, y: event.clientY };
-    this.stateData.lastPosition = { x: event.clientX, y: event.clientY };
+    this.stateData.dragStart = { x: coords.clientX, y: coords.clientY };
+    this.stateData.lastPosition = { x: coords.clientX, y: coords.clientY };
     this.stateData.boardScale = boardScale;
     this.stateData.originalLocations = {};
     
@@ -248,22 +272,26 @@ class DragStateMachine extends StateMachine {
   }
   
   /**
-   * Handle mouse move during drag
-   * Updates all selected items based on mouse movement
+   * Handle mouse/touch move during drag
+   * Updates all selected items based on pointer movement
    * 
-   * @param {MouseEvent} event - Mouse event
+   * @param {MouseEvent|TouchEvent} event - Mouse or touch event
    */
   handleDragMove(event) {
     if (this.currentState !== DragState.DRAGGING) return;
     
     event.preventDefault();
     
+    // Extract coordinates from touch or mouse event
+    const coords = getEventCoordinates(event);
+    if (!coords) return;
+    
     // Calculate movement delta
     const delta = calculateMovementDelta(
       this.stateData.dragStart.x,
       this.stateData.dragStart.y,
-      event.clientX,
-      event.clientY,
+      coords.clientX,
+      coords.clientY,
       this.stateData.boardScale
     );
     
@@ -293,8 +321,8 @@ class DragStateMachine extends StateMachine {
       const connectorDelta = calculateMovementDelta(
         this.stateData.lastPosition.x,
         this.stateData.lastPosition.y,
-        event.clientX,
-        event.clientY,
+        coords.clientX,
+        coords.clientY,
         this.stateData.boardScale
       );
       
@@ -349,14 +377,14 @@ class DragStateMachine extends StateMachine {
     });
     
     // Update last position for next move (used for connectors)
-    this.stateData.lastPosition = { x: event.clientX, y: event.clientY };
+    this.stateData.lastPosition = { x: coords.clientX, y: coords.clientY };
   }
   
   /**
-   * Handle mouse up during drag
+   * Handle mouse/touch up during drag
    * Completes the drag operation
    * 
-   * @param {MouseEvent} event - Mouse event
+   * @param {MouseEvent|TouchEvent} event - Mouse or touch event
    */
   handleDragEnd(event) {
     if (this.currentState !== DragState.DRAGGING) return;
