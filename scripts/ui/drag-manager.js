@@ -214,11 +214,13 @@ class DragStateMachine extends StateMachine {
     
     console.log('[DRAG START] Item is selected?', isSelected);
     
-    // If not selected, add it to the current selection (don't toggle, just add)
+    // If not selected, clear all selections and select only this item
+    // This ensures dragging an unselected item resets the selection
     if (!isSelected) {
-      console.log('[DRAG START] Adding item to selection');
+      console.log('[DRAG START] Clearing all selections and selecting only dragged item');
+      this.selectionManager.clearAllSelections();
       const selectionType = itemTypeToSelectionType(itemType);
-      this.selectionManager.addToSelection(selectionType, itemId);
+      this.selectionManager.selectItem(selectionType, itemId, { addToSelection: false });
       // Trigger render to show visual feedback of selection
       this.renderCallback();
       // Re-read selections after potential update
