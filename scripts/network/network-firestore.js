@@ -989,6 +989,63 @@ export class FirestoreStore {
       hasMore
     };
   }
+
+  // Static method to delete a board and all its subcollections
+  static async deleteBoard(boardName, userId) {
+    if (!boardName) {
+      throw new Error('Board name is required');
+    }
+    
+    try {
+      // Initialize Firebase if not already
+      initializeFirebaseApp();
+      const db = firebase.firestore();
+      const boardRef = db.collection('boards').doc(boardName);
+      
+      // Verify the board exists and check permissions
+      const boardSnapshot = await boardRef.get();
+      if (!boardSnapshot.exists) {
+        return false; // Board doesn't exist
+      }
+      
+      const boardData = boardSnapshot.data();
+      
+      // Check permissions: only creator or editors can delete
+      if (userId && boardData.creatorId && boardData.creatorId !== userId) {
+        const editors = boardData.editors || [];
+        if (!editors.includes(userId)) {
+          throw new Error('You do not have permission to delete this board');
+        }
+      }
+      
+      // Delete all subcollections
+      const subcollections = ['stickies', 'connectors', 'images'];
+      const deletePromises = subcollections.map(async (subcollectionName) => {
+        const subcollectionRef = boardRef.collection(subcollectionName);
+        const snapshot = await subcollectionRef.get();
+        
+        // Delete all documents in the subcollection
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        
+        if (snapshot.docs.length > 0) {
+          await batch.commit();
+        }
+      });
+      
+      await Promise.all(deletePromises);
+      
+      // Delete the board document itself
+      await boardRef.delete();
+      
+      return true;
+    } catch (error) {
+      console.error('[FirestoreStore.deleteBoard] Error deleting board:', error);
+      throw error;
+    }
+  }
 }
 
 function clone(data) {

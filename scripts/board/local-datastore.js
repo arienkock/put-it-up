@@ -278,6 +278,27 @@ export class LocalDatastore {
       return null;
     }
   };
+
+  // Delete a board from local storage
+  deleteBoard = (boardName) => {
+    const boardsData = localStorage.getItem('put-it-up-boards');
+    if (!boardsData) {
+      return false;
+    }
+    
+    try {
+      const boards = JSON.parse(boardsData);
+      if (boards[boardName]) {
+        delete boards[boardName];
+        localStorage.setItem('put-it-up-boards', JSON.stringify(boards));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn('Failed to delete board:', error);
+      return false;
+    }
+  };
 }
 
 function clone(data) {

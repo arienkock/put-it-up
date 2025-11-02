@@ -280,6 +280,50 @@
           };
           actionCell.appendChild(openButton);
           
+          const deleteButton = document.createElement('button');
+          deleteButton.className = 'action-button delete-button';
+          deleteButton.textContent = 'Delete';
+          deleteButton.onclick = async () => {
+            const boardTitle = board.title || board.name;
+            const confirmed = confirm(`Are you sure you want to delete "${boardTitle}"?\n\nThis action cannot be undone.`);
+            
+            if (!confirmed) {
+              return;
+            }
+            
+            try {
+              if (isOffline) {
+                // Use LocalDatastore
+                const datastore = new LocalDatastore();
+                const deleted = datastore.deleteBoard(board.name);
+                if (deleted) {
+                  // Reload boards list
+                  loadBoards(true);
+                } else {
+                  errorDiv.textContent = 'Failed to delete board';
+                  errorDiv.style.display = 'block';
+                }
+              } else {
+                // Use FirestoreStore
+                const user = await ensureAuthenticatedIfOnline(isOffline);
+                const userId = user ? user.uid : null;
+                const deleted = await FirestoreStore.deleteBoard(board.name, userId);
+                if (deleted) {
+                  // Reload boards list
+                  loadBoards(true);
+                } else {
+                  errorDiv.textContent = 'Board not found or already deleted';
+                  errorDiv.style.display = 'block';
+                }
+              }
+            } catch (error) {
+              console.error('Error deleting board:', error);
+              errorDiv.textContent = `Error deleting board: ${error.message}`;
+              errorDiv.style.display = 'block';
+            }
+          };
+          actionCell.appendChild(deleteButton);
+          
           row.appendChild(nameCell);
           row.appendChild(dateCell);
           row.appendChild(actionCell);

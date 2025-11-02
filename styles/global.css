@@ -609,6 +609,15 @@ body.boards-page .action-button:hover {
   /* Note: Shares button hover patterns with other buttons in the app */
 }
 
+body.boards-page .action-button.delete-button {
+  background-color: #dc3545;
+  margin-left: 8px;
+}
+
+body.boards-page .action-button.delete-button:hover {
+  background-color: #c82333;
+}
+
 body.boards-page .pagination {
   display: flex;
   justify-content: space-between;
