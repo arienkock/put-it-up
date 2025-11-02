@@ -256,7 +256,7 @@ describe("DragManager", () => {
   });
 
   describe("Drag Unselected Item", () => {
-    it("should add unselected item to selection when starting drag", () => {
+    it("should clear previous selections and select only dragged item when dragging unselected sticky", () => {
       document.querySelector = jest.fn(() => null);
       
       const stickyId1 = board.putSticky({ text: "Test 1", location: { x: 100, y: 100 } });
@@ -277,18 +277,119 @@ describe("DragManager", () => {
       expect(result).toBe(true);
       expect(dragManager.getCurrentState()).toBe('dragging');
       
-      // Verify sticky-2 was added to selection
-      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      // Verify sticky-1 was deselected and sticky-2 is now selected
+      expect(stickySelection.isSelected(stickyId1)).toBeFalsy();
       expect(stickySelection.isSelected(stickyId2)).toBe(true);
       
-      // Verify both stickies are tracked in originalLocations for dragging
+      // Verify only sticky-2 is tracked in originalLocations for dragging
       const stateData = dragManager.getStateData();
-      expect(stateData.originalLocations.stickies.size).toBe(2);
-      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(true);
+      expect(stateData.originalLocations.stickies.size).toBe(1);
+      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(false);
       expect(stateData.originalLocations.stickies.has(stickyId2)).toBe(true);
       
       // Verify renderCallback was called to update UI
       expect(renderCallback).toHaveBeenCalled();
+    });
+
+    it("should clear previous selections and select only dragged item when dragging unselected image", () => {
+      document.querySelector = jest.fn(() => null);
+      
+      const imageId1 = board.putImage({ location: { x: 100, y: 100 }, width: 150, height: 100, src: "test1.jpg", dataUrl: "data:test1", naturalWidth: 300, naturalHeight: 200 });
+      const imageId2 = board.putImage({ location: { x: 200, y: 200 }, width: 150, height: 100, src: "test2.jpg", dataUrl: "data:test2", naturalWidth: 300, naturalHeight: 200 });
+      
+      // Select only image-1
+      selectionManager.selectItem('images', imageId1, { addToSelection: false });
+      
+      const imageSelection = selectionManager.getSelection('images');
+      expect(imageSelection.isSelected(imageId1)).toBe(true);
+      expect(imageSelection.isSelected(imageId2)).toBeFalsy();
+      
+      // Start drag on unselected image-2
+      const event = { clientX: 200, clientY: 200, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+      const result = dragManager.startDrag(imageId2, 'image', event);
+      
+      // Verify drag started successfully
+      expect(result).toBe(true);
+      expect(dragManager.getCurrentState()).toBe('dragging');
+      
+      // Verify image-1 was deselected and image-2 is now selected
+      expect(imageSelection.isSelected(imageId1)).toBeFalsy();
+      expect(imageSelection.isSelected(imageId2)).toBe(true);
+      
+      // Verify only image-2 is tracked in originalLocations for dragging
+      const stateData = dragManager.getStateData();
+      expect(stateData.originalLocations.images.size).toBe(1);
+      expect(stateData.originalLocations.images.has(imageId1)).toBe(false);
+      expect(stateData.originalLocations.images.has(imageId2)).toBe(true);
+    });
+
+    it("should clear cross-type selections when dragging unselected item", () => {
+      document.querySelector = jest.fn(() => null);
+      
+      const stickyId1 = board.putSticky({ text: "Test 1", location: { x: 100, y: 100 } });
+      const stickyId2 = board.putSticky({ text: "Test 2", location: { x: 200, y: 100 } });
+      const imageId1 = board.putImage({ location: { x: 300, y: 100 }, width: 150, height: 100, src: "test.jpg", dataUrl: "data:test", naturalWidth: 300, naturalHeight: 200 });
+      
+      // Select sticky-1 and image-1
+      // Note: selectItem with addToSelection: false clears other types, so we need to select them
+      // in a way that preserves both. We'll use the direct Selection API to set both.
+      const stickySelection = selectionManager.getSelection('stickies');
+      const imageSelection = selectionManager.getSelection('images');
+      
+      stickySelection.replaceSelection(stickyId1);
+      imageSelection.replaceSelection(imageId1);
+      
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      expect(imageSelection.isSelected(imageId1)).toBe(true);
+      
+      // Start drag on unselected sticky-2
+      const event = { clientX: 200, clientY: 100, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+      dragManager.startDrag(stickyId2, 'sticky', event);
+      
+      // Verify sticky-1 and image-1 were both deselected
+      expect(stickySelection.isSelected(stickyId1)).toBeFalsy();
+      expect(imageSelection.isSelected(imageId1)).toBeFalsy();
+      
+      // Verify only sticky-2 is now selected
+      expect(stickySelection.isSelected(stickyId2)).toBe(true);
+      
+      // Verify only sticky-2 is tracked in originalLocations
+      const stateData = dragManager.getStateData();
+      expect(stateData.originalLocations.stickies.size).toBe(1);
+      expect(stateData.originalLocations.stickies.has(stickyId2)).toBe(true);
+      expect(stateData.originalLocations.images).toBeUndefined();
+    });
+
+    it("should preserve existing selections when dragging an already selected item", () => {
+      document.querySelector = jest.fn(() => null);
+      
+      const stickyId1 = board.putSticky({ text: "Test 1", location: { x: 100, y: 100 } });
+      const stickyId2 = board.putSticky({ text: "Test 2", location: { x: 200, y: 100 } });
+      const stickyId3 = board.putSticky({ text: "Test 3", location: { x: 300, y: 100 } });
+      
+      // Select sticky-1 and sticky-2
+      selectionManager.selectItem('stickies', stickyId1, { addToSelection: false });
+      selectionManager.selectItem('stickies', stickyId2, { addToSelection: true });
+      
+      const stickySelection = selectionManager.getSelection('stickies');
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      expect(stickySelection.isSelected(stickyId2)).toBe(true);
+      expect(stickySelection.isSelected(stickyId3)).toBeFalsy();
+      
+      // Start drag on already selected sticky-1
+      const event = { clientX: 100, clientY: 100, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+      dragManager.startDrag(stickyId1, 'sticky', event);
+      
+      // Verify both sticky-1 and sticky-2 remain selected
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      expect(stickySelection.isSelected(stickyId2)).toBe(true);
+      expect(stickySelection.isSelected(stickyId3)).toBeFalsy();
+      
+      // Verify both selected stickies are tracked in originalLocations
+      const stateData = dragManager.getStateData();
+      expect(stateData.originalLocations.stickies.size).toBe(2);
+      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(true);
+      expect(stateData.originalLocations.stickies.has(stickyId2)).toBe(true);
     });
   });
 
