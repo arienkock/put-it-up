@@ -6,6 +6,122 @@ import { firebaseConfig, initializeFirebaseApp } from "../config/firebase-config
 const isDebugMode = () => window.DEBUG_MODE || false;
 
 /**
+ * Manages debounced Firestore search queries to reduce the number of read calls.
+ * Cancels previous searches for the same query and executes only the latest one.
+ */
+class FirestoreSearchDebouncer {
+  constructor(debounceMs = 400) {
+    this.debounceMs = debounceMs;
+    this.pendingSearches = new Map(); // searchKey -> { timer, resolve, reject, searchFn, params }
+  }
+
+  /**
+   * Schedule a debounced search query.
+   * @param {string} searchKey - Unique key for this search (e.g., searchTerm + userId)
+   * @param {Function} searchFn - The async function to execute for the search
+   * @param {Array} params - Parameters to pass to searchFn
+   * @returns {Promise} Promise that resolves with the search result
+   */
+  debounceSearch(searchKey, searchFn, params) {
+    // Cancel any existing timer for this search
+    if (this.pendingSearches.has(searchKey)) {
+      const pending = this.pendingSearches.get(searchKey);
+      clearTimeout(pending.timer);
+      // Reject the previous promise since it's being superseded
+      if (pending.reject) {
+        pending.reject(new Error('Search superseded by newer query'));
+      }
+    }
+
+    // Create a new promise for this search
+    return new Promise((resolve, reject) => {
+      const pending = {
+        searchFn,
+        params,
+        resolve,
+        reject,
+        timer: setTimeout(() => {
+          this.executeSearch(searchKey);
+        }, this.debounceMs)
+      };
+
+      this.pendingSearches.set(searchKey, pending);
+    });
+  }
+
+  /**
+   * Execute a pending search and remove it from the queue.
+   * @param {string} searchKey - The search key
+   */
+  async executeSearch(searchKey) {
+    const pending = this.pendingSearches.get(searchKey);
+    if (!pending) return;
+
+    // Remove from pending searches before executing
+    this.pendingSearches.delete(searchKey);
+
+    // Execute the search
+    if (isDebugMode()) {
+      console.log(`[FirestoreSearchDebouncer] Executing debounced search for key: ${searchKey}`);
+    }
+
+    try {
+      const result = await pending.searchFn(...pending.params);
+      if (pending.resolve) {
+        pending.resolve(result);
+      }
+    } catch (error) {
+      if (isDebugMode()) {
+        console.error(`[FirestoreSearchDebouncer] Error executing debounced search for key ${searchKey}:`, error);
+      }
+      if (pending.reject) {
+        pending.reject(error);
+      }
+    }
+  }
+
+  /**
+   * Cancel any pending search (e.g., when component unmounts).
+   * @param {string} searchKey - The search key
+   */
+  cancelSearch(searchKey) {
+    const pending = this.pendingSearches.get(searchKey);
+    if (pending) {
+      clearTimeout(pending.timer);
+      if (pending.reject) {
+        pending.reject(new Error('Search cancelled'));
+      }
+      this.pendingSearches.delete(searchKey);
+    }
+  }
+
+  /**
+   * Cancel all pending searches (useful for cleanup).
+   */
+  cancelAll() {
+    const searchKeys = Array.from(this.pendingSearches.keys());
+    searchKeys.forEach(searchKey => {
+      this.cancelSearch(searchKey);
+    });
+  }
+
+  /**
+   * Flush all pending searches immediately (useful for testing).
+   */
+  async flushAll() {
+    const searchKeys = Array.from(this.pendingSearches.keys());
+    const promises = searchKeys.map(searchKey => {
+      const pending = this.pendingSearches.get(searchKey);
+      if (pending) {
+        clearTimeout(pending.timer);
+        return this.executeSearch(searchKey);
+      }
+    });
+    await Promise.all(promises);
+  }
+}
+
+/**
  * Manages debounced Firestore writes to reduce the number of write calls.
  * Batches updates to the same document within the debounce window.
  */
@@ -112,6 +228,9 @@ class FirestoreWriteDebouncer {
   }
 }
 
+// Global search debouncer instance for static search methods
+const globalSearchDebouncer = new FirestoreSearchDebouncer(400);
+
 export class FirestoreStore {
   connectCalled = false;
   collectionName = "boards";
@@ -122,6 +241,8 @@ export class FirestoreStore {
   constructor(boardName, debounceMs = 400) {
     this.boardName = boardName;
     this.debouncer = new FirestoreWriteDebouncer(debounceMs);
+    // Instance-level search debouncer (can be configured per instance)
+    this.searchDebouncer = new FirestoreSearchDebouncer(debounceMs);
   }
 
   connect() {
@@ -663,19 +784,58 @@ export class FirestoreStore {
       const currentUser = auth.currentUser;
       const userId = currentUser ? currentUser.uid : null;
       
-      // Call the static method with default options
-      const result = await FirestoreStore.searchBoards(query, userId, { limit: 50 });
+      // Create a unique key for this search
+      const searchKey = `instance-${this.boardName}-${query}-${userId || 'anonymous'}`;
+      
+      // Debounce the search query
+      const result = await this.searchDebouncer.debounceSearch(
+        searchKey,
+        async (searchTerm, userIdParam, options) => {
+          // Skip debounce in static method since we're already debouncing here
+          return await FirestoreStore.searchBoards(searchTerm, userIdParam, { ...options, skipDebounce: true });
+        },
+        [query, userId, { limit: 50 }]
+      );
       
       // Return just the boards array to match LocalDatastore interface
       return result.boards || [];
     } catch (error) {
-      console.warn('[FirestoreStore.searchBoards] Failed to search boards:', error);
+      // Ignore "superseded" or "cancelled" errors as they're expected during debouncing
+      if (error.message !== 'Search superseded by newer query' && error.message !== 'Search cancelled') {
+        console.warn('[FirestoreStore.searchBoards] Failed to search boards:', error);
+      }
       return [];
     }
   };
 
   // Static method to search boards by name with pagination support
   static async searchBoards(searchTerm = '', userId, options = {}) {
+    const { limit = 50, startAfter = null, skipDebounce = false } = options;
+    
+    // Create a unique key for this search based on search term and user
+    // Note: We exclude pagination options (startAfter) from the key because:
+    // - Initial searches always have startAfter: null, so they'll be debounced together
+    // - Pagination (load more) is a separate user action and should not be debounced with initial searches
+    const searchKey = `static-${searchTerm}-${userId || 'anonymous'}-${limit}`;
+    
+    // If debouncing is enabled and we're not skipping it, use the global debouncer
+    // Only debounce initial searches (when startAfter is null), not pagination requests
+    if (!skipDebounce && startAfter === null) {
+      return await globalSearchDebouncer.debounceSearch(
+        searchKey,
+        async (term, uid, opts) => {
+          return await FirestoreStore._executeSearchBoardsQuery(term, uid, opts);
+        },
+        [searchTerm, userId, options]
+      );
+    }
+    
+    // Skip debouncing - execute directly (for pagination or when explicitly skipped)
+    return await FirestoreStore._executeSearchBoardsQuery(searchTerm, userId, options);
+  }
+
+  // Internal method that performs the actual Firestore query
+  static async _executeSearchBoardsQuery(searchTerm = '', userId, options = {}) {
     const { limit = 50, startAfter = null } = options;
     
     // Initialize Firebase if not already
