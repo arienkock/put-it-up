@@ -35,7 +35,6 @@
       import { FirestoreStore } from "./scripts/network/network-firestore.js";
       import { LocalDatastore } from "./scripts/board/local-datastore.js";
       import { LocalStoragePersistence } from "./scripts/board/local-storage-persistence.js";
-      import { showError } from "./scripts/ui/error-overlay.js";
       import { ensureAuthenticatedIfOnline } from "./scripts/ui/auth-helpers.js";
       
       // Check for offline query parameter
@@ -47,11 +46,11 @@
       async function bootstrap() {
         // Check if boardName is required and provided (only needed when not offline)
         if (!isOffline && !boardName) {
-          showError(
-            'A board name was not specified and is required.',
-            null,
-            'Board name required'
-          );
+          // Redirect to boards.html instead of showing error
+          const currentParams = new URLSearchParams(window.location.search);
+          currentParams.delete('boardName'); // Remove boardName if present
+          const redirectUrl = 'boards.html' + (currentParams.toString() ? '?' + currentParams.toString() : '');
+          window.location.href = redirectUrl;
           return; // Prevent bootstrap from continuing
         }
         
