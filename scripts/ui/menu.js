@@ -285,16 +285,15 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       logoElement.style.textDecoration = "none";
       logoElement.style.color = "inherit";
       
-      // Create SVG logo: sticky note with cross
+      // Create SVG logo: sticky note with letter S
       logoElement.innerHTML = `
         <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="display: block;">
           <!-- Shadow -->
           <rect x="2" y="3" width="28" height="28" rx="2" fill="rgba(0,0,0,0.15)"/>
           <!-- Sticky note body -->
           <rect x="1" y="1" width="28" height="28" rx="2" fill="#ffd700" stroke="#d4af37" stroke-width="0.5"/>
-          <!-- Cross/plus sign -->
-          <line x1="10" y1="15" x2="20" y2="15" stroke="#444" stroke-width="2" stroke-linecap="round"/>
-          <line x1="15" y1="10" x2="15" y2="20" stroke="#444" stroke-width="2" stroke-linecap="round"/>
+          <!-- Capital letter S -->
+          <text x="16" y="20" font-family="sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#444">S</text>
         </svg>
       `;
       
