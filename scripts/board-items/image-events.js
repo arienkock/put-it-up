@@ -466,8 +466,10 @@ class ImageStateMachine extends StateMachine {
     };
     
     this.container.addEventListener('touchstart', (event) => {
+      // Prevent default to allow touch dragging/resizing
+      event.preventDefault();
       this.routeMouseDown(event);
-    });
+    }, { passive: false });
 
     // Click handler for selection
     this.container.onclick = (event) => {

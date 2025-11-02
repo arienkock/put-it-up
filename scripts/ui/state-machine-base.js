@@ -82,12 +82,16 @@ export class GlobalListenerManager {
   /**
    * Set listeners for a specific state
    * Automatically removes any existing listeners first
+   * Touch events (touchstart, touchmove, touchend) automatically get { passive: false }
    */
   setListeners(listenerMap) {
     this.clearAll();
     
     Object.entries(listenerMap).forEach(([eventType, handler]) => {
-      document.addEventListener(eventType, handler);
+      // Add { passive: false } for touch events to allow preventDefault()
+      const options = eventType.startsWith('touch') ? { passive: false } : undefined;
+      console.log(`[GlobalListenerManager] Adding ${eventType} listener to document`, options ? { options } : '');
+      document.addEventListener(eventType, handler, options);
       
       if (!this.activeListeners.has(eventType)) {
         this.activeListeners.set(eventType, new Set());
@@ -97,6 +101,9 @@ export class GlobalListenerManager {
   }
   
   clearAll() {
+    if (this.activeListeners.size > 0) {
+      console.log('[GlobalListenerManager] Clearing all listeners', Array.from(this.activeListeners.keys()));
+    }
     this.activeListeners.forEach((handlers, eventType) => {
       handlers.forEach(handler => {
         document.removeEventListener(eventType, handler);

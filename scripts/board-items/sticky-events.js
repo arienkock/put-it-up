@@ -585,8 +585,12 @@ export function setupStickyEvents(
   
   container.sticky.onmousedown = handlePointerDown;
   container.sticky.addEventListener('touchstart', (event) => {
+    // Only preventDefault if not touching the textarea (to allow text editing)
+    if (event.target !== container.inputElement) {
+      event.preventDefault();
+    }
     handlePointerDown(event);
-  });
+  }, { passive: false });
   
   // Cleanup function for pointer listeners
   const cleanupPointerListeners = () => {
