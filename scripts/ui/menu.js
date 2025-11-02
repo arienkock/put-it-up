@@ -31,14 +31,10 @@ function changeArrowHead(currentArrowHead, reverse = false) {
  */
 export function createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, renderCallback) {
   let menuElement;
+  let menuContainer;
+  let logoElement;
 
   const alwaysRelevantItems = [
-    {
-      itemLabel: "Whiteboard",
-      className: "menu-title",
-      itemClickHandler: null,
-      isTitle: true,
-    },
     {
       itemLabel: "New Sticky",
       className: "new-sticky",
@@ -277,14 +273,37 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     
     if (!menuElement) {
       // Create container wrapper
-      const menuContainer = document.createElement("div");
+      menuContainer = document.createElement("div");
       menuContainer.classList.add("menu-container");
+      
+      // Create logo element separately (not part of menu items)
+      logoElement = document.createElement("a");
+      logoElement.href = "boards.html";
+      logoElement.classList.add("menu-logo");
+      logoElement.style.display = "inline-flex";
+      logoElement.style.alignItems = "center";
+      logoElement.style.textDecoration = "none";
+      logoElement.style.color = "inherit";
+      
+      // Create SVG logo: sticky note with cross
+      logoElement.innerHTML = `
+        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+          <!-- Shadow -->
+          <rect x="2" y="3" width="28" height="28" rx="2" fill="rgba(0,0,0,0.15)"/>
+          <!-- Sticky note body -->
+          <rect x="1" y="1" width="28" height="28" rx="2" fill="#ffd700" stroke="#d4af37" stroke-width="0.5"/>
+          <!-- Cross/plus sign -->
+          <line x1="10" y1="15" x2="20" y2="15" stroke="#444" stroke-width="2" stroke-linecap="round"/>
+          <line x1="15" y1="10" x2="15" y2="20" stroke="#444" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      `;
       
       // Create menu element
       menuElement = document.createElement("div");
       menuElement.classList.add("board-action-menu");
       
-      // Add menu to container and container to root
+      // Add logo first, then menu to container, then container to root
+      menuContainer.appendChild(logoElement);
       menuContainer.appendChild(menuElement);
       root.insertAdjacentElement("afterbegin", menuContainer);
 

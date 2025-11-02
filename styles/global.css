@@ -253,14 +253,16 @@ body {
   z-index: 1;
   will-change: transform; /* Optimize for frequent transforms */
   transition: top 0.3s ease, left 0.3s ease, transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .board-action-menu {
   display: flex;
   align-items: center;
-  width: 100%;
-  background-color: white;
-  border-bottom: 1px solid #e0e0e0;
+  flex: 1;
   padding: 8px 0; /* Fixed pixel padding instead of em units */
   box-sizing: border-box;
 }
@@ -300,6 +302,21 @@ body {
   background: none;
   box-shadow: none;
   /* Note: Uses shared typography patterns from global classes */
+}
+
+.menu-logo {
+  padding: 8px 16px !important; /* Fixed pixel padding instead of em units */
+  margin: 0;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.menu-logo:hover {
+  opacity: 0.7;
+}
+
+.menu-logo svg {
+  display: block;
 }
 
 .board-action-menu .menu-separator {
