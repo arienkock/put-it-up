@@ -60,11 +60,29 @@ class FirestoreWriteDebouncer {
       console.log(`[FirestoreWriteDebouncer] Executing debounced write to ${docPath}`, pending.mergedData);
     }
 
-    pending.docRef.update(pending.mergedData).catch((error) => {
+    // Safety check: ensure docRef exists before updating
+    if (!pending.docRef) {
       if (isDebugMode()) {
-        console.error(`[FirestoreWriteDebouncer] Error executing debounced write to ${docPath}:`, error);
+        console.error(`[FirestoreWriteDebouncer] Cannot execute write to ${docPath}: docRef is undefined`);
       }
-    });
+      return;
+    }
+
+    // Execute update and handle errors safely
+    try {
+      const updatePromise = pending.docRef.update(pending.mergedData);
+      if (updatePromise && typeof updatePromise.catch === 'function') {
+        updatePromise.catch((error) => {
+          if (isDebugMode()) {
+            console.error(`[FirestoreWriteDebouncer] Error executing debounced write to ${docPath}:`, error);
+          }
+        });
+      }
+    } catch (error) {
+      if (isDebugMode()) {
+        console.error(`[FirestoreWriteDebouncer] Error calling update on ${docPath}:`, error);
+      }
+    }
   }
 
   /**
