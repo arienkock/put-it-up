@@ -21,8 +21,8 @@ export function changeZoomLevel(currentScale, reverse) {
  * @param {Object} size - Board size {width, height}
  */
 export function applyZoomToBoard(domElement, boardContainer, root, boardScale, size) {
-  root.style.width = size.width * boardScale + "px";
-  root.style.height = size.height * boardScale + "px";
+  // Note: root (.app) should remain at viewport size (100vh x 100vw)
+  // Scrolling is handled by .board-scroll-container
   domElement.style.width = size.width + "px";
   domElement.style.height = size.height + "px";
   boardContainer.style.width = size.width * boardScale + "px";

@@ -82,8 +82,9 @@ const isDebugMode = () => window.DEBUG_MODE || false;
 
 export function mount(board, root, Observer, store) {
   root.innerHTML =
-    '<div class="board-container"><div class="board"></div></div>';
-  const boardContainer = root.firstElementChild;
+    '<div class="board-scroll-container"><div class="board-container"><div class="board"></div></div></div>';
+  const boardScrollContainer = root.firstElementChild;
+  const boardContainer = boardScrollContainer.firstElementChild;
   const domElement = boardContainer.firstElementChild;
   const appState = store.getAppState();
   // Use globally stored UI state
@@ -218,7 +219,7 @@ export function mount(board, root, Observer, store) {
       const scale = 1 / zoomLevel;
       menuContainer.style.transform = `scale(${scale})`;
       menuContainer.style.transformOrigin = 'top left';
-      // Compensate width and positioning
+      // Compensate width
       menuContainer.style.width = `${zoomLevel * 100}%`;
     } else {
       // At 100% zoom, remove any transforms
@@ -293,9 +294,10 @@ export function mount(board, root, Observer, store) {
             const origin = board.getOrigin();
             const boardScale = appState.ui.boardScale || 1;
             
-            // Calculate center of viewport in board coordinates
-            const viewportCenterX = window.innerWidth / 2;
-            const viewportCenterY = window.innerHeight / 2;
+            // Calculate center of scroll container viewport in board coordinates
+            const containerRect = boardScrollContainer.getBoundingClientRect();
+            const viewportCenterX = containerRect.left + boardScrollContainer.clientWidth / 2;
+            const viewportCenterY = containerRect.top + boardScrollContainer.clientHeight / 2;
             
             // Convert to board coordinates
             const location = {
@@ -449,9 +451,9 @@ export function mount(board, root, Observer, store) {
     }
     
     // Check if browser has already restored scroll position (e.g., on refresh)
-    // If scrollX or scrollY is non-zero, the browser has restored scroll position,
+    // If scrollLeft or scrollTop is non-zero, the browser has restored scroll position,
     // so we should NOT perform our automatic scrolling
-    if (window.scrollX !== 0 || window.scrollY !== 0) {
+    if (boardScrollContainer.scrollLeft !== 0 || boardScrollContainer.scrollTop !== 0) {
       return;
     }
     
@@ -472,20 +474,17 @@ export function mount(board, root, Observer, store) {
       targetY = (size.height * boardScale) / 2;
     }
     
-    // Calculate the viewport center
-    const viewportCenterX = window.innerWidth / 2;
-    const viewportCenterY = window.innerHeight / 2;
+    // Calculate the container's viewport center
+    const viewportCenterX = boardScrollContainer.clientWidth / 2;
+    const viewportCenterY = boardScrollContainer.clientHeight / 2;
     
     // Calculate the scroll position needed to center the target
     const scrollX = targetX - viewportCenterX;
     const scrollY = targetY - viewportCenterY;
     
     // Apply the scroll position instantly (not smooth)
-    window.scrollTo({
-      left: Math.max(0, scrollX),
-      top: Math.max(0, scrollY),
-      behavior: 'auto'
-    });
+    boardScrollContainer.scrollLeft = Math.max(0, scrollX);
+    boardScrollContainer.scrollTop = Math.max(0, scrollY);
   }
   
   render();
