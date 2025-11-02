@@ -13,6 +13,20 @@ const DragState = {
 };
 
 /**
+ * Helper function to convert item type to selection type
+ * @param {string} itemType - 'sticky', 'image', or 'connector'
+ * @returns {string} - 'stickies', 'images', or 'connectors'
+ */
+function itemTypeToSelectionType(itemType) {
+  const mapping = {
+    'sticky': 'stickies',
+    'image': 'images',
+    'connector': 'connectors'
+  };
+  return mapping[itemType] || itemType;
+}
+
+/**
  * Drag State Machine Implementation
  * Uses the new StateMachine base class for consistent behavior
  */
@@ -203,7 +217,10 @@ class DragStateMachine extends StateMachine {
     // If not selected, add it to the current selection (don't toggle, just add)
     if (!isSelected) {
       console.log('[DRAG START] Adding item to selection');
-      this.selectionManager.addToSelection(itemType, itemId);
+      const selectionType = itemTypeToSelectionType(itemType);
+      this.selectionManager.addToSelection(selectionType, itemId);
+      // Trigger render to show visual feedback of selection
+      this.renderCallback();
       // Re-read selections after potential update
       stickySelection = this.selectionManager.getSelection('stickies');
       imageSelection = this.selectionManager.getSelection('images');

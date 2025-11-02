@@ -348,6 +348,10 @@ export function mount(board, root, Observer, store) {
       // Let connector events handle this - don't interfere
       return;
     } else if (event.target === domElement && !event.shiftKey) {
+      // Don't clear selection if we just completed a drag
+      if (window.dragManager && window.dragManager.justCompletedDrag) {
+        return;
+      }
       selectionManager.clearAllSelections();
       // Ensure menu reflects empty selection state
       renderMenu();

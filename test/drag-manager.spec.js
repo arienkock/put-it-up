@@ -257,12 +257,38 @@ describe("DragManager", () => {
 
   describe("Drag Unselected Item", () => {
     it("should add unselected item to selection when starting drag", () => {
+      document.querySelector = jest.fn(() => null);
+      
       const stickyId1 = board.putSticky({ text: "Test 1", location: { x: 100, y: 100 } });
       const stickyId2 = board.putSticky({ text: "Test 2", location: { x: 200, y: 100 } });
       
-      // This test verifies that the drag manager uses addToSelection when dragging unselected items
-      // The actual behavior is tested in E2E tests
-      expect(true).toBe(true);
+      // Select only sticky-1
+      selectionManager.selectItem('stickies', stickyId1, { addToSelection: false });
+      
+      const stickySelection = selectionManager.getSelection('stickies');
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      expect(stickySelection.isSelected(stickyId2)).toBeFalsy();
+      
+      // Start drag on unselected sticky-2
+      const event = { clientX: 200, clientY: 100, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+      const result = dragManager.startDrag(stickyId2, 'sticky', event);
+      
+      // Verify drag started successfully
+      expect(result).toBe(true);
+      expect(dragManager.getCurrentState()).toBe('dragging');
+      
+      // Verify sticky-2 was added to selection
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      expect(stickySelection.isSelected(stickyId2)).toBe(true);
+      
+      // Verify both stickies are tracked in originalLocations for dragging
+      const stateData = dragManager.getStateData();
+      expect(stateData.originalLocations.stickies.size).toBe(2);
+      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(true);
+      expect(stateData.originalLocations.stickies.has(stickyId2)).toBe(true);
+      
+      // Verify renderCallback was called to update UI
+      expect(renderCallback).toHaveBeenCalled();
     });
   });
 

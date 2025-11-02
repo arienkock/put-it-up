@@ -555,10 +555,92 @@ describe("Board UI", () => {
         expect(true).toBe(true);
       });
 
-      it.skip("dragging unselected item adds to selection", async () => {
+      it("dragging unselected item adds to selection", async () => {
         // Scenario: Drag unselected item adds to selection
-        // Note: Complex and depends on specific drag behavior
-        expect(true).toBe(true);
+        await page.waitForSelector(".sticky-1 .sticky");
+        await page.waitForSelector(".sticky-2 .sticky");
+        
+        // Given sticky-1 is selected and sticky-2 is not selected
+        await clickStickyOutsideOfText(1);
+        await thingsSettleDown();
+        expect(await isStickySelected(1)).toBe(true);
+        expect(await isStickySelected(2)).toBe(false);
+        
+        // Get initial positions of both stickies
+        const initialPos1 = await page.evaluate(() => {
+          const container = document.querySelector(".sticky-1");
+          return {
+            x: parseFloat(container.style.left) || 0,
+            y: parseFloat(container.style.top) || 0
+          };
+        });
+        
+        const initialPos2 = await page.evaluate(() => {
+          const container = document.querySelector(".sticky-2");
+          return {
+            x: parseFloat(container.style.left) || 0,
+            y: parseFloat(container.style.top) || 0
+          };
+        });
+        
+        // When I start dragging sticky-2 (which is not selected)
+        const sticky2 = page.locator(".sticky-2 .sticky");
+        const sticky2Box = await sticky2.boundingBox();
+        const startX = sticky2Box.x + sticky2Box.width / 2;
+        const startY = sticky2Box.y + 10; // Near top, outside textarea
+        
+        // Simulate drag: mousedown, mousemove (>5px to trigger drag), mouseup
+        await page.mouse.move(startX, startY);
+        await page.mouse.down();
+        await page.waitForTimeout(50);
+        await page.mouse.move(startX + 10, startY + 10); // Move >5px to trigger drag
+        await page.waitForTimeout(100); // Give more time for drag to start
+        await thingsSettleDown(); // Wait for render to complete
+        
+        // At this point, both stickies should be selected
+        expect(await isStickySelected(1)).toBe(true);
+        expect(await isStickySelected(2)).toBe(true);
+        
+        // Continue dragging to final position
+        await page.mouse.move(startX + 100, startY + 50);
+        await page.waitForTimeout(50);
+        await page.mouse.up();
+        await thingsSettleDown();
+        
+        // Both stickies should still be selected after drag
+        expect(await isStickySelected(1)).toBe(true);
+        expect(await isStickySelected(2)).toBe(true);
+        
+        // And both stickies should have moved together
+        const finalPos1 = await page.evaluate(() => {
+          const container = document.querySelector(".sticky-1");
+          return {
+            x: parseFloat(container.style.left) || 0,
+            y: parseFloat(container.style.top) || 0
+          };
+        });
+        
+        const finalPos2 = await page.evaluate(() => {
+          const container = document.querySelector(".sticky-2");
+          return {
+            x: parseFloat(container.style.left) || 0,
+            y: parseFloat(container.style.top) || 0
+          };
+        });
+        
+        // Both stickies should have moved by approximately the same amount
+        const delta1X = finalPos1.x - initialPos1.x;
+        const delta1Y = finalPos1.y - initialPos1.y;
+        const delta2X = finalPos2.x - initialPos2.x;
+        const delta2Y = finalPos2.y - initialPos2.y;
+        
+        // Verify both moved by similar amounts (within grid snapping tolerance)
+        expect(Math.abs(delta1X - delta2X)).toBeLessThan(20);
+        expect(Math.abs(delta1Y - delta2Y)).toBeLessThan(20);
+        
+        // Verify they actually moved
+        expect(Math.abs(delta2X)).toBeGreaterThan(50);
+        expect(Math.abs(delta2Y)).toBeGreaterThan(20);
       });
 
       it.skip("selection preserved after drag completion", async () => {
