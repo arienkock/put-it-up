@@ -1,0 +1,90 @@
+---
+alwaysApply: true
+---
+
+# Design Philosophy
+
+This document outlines the core design principles that guide the development of this codebase.
+
+## Near-Zero Dependencies
+
+**Principle**: Minimize external dependencies to the absolute essentials.
+
+- **Runtime Dependencies**: Zero runtime dependencies. All functionality is implemented using native web APIs and custom code.
+- **Build/Test Dependencies Only**: External packages are limited to development tooling (Jest, Babel, Playwright) that never ship to production.
+- **External Services**: Services like Firebase are loaded directly from CDN when needed, not bundled as dependencies. This keeps the bundle size minimal and allows for runtime configuration.
+
+**Rationale**: Reduces attack surface, improves performance, simplifies deployment, and eliminates dependency management overhead.
+
+## Web Standards First
+
+**Principle**: Use native web standards over proprietary frameworks or libraries.
+
+- **ES6 Modules**: Standard JavaScript modules (`import`/`export`) for code organization.
+- **Plain HTML/CSS**: No templating engines or CSS-in-JS. Standard HTML and CSS files.
+- **Native Browser APIs**: Leverage built-in browser capabilities (Web Components concepts, Custom Events, etc.) without frameworks.
+
+**Rationale**: Ensures longevity, browser compatibility, and reduces vendor lock-in. Code remains readable and maintainable without framework-specific knowledge.
+
+## Plain DOM API
+
+**Principle**: Direct manipulation of the DOM using standard browser APIs.
+
+- **No Virtual DOM**: Direct `document.createElement()`, `querySelector()`, and DOM manipulation methods.
+- **Event Handling**: Native `addEventListener()` and `removeEventListener()` for all event handling.
+- **Style Management**: Direct `element.style` and `classList` manipulation.
+
+**Rationale**: Full control over rendering, predictable performance, and no abstraction overhead. Developers can use standard browser DevTools effectively.
+
+## Custom State Management
+
+**Principle**: Implement domain-specific state management patterns rather than adopting generic frameworks.
+
+- **State Machine Architecture**: Custom `StateMachine` base class for managing complex interactive states (drag operations, resize operations, keyboard handlers).
+- **Observer Pattern**: Custom `Observer` and `BufferedObserver` implementations for reactive updates.
+- **Plugin System**: Extensible plugin architecture for board items (stickies, images, connectors) without external dependency injection frameworks.
+
+**Rationale**: Patterns tailored to the specific needs of the application result in simpler, more maintainable code than generic solutions.
+
+## Explicit Over Implicit
+
+**Principle**: Make behavior explicit and traceable.
+
+- **State Transitions**: All state changes are explicit with logging and validation.
+- **Event Routing**: Single entry points with explicit routing to handlers based on current state.
+- **Error Handling**: Comprehensive error boundaries with recovery mechanisms.
+
+**Rationale**: Easier debugging, better testability, and reduced cognitive load for developers.
+
+## Progressive Enhancement
+
+**Principle**: Build on solid foundations, enhance with modern features.
+
+- **Core Functionality**: Works with standard web APIs available in all modern browsers.
+- **Modern Features**: Leverages modern JavaScript features (ES6+) where supported.
+- **Graceful Degradation**: Features degrade gracefully when browser capabilities are limited.
+
+**Rationale**: Ensures accessibility and broad compatibility while taking advantage of modern browser capabilities.
+
+## Testing and Validation
+
+**Principle**: Comprehensive testing with automated validation.
+
+- **State Machine Validation**: Runtime validation of state machine consistency.
+- **Integration Tests**: Playwright tests for end-to-end user interactions.
+- **Unit Tests**: Jest tests for individual components and utilities.
+
+**Rationale**: Maintains code quality and prevents regressions as the codebase evolves.
+
+## Summary
+
+This codebase prioritizes:
+1. **Simplicity** over complexity
+2. **Native APIs** over abstractions
+3. **Custom solutions** over generic frameworks
+4. **Explicit behavior** over implicit magic
+5. **Minimal dependencies** over convenience libraries
+6. **Web standards** over proprietary solutions
+
+The result is a lightweight, maintainable codebase that leverages the browser's native capabilities without unnecessary abstraction layers.
+
