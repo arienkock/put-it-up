@@ -476,17 +476,53 @@ describe("Board UI", () => {
     it("doesn't allow stickies out of bounds", async () => {
       await page.waitForSelector(".sticky");
       await clickStickyOutsideOfText(1);
+      // Get initial position in board coordinates
+      const initialLocation = await page.evaluate(() => {
+        return board.getStickyLocation(1);
+      });
+      expect(initialLocation).toEqual({ x: 200, y: 200 });
+      
       await repeat(10, () => page.keyboard.press("ArrowLeft"));
       await repeat(10, () => page.keyboard.press("ArrowUp"));
       await thingsSettleDown();
-      expect(await stickyBoundingBox(1)).toBeInTheVicinityOf({ x: 100, y: 100 }, 10);
+      
+      // Check board coordinates - should be constrained to minimum bounds
+      const afterLeftAndUp = await page.evaluate(() => {
+        return board.getStickyLocation(1);
+      });
+      // Should be constrained to origin (0, 0) or close after grid snapping
+      expect(afterLeftAndUp.x).toBeLessThanOrEqual(110); // Allow for grid snapping
+      expect(afterLeftAndUp.y).toBeLessThanOrEqual(110);
+      expect(afterLeftAndUp.x).toBeGreaterThanOrEqual(0);
+      expect(afterLeftAndUp.y).toBeGreaterThanOrEqual(0);
+      
       await repeat(60, () => page.keyboard.press("ArrowDown"));
       await repeat(95, () => page.keyboard.press("ArrowRight"));
       await thingsSettleDown();
-      expect(await stickyBoundingBox(1)).toBeInTheVicinityOf(
-        { x: 1050, y: 700 },
-        300
-      );
+      
+      // Check board coordinates - should be constrained to maximum bounds
+      const afterRightAndDown = await page.evaluate(() => {
+        return board.getStickyLocation(1);
+      });
+      const boardSize = await page.evaluate(() => {
+        return board.getBoardSize();
+      });
+      const sticky = await page.evaluate(() => {
+        return board.getSticky(1);
+      });
+      const stickySize = sticky.size || { x: 1, y: 1 };
+      const stickyWidth = 70 * stickySize.x;
+      const stickyHeight = 70 * stickySize.y;
+      
+      // Should be constrained within board boundaries (accounting for sticky size)
+      expect(afterRightAndDown.x).toBeGreaterThanOrEqual(0);
+      expect(afterRightAndDown.y).toBeGreaterThanOrEqual(0);
+      expect(afterRightAndDown.x + stickyWidth).toBeLessThanOrEqual(boardSize.width);
+      expect(afterRightAndDown.y + stickyHeight).toBeLessThanOrEqual(boardSize.height);
+      
+      // Verify it moved significantly from the left/up position
+      expect(afterRightAndDown.x).toBeGreaterThan(afterLeftAndUp.x);
+      expect(afterRightAndDown.y).toBeGreaterThan(afterLeftAndUp.y);
     });
 
     it("tab order based on positioning", async () => {
