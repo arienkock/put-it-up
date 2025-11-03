@@ -269,7 +269,7 @@
           nameLink.className = 'board-name';
           // Display title instead of board ID, fallback to board ID if no title
           nameLink.textContent = board.title || board.name;
-          nameLink.href = `index.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
+          nameLink.href = `board.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
           nameCell.appendChild(nameLink);
           
           const dateCell = document.createElement('td');
@@ -280,7 +280,7 @@
           openButton.className = 'action-button';
           openButton.textContent = 'Open';
           openButton.onclick = () => {
-            window.location.href = `index.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
+            window.location.href = `board.html?boardName=${encodeURIComponent(board.name)}${isOffline ? '&offline=true' : ''}`;
           };
           actionCell.appendChild(openButton);
           
@@ -394,7 +394,7 @@
       createButton.addEventListener('click', () => {
         const boardName = prompt('Enter board name:');
         if (boardName) {
-          window.location.href = `index.html?boardName=${encodeURIComponent(boardName)}${isOffline ? '&offline=true' : ''}`;
+          window.location.href = `board.html?boardName=${encodeURIComponent(boardName)}${isOffline ? '&offline=true' : ''}`;
         }
       });
       

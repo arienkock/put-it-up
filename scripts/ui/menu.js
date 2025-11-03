@@ -304,7 +304,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       
       // Create logo element separately (not part of menu items)
       logoElement = document.createElement("a");
-      logoElement.href = "boards.html";
+      logoElement.href = "list.html";
       logoElement.classList.add("menu-logo");
       logoElement.style.display = "inline-flex";
       logoElement.style.alignItems = "center";

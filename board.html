@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Whiteboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles/global.css" />
+  </head>
+  <body>
+    <div class="app"></div>
+    <div id="error-overlay" class="error-overlay">
+      <div class="error-container">
+        <h3 id="error-title" class="error-title">Error</h3>
+        <div id="error-message" class="error-message"></div>
+        <button id="error-retry" class="error-button">Try again</button>
+      </div>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
+    <script type="module">
+      // Global debug mode setting - controlled by query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      window.DEBUG_MODE = urlParams.get('debug') === 'true';
+      
+      // Initialize Firebase config on window load
+      import { initializeFirebaseApp } from "./scripts/config/firebase-config.js";
+      initializeFirebaseApp();
+    </script>
+    <script type="module">
+      import { mount } from "./scripts/ui/render-to-dom.js";
+      import { Board } from "./scripts/board/board.js";
+      import { getAppState } from "./scripts/app-state.js";
+      import { BufferedObserver } from "./scripts/ui/buffered-observer.js";
+      import { FirestoreStore } from "./scripts/network/network-firestore.js";
+      import { LocalDatastore } from "./scripts/board/local-datastore.js";
+      import { LocalStoragePersistence } from "./scripts/board/local-storage-persistence.js";
+      import { ensureAuthenticatedIfOnline } from "./scripts/ui/auth-helpers.js";
+      
+      // Check for offline query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const isOffline = urlParams.get('offline') === 'true';
+      // Get boardName from query string, default to "my-board2" if not provided
+      const boardName = urlParams.get('boardName');
+      
+      async function bootstrap() {
+        // Check if boardName is required and provided (only needed when not offline)
+        if (!isOffline && !boardName) {
+          // Redirect to list.html instead of showing error
+          const currentParams = new URLSearchParams(window.location.search);
+          currentParams.delete('boardName'); // Remove boardName if present
+          const redirectUrl = 'list.html' + (currentParams.toString() ? '?' + currentParams.toString() : '');
+          window.location.href = redirectUrl;
+          return; // Prevent bootstrap from continuing
+        }
+        
+        await ensureAuthenticatedIfOnline(isOffline);
+        let store;
+        let persistence;
+        if (isOffline) {
+          // Use local storage
+          store = new LocalDatastore();
+          const offlineBoardName = boardName || 'default-board';
+          persistence = new LocalStoragePersistence(offlineBoardName);
+          // Initialize app state from LocalStorage
+          persistence.initializeAppState(offlineBoardName);
+          // Add persistence as an observer to the store
+          store.addObserver(persistence);
+        } else {
+          // Use Firestore
+          store = new FirestoreStore(boardName);
+        }
+        const board = new Board(store);
+        mount(board, document.querySelector(".app"), BufferedObserver, store);
+        await store.connect();
+        // expose app state for debugging
+        window.appState = getAppState();
+      }
+      
+      bootstrap();
+    </script>
+  </body>
+</html>
