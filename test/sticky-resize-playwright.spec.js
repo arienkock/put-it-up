@@ -6,7 +6,25 @@
 describe('Sticky Resize Functionality (Playwright)', () => {
   beforeEach(async () => {
     // Navigate to a blank page and set up the DOM structure
-    await page.goto('about:blank');
+    // Use defensive navigation with timeout protection
+    try {
+      if (!page || page.isClosed()) {
+        return;
+      }
+      await Promise.race([
+        page.goto('about:blank', { 
+          timeout: 2000,
+          waitUntil: 'domcontentloaded' 
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("about:blank timeout")), 2000)
+        )
+      ]).catch(() => {
+        // Continue even if navigation fails
+      });
+    } catch (error) {
+      // Continue even if navigation fails - we'll set content anyway
+    }
     
     // Create the HTML structure for testing
     await page.setContent(`

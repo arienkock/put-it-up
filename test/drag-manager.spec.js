@@ -256,7 +256,7 @@ describe("DragManager", () => {
   });
 
   describe("Drag Unselected Item", () => {
-    it("should clear previous selections and select only dragged item when dragging unselected sticky", () => {
+    it("should add unselected sticky to current selection when dragging it", () => {
       document.querySelector = jest.fn(() => null);
       
       const stickyId1 = board.putSticky({ text: "Test 1", location: { x: 100, y: 100 } });
@@ -277,21 +277,21 @@ describe("DragManager", () => {
       expect(result).toBe(true);
       expect(dragManager.getCurrentState()).toBe('dragging');
       
-      // Verify sticky-1 was deselected and sticky-2 is now selected
-      expect(stickySelection.isSelected(stickyId1)).toBeFalsy();
+      // Verify sticky-1 remains selected and sticky-2 is now also selected
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
       expect(stickySelection.isSelected(stickyId2)).toBe(true);
       
       // Verify only sticky-2 is tracked in originalLocations for dragging
       const stateData = dragManager.getStateData();
-      expect(stateData.originalLocations.stickies.size).toBe(1);
-      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(false);
+      expect(stateData.originalLocations.stickies.size).toBe(2);
+      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(true);
       expect(stateData.originalLocations.stickies.has(stickyId2)).toBe(true);
       
       // Verify renderCallback was called to update UI
       expect(renderCallback).toHaveBeenCalled();
     });
 
-    it("should clear previous selections and select only dragged item when dragging unselected image", () => {
+    it("should add unselected image to current selection when dragging it", () => {
       document.querySelector = jest.fn(() => null);
       
       const imageId1 = board.putImage({ location: { x: 100, y: 100 }, width: 150, height: 100, src: "test1.jpg", dataUrl: "data:test1", naturalWidth: 300, naturalHeight: 200 });
@@ -312,18 +312,18 @@ describe("DragManager", () => {
       expect(result).toBe(true);
       expect(dragManager.getCurrentState()).toBe('dragging');
       
-      // Verify image-1 was deselected and image-2 is now selected
-      expect(imageSelection.isSelected(imageId1)).toBeFalsy();
+      // Verify image-1 remains selected and image-2 is now also selected
+      expect(imageSelection.isSelected(imageId1)).toBe(true);
       expect(imageSelection.isSelected(imageId2)).toBe(true);
       
       // Verify only image-2 is tracked in originalLocations for dragging
       const stateData = dragManager.getStateData();
-      expect(stateData.originalLocations.images.size).toBe(1);
-      expect(stateData.originalLocations.images.has(imageId1)).toBe(false);
+      expect(stateData.originalLocations.images.size).toBe(2);
+      expect(stateData.originalLocations.images.has(imageId1)).toBe(true);
       expect(stateData.originalLocations.images.has(imageId2)).toBe(true);
     });
 
-    it("should clear cross-type selections when dragging unselected item", () => {
+    it("should add unselected item to selection without clearing cross-type selections", () => {
       document.querySelector = jest.fn(() => null);
       
       const stickyId1 = board.putSticky({ text: "Test 1", location: { x: 100, y: 100 } });
@@ -346,18 +346,16 @@ describe("DragManager", () => {
       const event = { clientX: 200, clientY: 100, preventDefault: jest.fn(), stopPropagation: jest.fn() };
       dragManager.startDrag(stickyId2, 'sticky', event);
       
-      // Verify sticky-1 and image-1 were both deselected
-      expect(stickySelection.isSelected(stickyId1)).toBeFalsy();
-      expect(imageSelection.isSelected(imageId1)).toBeFalsy();
-      
-      // Verify only sticky-2 is now selected
+      // Verify sticky-1 remains selected, image-1 remains selected, and sticky-2 is added
+      expect(stickySelection.isSelected(stickyId1)).toBe(true);
+      expect(imageSelection.isSelected(imageId1)).toBe(true);
       expect(stickySelection.isSelected(stickyId2)).toBe(true);
       
-      // Verify only sticky-2 is tracked in originalLocations
+      // Verify both sticky-1 and sticky-2 are tracked in originalLocations; images unchanged
       const stateData = dragManager.getStateData();
-      expect(stateData.originalLocations.stickies.size).toBe(1);
+      expect(stateData.originalLocations.stickies.size).toBe(2);
+      expect(stateData.originalLocations.stickies.has(stickyId1)).toBe(true);
       expect(stateData.originalLocations.stickies.has(stickyId2)).toBe(true);
-      expect(stateData.originalLocations.images).toBeUndefined();
     });
 
     it("should preserve existing selections when dragging an already selected item", () => {

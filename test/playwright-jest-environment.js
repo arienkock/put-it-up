@@ -44,6 +44,10 @@ class PlaywrightJestEnvironment extends TestEnvironment {
     
     this.global.context = await this.global.browser.newContext();
     this.global.page = await this.global.context.newPage();
+    
+    // Set timeouts - shorter for actions, longer for navigation to real pages
+    this.global.page.setDefaultTimeout(10000); // 5 seconds for actions (click, fill, etc.)
+    this.global.page.setDefaultNavigationTimeout(10000); // 10 seconds for navigation to real HTTP pages
   }
 
   async teardown() {

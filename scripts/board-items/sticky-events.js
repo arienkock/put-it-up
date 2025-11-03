@@ -497,9 +497,8 @@ export function setupStickyEvents(
   
   container.inputElement.onkeyup = (event) => {
     event.stopPropagation();
-    if (event.keyCode === 13) {
-      setEditable(false);
-    }
+    // Enter key creates a newline but does NOT exit edit mode
+    // Edit mode is only exited by Escape or blur (clicking away)
   };
   
   container.inputElement.onclick = (event) => {
@@ -635,8 +634,9 @@ export function setupStickyEvents(
     moveToFront();
     
     // Use selection manager to handle cross-type selection clearing
+    const addTo = !!(event.shiftKey || (window && window.currentShiftPressed));
     selectionManager.selectItem('stickies', id, {
-      addToSelection: event.shiftKey
+      addToSelection: addTo
     });
     
     // DEBUG: Log selection after click

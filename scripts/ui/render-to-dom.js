@@ -176,6 +176,13 @@ export function mount(board, root, Observer, store) {
   }
   const menu = createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, render, store);
   const renderMenu = menu.render;
+  // Track Shift pressed state globally to assist selection handlers in environments
+  // where synthetic clicks may not carry modifier flags reliably
+  if (typeof window !== 'undefined') {
+    window.currentShiftPressed = false;
+    document.addEventListener('keydown', (e) => { if (e.key === 'Shift') window.currentShiftPressed = true; });
+    document.addEventListener('keyup', (e) => { if (e.key === 'Shift') window.currentShiftPressed = false; });
+  }
   
   function render() {
     renderBoard();

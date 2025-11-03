@@ -257,7 +257,11 @@ body {
 }
 
 .menu-container {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   width: 100%;
   padding: 8px 16px; /* Fixed pixel padding instead of em units */
   box-sizing: border-box;

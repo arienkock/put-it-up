@@ -187,7 +187,13 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       className: "delete",
       icon: "images/delete-icon.svg",
       itemClickHandler: () => {
+        // Use the standard deleteSelectedItems function which works with Selection objects
         deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+        
+        // Trigger full re-render so DOM reflects deletions
+        if (typeof renderCallback === 'function') {
+          renderCallback();
+        }
       },
     },
   ];
