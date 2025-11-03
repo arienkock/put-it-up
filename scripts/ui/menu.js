@@ -71,10 +71,11 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       },
       customLabel: (dom, label) => {
         if (!appState.ui.boardScale) {
-          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon"> ${label}`;
+          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon">`;
         } else {
           dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon"> ${(appState.ui.boardScale * 100).toFixed(0)}%`;
         }
+        dom.title = label;
       },
     },
   ];
@@ -151,8 +152,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
           currentColorToShow = appState.ui.currentStickyColor;
         }
         
-        dom.innerHTML = `${label}<div class="color-preview"></div>`;
+        dom.innerHTML = `<img src="images/color-selector-icon.svg" alt="${label}" class="menu-icon"> <div class="color-preview"></div>`;
         dom.lastChild.style.backgroundColor = currentColorToShow;
+        dom.title = label;
       },
     },
     {
@@ -180,6 +182,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         };
         const currentIcon = arrowHeadIcons[appState.ui.currentArrowHead];
         dom.innerHTML = `<img src="${currentIcon}" alt="${label}" class="menu-icon-only">`;
+        dom.title = label;
       },
     },
     {
@@ -220,14 +223,19 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       };
       itemElement.classList.add(item.className);
       
+      // Set title attribute from itemLabel
+      if (item.itemLabel) {
+        itemElement.title = item.itemLabel;
+      }
+      
       // Add icon if present
       if (item.icon) {
         if (item.icon.endsWith('.svg')) {
           // Handle SVG icons
-          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" class="menu-icon"> ${item.itemLabel}`;
+          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" class="menu-icon">`;
         } else {
           // Handle emoji/text icons
-          itemElement.innerHTML = `${item.icon} ${item.itemLabel}`;
+          itemElement.innerHTML = `${item.icon}`;
         }
       }
     }
@@ -433,13 +441,16 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     
     allItems.forEach(({ itemLabel, customLabel, dom, isSeparator, icon }) => {
       if (itemLabel && !isSeparator) {
+        // Ensure title attribute is set (customLabel may have already set it)
+        if (!dom.title) {
+          dom.title = itemLabel;
+        }
+        
         if (customLabel) {
           customLabel(dom, itemLabel);
-        } else if (!icon) {
-          // Only set textContent if there's no icon (to avoid overwriting icon HTML)
-          dom.textContent = itemLabel;
         }
-        // If there's an icon, the innerHTML was already set in renderMenuButton
+        // Icons are already set in renderMenuButton, no need to set textContent
+        // Labels are now only in title attribute, not visible
       }
     });
   }
