@@ -1,3 +1,5 @@
+import { getPlugin } from '../board-items/plugin-registry.js';
+
 const DEFAULT_BOARD = {
   origin: { x: 0, y: 0 },
   limit: { x: 12000, y: 6750 },
@@ -6,6 +8,9 @@ const DEFAULT_BOARD = {
 export function Board(aStore) {
   let store = aStore;
   let gridSize = 10;
+  // Expose store getter for plugins that need direct access
+  this.getStore = () => store;
+
 
   const removeNewlines = (text) => text.replace(/\n/g, "");
 
@@ -136,6 +141,38 @@ export function Board(aStore) {
 
   this.updateCurveControlPoint = (connectorId, point) => {
     store.updateCurveControlPoint(connectorId, point);
+  };
+
+  // Generic plugin-based item operations (backward-compatible wrappers kept below)
+  this.putBoardItem = (type, data) => {
+    const plugin = getPlugin(type);
+    if (!plugin) throw new Error(`Unknown board item type: ${type}`);
+    return plugin.createItem(this, data);
+  };
+  this.deleteBoardItem = (type, id) => {
+    const plugin = getPlugin(type);
+    if (!plugin) throw new Error(`Unknown board item type: ${type}`);
+    return plugin.deleteItem(this, id);
+  };
+  this.moveBoardItem = (type, id, location) => {
+    const plugin = getPlugin(type);
+    if (!plugin) throw new Error(`Unknown board item type: ${type}`);
+    return plugin.moveItem(this, id, location);
+  };
+  this.resizeBoardItem = (type, id, params) => {
+    const plugin = getPlugin(type);
+    if (!plugin) throw new Error(`Unknown board item type: ${type}`);
+    return plugin.resizeItem(this, id, params);
+  };
+  this.getBoardItemByType = (type, id) => {
+    const plugin = getPlugin(type);
+    if (!plugin) throw new Error(`Unknown board item type: ${type}`);
+    return plugin.getItem(this, id);
+  };
+  this.getBoardItemLocationByType = (type, id) => {
+    const plugin = getPlugin(type);
+    if (!plugin) throw new Error(`Unknown board item type: ${type}`);
+    return plugin.getLocation(this, id);
   };
 
   this.putSticky = (sticky) => {

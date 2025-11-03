@@ -73,6 +73,7 @@ import { createMenu } from "./menu.js";
 import { setupKeyboardHandlers, completeKeyboardAction } from "./keyboard-handlers.js";
 import { zoomScale, applyZoomToBoard } from "./zoom.js";
 import { colorPalette } from "./color-management.js";
+import { getPlugin } from "../board-items/plugin-registry.js";
 
 export { colorPalette };
 
@@ -102,7 +103,15 @@ export function mount(board, root, Observer, store) {
   selectionManager.registerSelection('connectors', selectedConnectors);
   selectionManager.registerSelection('images', selectedImages);
   
-  const renderSticky = createRenderer(
+  // Create renderers via plugin system
+  const stickyPlugin = getPlugin('sticky');
+  const imagePlugin = getPlugin('image');
+
+  if (!stickyPlugin || !imagePlugin) {
+    throw new Error('Required plugins not available: sticky=' + !!stickyPlugin + ', image=' + !!imagePlugin);
+  }
+
+  const renderSticky = stickyPlugin.createRenderer(
     board,
     domElement,
     selectionManager,
@@ -114,7 +123,7 @@ export function mount(board, root, Observer, store) {
     domElement,
     getSelectedConnectors
   );
-  const renderImage = createImageRenderer(
+  const renderImage = imagePlugin.createRenderer(
     board,
     domElement,
     selectionManager,

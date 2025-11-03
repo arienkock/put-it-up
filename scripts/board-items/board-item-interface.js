@@ -3,6 +3,8 @@
  * This abstraction allows connectors to work with any item type without knowing specific details.
  */
 
+import { getAllPlugins } from './plugin-registry.js';
+
 /**
  * Z-order layers for board elements
  * Connectors should be rendered first (lowest z-index), then content items (stickies/images)
@@ -77,31 +79,29 @@ export function getBoardItemBounds(item, boardOrigin, stickyBaseSize = 70) {
     return null;
   }
 
+  // Prefer plugin-provided bounds if available
+  try {
+    for (const plugin of getAllPlugins()) {
+      if (plugin.isItem(item)) {
+        return plugin.getBounds(item, boardOrigin, { stickyBaseSize });
+      }
+    }
+  } catch (e) {
+    // Plugin registry might not be loaded yet, fall through to legacy logic
+  }
+
+  // Fallback to legacy logic
   if (isStickyItem(item)) {
-    // Calculate sticky bounds
     const location = item.location || { x: 0, y: 0 };
     const size = item.size || { x: 1, y: 1 };
     const width = stickyBaseSize * size.x;
     const height = stickyBaseSize * size.y;
-    
-    return {
-      centerX: location.x - boardOrigin.x + width / 2,
-      centerY: location.y - boardOrigin.y + height / 2,
-      width,
-      height
-    };
+    return { centerX: location.x - boardOrigin.x + width / 2, centerY: location.y - boardOrigin.y + height / 2, width, height };
   } else if (isImageItem(item)) {
-    // Calculate image bounds
     const location = item.location || { x: 0, y: 0 };
     const width = item.width;
     const height = item.height;
-    
-    return {
-      centerX: location.x - boardOrigin.x + width / 2,
-      centerY: location.y - boardOrigin.y + height / 2,
-      width,
-      height
-    };
+    return { centerX: location.x - boardOrigin.x + width / 2, centerY: location.y - boardOrigin.y + height / 2, width, height };
   }
 
   return null;
@@ -142,6 +142,29 @@ export function getBoardItemSize(item) {
     return { width: item.width, height: item.height };
   }
 
+  return null;
+}
+
+// Helpers using plugin system
+export function getPluginForItem(item) {
+  try {
+    for (const plugin of getAllPlugins()) {
+      if (plugin.isItem(item)) return plugin;
+    }
+  } catch (e) {
+    // Plugin registry might not be loaded yet
+  }
+  return null;
+}
+
+export function getPluginForElement(element) {
+  try {
+    for (const plugin of getAllPlugins()) {
+      if (plugin.isElement(element)) return plugin;
+    }
+  } catch (e) {
+    // Plugin registry might not be loaded yet
+  }
   return null;
 }
 
