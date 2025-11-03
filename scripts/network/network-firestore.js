@@ -542,6 +542,25 @@ export class FirestoreStore {
     this.notifyBoardChange();
   };
 
+  updateBoardTitle = (title) => {
+    const trimmedTitle = title?.trim();
+    if (!trimmedTitle || trimmedTitle.length === 0) {
+      if (isDebugMode()) {
+        console.warn('[FirestoreStore] updateBoardTitle called with empty title, ignoring');
+      }
+      return;
+    }
+    
+    if (this.docRef) {
+      this.debouncer.debounceUpdate(this.docRef, { title: trimmedTitle });
+    }
+    // Update local state immediately
+    const state = getAppState();
+    state.board = state.board || {};
+    state.board.title = trimmedTitle;
+    this.notifyBoardChange();
+  };
+
   getConnector = (id) => {
     const connector = getAppState().connectors[id];
     if (!connector) {

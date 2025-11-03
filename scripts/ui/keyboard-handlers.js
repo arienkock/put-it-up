@@ -330,6 +330,17 @@ class KeyboardStateMachine extends StateMachine {
    * Routes keyboard events to appropriate handlers based on current state and context
    */
   routeKeyDown(event) {
+    // Let browser handle keys inside form fields/contentEditable (e.g., board title)
+    const target = event.target;
+    if (target) {
+      const isInput = target.tagName === 'INPUT' || target.closest('input');
+      const isTextarea = target.tagName === 'TEXTAREA' || target.closest('textarea');
+      const isEditable = target.isContentEditable || target.closest('[contenteditable="true"]');
+      if (isInput || isTextarea || isEditable) {
+        return; // Do not route; keep native editing shortcuts
+      }
+    }
+
     // Route to appropriate handler based on current state and context
     const handlers = this.getKeyboardHandlers();
     for (const handlerName of this.getHandlerPriority()) {

@@ -165,7 +165,7 @@ export function mount(board, root, Observer, store) {
       domElement.classList.remove("click-to-connect");
     }
   }
-  const menu = createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, render);
+  const menu = createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, render, store);
   const renderMenu = menu.render;
   
   function render() {
@@ -288,9 +288,11 @@ export function mount(board, root, Observer, store) {
     // Check if the target is a textarea or its ancestor
     const target = event.target;
     const isTextarea = target.tagName === 'TEXTAREA' || target.closest('textarea');
+    // Allow selection inside contentEditable areas (e.g., board title)
+    const isContentEditable = target.isContentEditable || target.closest('[contenteditable="true"]');
     
     // If not a textarea, prevent native selection
-    if (!isTextarea) {
+    if (!isTextarea && !isContentEditable) {
       event.preventDefault();
     }
   });

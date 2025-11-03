@@ -61,8 +61,12 @@ export class LocalStoragePersistence {
         metadata.createOn = Date.now();
       }
       
-      // If board doesn't have title, set default (for existing boards)
-      if (!metadata.title) {
+      // Sync title from state.board.title if it exists and is non-empty
+      const boardTitle = persistableState.board?.title;
+      if (boardTitle && typeof boardTitle === 'string' && boardTitle.trim().length > 0) {
+        metadata.title = boardTitle.trim();
+      } else if (!metadata.title) {
+        // If board doesn't have title, set default (for existing boards)
         metadata.title = this.boardName;
       }
       

@@ -27,12 +27,15 @@ function changeArrowHead(currentArrowHead, reverse = false) {
  * @param {HTMLElement} root - Root element to attach menu to
  * @param {Object} appState - Application state object
  * @param {Function} renderCallback - Callback to trigger re-rendering
+ * @param {Object} store - Datastore instance for updating board title
  * @returns {Object} Object with menuElement and render function
  */
-export function createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, renderCallback) {
+export function createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, renderCallback, store) {
   let menuElement;
   let menuContainer;
   let logoElement;
+  let titleElement;
+  let lastValidTitle = '';
 
   const alwaysRelevantItems = [
     {
@@ -271,6 +274,15 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     // Sync selectors with current selection before rendering
     syncSelectorsWithSelection();
     
+    // Update title from appState if it changed (but don't override user editing)
+    if (titleElement && !titleElement.matches(':focus')) {
+      const currentTitle = appState.board?.title || store?.boardName || 'Board';
+      if (currentTitle !== titleElement.textContent.trim()) {
+        titleElement.textContent = currentTitle;
+        lastValidTitle = currentTitle;
+      }
+    }
+    
     if (!menuElement) {
       // Create container wrapper
       menuContainer = document.createElement("div");
@@ -297,12 +309,61 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         </svg>
       `;
       
+      // Create editable board title element
+      titleElement = document.createElement("div");
+      titleElement.classList.add("board-title");
+      titleElement.contentEditable = true;
+      titleElement.setAttribute('spellcheck', 'false');
+      
+      // Set initial title from appState or fallback to boardName
+      const initialTitle = appState.board?.title || store?.boardName || 'Board';
+      titleElement.textContent = initialTitle;
+      lastValidTitle = initialTitle;
+      
+      // Handle input events - prevent empty titles during typing
+      titleElement.addEventListener('input', (event) => {
+        const text = titleElement.textContent.trim();
+        // Don't do anything if only whitespace - let blur handler deal with it
+        if (text.length > 0) {
+          lastValidTitle = text;
+        }
+      });
+      
+      // Handle keydown - prevent Enter from creating newlines
+      titleElement.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          titleElement.blur();
+        }
+      });
+      
+      // Handle blur - validate and save title
+      titleElement.addEventListener('blur', (event) => {
+        const text = titleElement.textContent.trim();
+        if (text.length === 0) {
+          // Restore last valid title if empty
+          titleElement.textContent = lastValidTitle;
+        } else {
+          // Update last valid title and save to store
+          lastValidTitle = text;
+          if (store && store.updateBoardTitle) {
+            store.updateBoardTitle(text);
+          }
+        }
+      });
+      
+      // Create separator after title
+      const titleSeparator = document.createElement('div');
+      titleSeparator.classList.add('menu-separator');
+      
       // Create menu element
       menuElement = document.createElement("div");
       menuElement.classList.add("board-action-menu");
       
-      // Add logo first, then menu to container, then container to root
+      // Add logo, title, separator, then menu to container, then container to root
       menuContainer.appendChild(logoElement);
+      menuContainer.appendChild(titleElement);
+      menuContainer.appendChild(titleSeparator);
       menuContainer.appendChild(menuElement);
       root.insertAdjacentElement("afterbegin", menuContainer);
     }

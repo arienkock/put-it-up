@@ -63,6 +63,18 @@ export class LocalDatastore {
     this.notifyBoardChange();
   };
 
+  updateBoardTitle = (title) => {
+    const trimmedTitle = title?.trim();
+    if (!trimmedTitle || trimmedTitle.length === 0) {
+      return;
+    }
+    
+    const state = getAppState();
+    state.board = state.board || {};
+    state.board.title = trimmedTitle;
+    this.notifyBoardChange();
+  };
+
   connect() {}
 
   getConnector = (id) => {
