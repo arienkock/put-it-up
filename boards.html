@@ -83,6 +83,10 @@
       let hasMore = false; // Whether there are more results to load
       let isLoadingMore = false; // Whether we're currently loading more results
       
+      // Search debounce state
+      let searchDebounceTimer = null;
+      const SEARCH_DEBOUNCE_MS = 300; // UI-level debounce delay
+      
       // DOM elements
       const searchInput = document.getElementById('search-input');
       const createButton = document.getElementById('create-button');
@@ -373,8 +377,18 @@
       // Event listeners
       searchInput.addEventListener('input', (e) => {
         searchTerm = e.target.value;
-        // Reset and reload when search changes
-        loadBoards(true);
+        
+        // Clear any existing debounce timer
+        if (searchDebounceTimer) {
+          clearTimeout(searchDebounceTimer);
+        }
+        
+        // Set a new debounce timer
+        searchDebounceTimer = setTimeout(() => {
+          searchDebounceTimer = null;
+          // Reset and reload when search changes (after debounce delay)
+          loadBoards(true);
+        }, SEARCH_DEBOUNCE_MS);
       });
       
       createButton.addEventListener('click', () => {
