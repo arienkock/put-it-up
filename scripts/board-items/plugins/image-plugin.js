@@ -180,6 +180,19 @@ export class ImagePlugin extends BoardItemPlugin {
       height
     };
   }
+
+  isConnectorConnectedToItem(connector, itemId) {
+    return (connector.originImageId == itemId || connector.destinationImageId == itemId);
+  }
+
+  isEndpointConnected(connector, endpoint) {
+    if (endpoint === 'origin') {
+      return !!connector.originImageId;
+    } else if (endpoint === 'destination') {
+      return !!connector.destinationImageId;
+    }
+    return false;
+  }
 }
 
 

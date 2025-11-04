@@ -148,10 +148,15 @@ export function Board(aStore) {
 
   this.moveConnector = (id, deltaX, deltaY) => {
     const connector = store.getConnector(id);
+    const plugins = getAllPlugins();
+    
+    // Check if endpoints are connected to any item using plugins
+    const isOriginConnected = plugins.some(plugin => plugin.isEndpointConnected(connector, 'origin'));
+    const isDestinationConnected = plugins.some(plugin => plugin.isEndpointConnected(connector, 'destination'));
     
     // Only move connectors that have at least one disconnected endpoint
-    const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
-    const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
+    const hasDisconnectedOrigin = connector.originPoint && !isOriginConnected;
+    const hasDisconnectedDestination = connector.destinationPoint && !isDestinationConnected;
     
     if (!hasDisconnectedOrigin && !hasDisconnectedDestination) {
       return; // Connector is fully connected, don't move it
@@ -188,6 +193,7 @@ export function Board(aStore) {
    */
   this.moveConnectorsConnectedToItems = (itemIdsByType, deltaX, deltaY, movedConnectors = new Set()) => {
     const state = store.getState();
+    const plugins = getAllPlugins();
     const itemIdSets = {};
     
     // Build sets for each type
@@ -200,21 +206,21 @@ export function Board(aStore) {
       // Skip if already moved
       if (movedConnectors.has(connectorId)) return;
       
-      // Check if connector is connected to any moved item
+      // Check if connector is connected to any moved item using plugins
       let isConnected = false;
       
-      // Check sticky connections
-      if (itemIdSets['sticky']) {
-        isConnected = isConnected || 
-          (connector.originId && itemIdSets['sticky'].has(connector.originId)) ||
-          (connector.destinationId && itemIdSets['sticky'].has(connector.destinationId));
-      }
-      
-      // Check image connections
-      if (itemIdSets['image']) {
-        isConnected = isConnected ||
-          (connector.originImageId && itemIdSets['image'].has(connector.originImageId)) ||
-          (connector.destinationImageId && itemIdSets['image'].has(connector.destinationImageId));
+      for (const plugin of plugins) {
+        const type = plugin.getType();
+        if (itemIdSets[type]) {
+          const itemIds = itemIdSets[type];
+          for (const itemId of itemIds) {
+            if (plugin.isConnectorConnectedToItem(connector, itemId)) {
+              isConnected = true;
+              break;
+            }
+          }
+          if (isConnected) break;
+        }
       }
       
       if (isConnected) {
@@ -257,9 +263,8 @@ export function Board(aStore) {
       // Use plugins to move items in bounds
       const plugins = getAllPlugins();
       plugins.forEach(plugin => {
-        const type = plugin.getType();
         const state = store.getState();
-        const storageKey = type === 'sticky' ? 'stickies' : type === 'image' ? 'images' : null;
+        const storageKey = plugin.getSelectionType();
         if (!storageKey) return;
         
         Object.entries(state[storageKey] || {}).forEach(([id, item]) => {

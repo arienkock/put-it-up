@@ -132,6 +132,19 @@ export class StickyPlugin extends BoardItemPlugin {
       height
     };
   }
+
+  isConnectorConnectedToItem(connector, itemId) {
+    return (connector.originId == itemId || connector.destinationId == itemId);
+  }
+
+  isEndpointConnected(connector, endpoint) {
+    if (endpoint === 'origin') {
+      return !!connector.originId;
+    } else if (endpoint === 'destination') {
+      return !!connector.destinationId;
+    }
+    return false;
+  }
 }
 
 

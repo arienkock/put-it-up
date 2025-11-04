@@ -66,6 +66,22 @@ export class BoardItemPlugin {
    * @returns {{centerX:number, centerY:number, width:number, height:number}|null}
    */
   getBounds(item, boardOrigin, options) { throw new Error('Not implemented'); }
+
+  /**
+   * Check if a connector is connected to an item of this plugin type.
+   * @param {object} connector - The connector object
+   * @param {string} itemId - The item ID to check
+   * @returns {boolean} True if the connector references this item
+   */
+  isConnectorConnectedToItem(connector, itemId) { throw new Error('Not implemented'); }
+
+  /**
+   * Check if a connector endpoint is connected to any item of this plugin type.
+   * @param {object} connector - The connector object
+   * @param {string} endpoint - Either 'origin' or 'destination'
+   * @returns {boolean} True if the endpoint is connected to an item of this plugin type
+   */
+  isEndpointConnected(connector, endpoint) { throw new Error('Not implemented'); }
 }
 
 
