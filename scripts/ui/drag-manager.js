@@ -409,11 +409,13 @@ class DragStateMachine extends StateMachine {
     const appState = this.store.getAppState();
     
     // DEBUG: Log selections at drag end
-    console.log('[DRAG END] Current selections:', {
-      selectedStickies: Object.keys(appState.ui.selection || {}),
-      selectedImages: Object.keys(appState.ui.imageSelection || {}),
-      selectedConnectors: Object.keys(appState.ui.connectorSelection || {})
-    });
+    if (this.isDebugMode()) {
+      console.log('[DRAG END] Current selections:', {
+        selectedStickies: Object.keys(appState.ui.selection || {}),
+        selectedImages: Object.keys(appState.ui.imageSelection || {}),
+        selectedConnectors: Object.keys(appState.ui.connectorSelection || {})
+      });
+    }
     
     // Set flag to ignore click events that fire after drag
     this.justCompletedDrag = true;

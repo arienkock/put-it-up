@@ -202,7 +202,9 @@ class ConnectorStateMachine extends StateMachine {
   }
   
   setupHandleDragListeners() {
-    console.log('[CONNECTOR] Setting up handle drag listeners (touchmove/touchend on document)');
+    if (this.isDebugMode()) {
+      console.log('[CONNECTOR] Setting up handle drag listeners (touchmove/touchend on document)');
+    }
     this.globalListeners.setListeners({
       'mousemove': (e) => {
         this._raf.handleDragEvent = e;
@@ -216,7 +218,9 @@ class ConnectorStateMachine extends StateMachine {
       },
       'mouseup': this.handleHandleDragEnd.bind(this),
       'touchmove': (e) => {
-        console.log('[CONNECTOR TOUCHMOVE] Handle drag touchmove event', { touches: e.touches?.length, state: this.currentState });
+        if (this.isDebugMode()) {
+          console.log('[CONNECTOR TOUCHMOVE] Handle drag touchmove event', { touches: e.touches?.length, state: this.currentState });
+        }
         e.preventDefault(); // Prevent scrolling during drag
         this._raf.handleDragEvent = e;
         if (this._raf.handleDragPending) return;
@@ -228,7 +232,9 @@ class ConnectorStateMachine extends StateMachine {
         });
       },
       'touchend': (e) => {
-        console.log('[CONNECTOR TOUCHEND] Handle drag touchend event', { state: this.currentState });
+        if (this.isDebugMode()) {
+          console.log('[CONNECTOR TOUCHEND] Handle drag touchend event', { state: this.currentState });
+        }
         e.preventDefault();
         this.handleHandleDragEnd(e);
       }
@@ -236,7 +242,9 @@ class ConnectorStateMachine extends StateMachine {
   }
   
   setupCurveHandleDragListeners() {
-    console.log('[CONNECTOR] Setting up curve handle drag listeners (touchmove/touchend on document)');
+    if (this.isDebugMode()) {
+      console.log('[CONNECTOR] Setting up curve handle drag listeners (touchmove/touchend on document)');
+    }
     this.globalListeners.setListeners({
       'mousemove': (e) => {
         this._raf.curveDragEvent = e;
@@ -250,7 +258,9 @@ class ConnectorStateMachine extends StateMachine {
       },
       'mouseup': this.handleCurveHandleDragEnd.bind(this),
       'touchmove': (e) => {
-        console.log('[CONNECTOR TOUCHMOVE] Curve handle drag touchmove event', { touches: e.touches?.length, state: this.currentState });
+        if (this.isDebugMode()) {
+          console.log('[CONNECTOR TOUCHMOVE] Curve handle drag touchmove event', { touches: e.touches?.length, state: this.currentState });
+        }
         e.preventDefault(); // Prevent scrolling during drag
         this._raf.curveDragEvent = e;
         if (this._raf.curveDragPending) return;
@@ -262,7 +272,9 @@ class ConnectorStateMachine extends StateMachine {
         });
       },
       'touchend': (e) => {
-        console.log('[CONNECTOR TOUCHEND] Curve handle drag touchend event', { state: this.currentState });
+        if (this.isDebugMode()) {
+          console.log('[CONNECTOR TOUCHEND] Curve handle drag touchend event', { state: this.currentState });
+        }
         e.preventDefault();
         this.handleCurveHandleDragEnd(e);
       }
@@ -483,7 +495,9 @@ class ConnectorStateMachine extends StateMachine {
           
           stateData.connectorId = handleConnectorId;
           
-          console.log('[CONNECTOR] Transitioning to DRAGGING_CURVE_HANDLE', { connectorId: handleConnectorId });
+          if (this.isDebugMode()) {
+            console.log('[CONNECTOR] Transitioning to DRAGGING_CURVE_HANDLE', { connectorId: handleConnectorId });
+          }
           this.transitionTo(ConnectorState.DRAGGING_CURVE_HANDLE, 'curve handle drag started');
         }
       },
@@ -512,7 +526,9 @@ class ConnectorStateMachine extends StateMachine {
           stateData.connectorId = handleConnectorId;
           stateData.handleType = handle.classList.contains('origin-handle') ? 'origin' : 'destination';
           
-          console.log('[CONNECTOR] Transitioning to DRAGGING_HANDLE', { connectorId: handleConnectorId, handleType: stateData.handleType });
+          if (this.isDebugMode()) {
+            console.log('[CONNECTOR] Transitioning to DRAGGING_HANDLE', { connectorId: handleConnectorId, handleType: stateData.handleType });
+          }
           this.transitionTo(ConnectorState.DRAGGING_HANDLE, 'handle drag started');
         }
       },
@@ -1041,11 +1057,13 @@ class ConnectorStateMachine extends StateMachine {
       // Handle touch start on connector handles
       const handle = event.target.closest('.connector-handle');
       if (handle) {
-        console.log('[CONNECTOR TOUCHSTART] Handle touched', { 
-          handleClass: handle.className,
-          touches: event.touches?.length,
-          state: this.currentState 
-        });
+        if (this.isDebugMode()) {
+          console.log('[CONNECTOR TOUCHSTART] Handle touched', { 
+            handleClass: handle.className,
+            touches: event.touches?.length,
+            state: this.currentState 
+          });
+        }
         event.preventDefault(); // Prevent default touch behavior
         this.routeMouseDown(event);
       }

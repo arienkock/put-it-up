@@ -90,7 +90,9 @@ export class GlobalListenerManager {
     Object.entries(listenerMap).forEach(([eventType, handler]) => {
       // Add { passive: false } for touch events to allow preventDefault()
       const options = eventType.startsWith('touch') ? { passive: false } : undefined;
-      console.log(`[GlobalListenerManager] Adding ${eventType} listener to document`, options ? { options } : '');
+      if (window.DEBUG_MODE) {
+        console.log(`[GlobalListenerManager] Adding ${eventType} listener to document`, options ? { options } : '');
+      }
       // Only pass options if defined to avoid passing undefined as third argument
       if (options) {
         document.addEventListener(eventType, handler, options);
@@ -106,7 +108,7 @@ export class GlobalListenerManager {
   }
   
   clearAll() {
-    if (this.activeListeners.size > 0) {
+    if (this.activeListeners.size > 0 && window.DEBUG_MODE) {
       console.log('[GlobalListenerManager] Clearing all listeners', Array.from(this.activeListeners.keys()));
     }
     this.activeListeners.forEach((handlers, eventType) => {

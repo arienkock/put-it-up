@@ -543,7 +543,9 @@ export function setupStickyEvents(
       
       pointerDownPos = { x: pageCoords.pageX, y: pageCoords.pageY };
       dragStarted = false;
-      console.log('[STICKY POINTERDOWN] Tracking pointer position', pointerDownPos);
+      if (window.DEBUG_MODE) {
+        console.log('[STICKY POINTERDOWN] Tracking pointer position', pointerDownPos);
+      }
       
       // Add pointer move listeners to detect drag
       pointerMoveListener = (moveEvent) => {
@@ -555,7 +557,9 @@ export function setupStickyEvents(
         
         // Only start drag if pointer has moved more than 5 pixels
         if (movedX > 5 || movedY > 5) {
-          console.log('[STICKY POINTERMOVE] Starting drag', { movedX, movedY });
+          if (window.DEBUG_MODE) {
+            console.log('[STICKY POINTERMOVE] Starting drag', { movedX, movedY });
+          }
           document.removeEventListener('mousemove', pointerMoveListener);
           if (touchMoveListener) {
             document.removeEventListener('touchmove', touchMoveListener);
@@ -605,14 +609,18 @@ export function setupStickyEvents(
   
   // Sticky click/touch event for selection
   container.sticky.onclick = (event) => {
-    console.log('[STICKY CLICK] Click event fired', { id, shiftKey: event.shiftKey, target: event.target });
+    if (window.DEBUG_MODE) {
+      console.log('[STICKY CLICK] Click event fired', { id, shiftKey: event.shiftKey, target: event.target });
+    }
     
     // Clean up pointer listeners if they exist
     cleanupPointerListeners();
     
     // Check if this was actually a drag - only return early if a drag actually started
     if (dragStarted) {
-      console.log('[STICKY CLICK] This was a drag, not a click');
+      if (window.DEBUG_MODE) {
+        console.log('[STICKY CLICK] This was a drag, not a click');
+      }
       pointerDownPos = null;
       dragStarted = false;
       return;
@@ -622,7 +630,9 @@ export function setupStickyEvents(
     
     // Ignore click if we just completed a drag
     if (window.dragManager && window.dragManager.justCompletedDrag) {
-      console.log('[STICKY CLICK] Ignoring click after drag');
+      if (window.DEBUG_MODE) {
+        console.log('[STICKY CLICK] Ignoring click after drag');
+      }
       return;
     }
     
@@ -640,10 +650,12 @@ export function setupStickyEvents(
     });
     
     // DEBUG: Log selection after click
-    const appState2 = store.getAppState();
-    console.log('[STICKY CLICK] After selectItem', {
-      selectedStickies: Object.keys(appState2.ui.selection || {})
-    });
+    if (window.DEBUG_MODE) {
+      const appState2 = store.getAppState();
+      console.log('[STICKY CLICK] After selectItem', {
+        selectedStickies: Object.keys(appState2.ui.selection || {})
+      });
+    }
     
     // Only exit editing mode if not clicking on the textarea
     if (!event.shiftKey && event.target !== container.inputElement) {

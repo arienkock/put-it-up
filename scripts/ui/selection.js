@@ -49,11 +49,15 @@ export class Selection {
   addToSelection(id) {
     const appState = this.store.getAppState();
     const data = appState.ui[this.selectionKey];
-    console.log('[ADD TO SELECTION]', { id, selectionKey: this.selectionKey, wasSelected: !!data[id], currentSelection: Object.keys(data) });
+    if (window.DEBUG_MODE) {
+      console.log('[ADD TO SELECTION]', { id, selectionKey: this.selectionKey, wasSelected: !!data[id], currentSelection: Object.keys(data) });
+    }
     if (!data[id]) {
       data[id] = true;
       this.observer[this.changeNotifier](id);
-      console.log('[ADD TO SELECTION] Added', { id, newSelection: Object.keys(data) });
+      if (window.DEBUG_MODE) {
+        console.log('[ADD TO SELECTION] Added', { id, newSelection: Object.keys(data) });
+      }
     }
   }
 

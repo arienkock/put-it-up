@@ -237,7 +237,9 @@ class ImageStateMachine extends StateMachine {
           stateData.pointerDownPos = { x: pageCoords.pageX, y: pageCoords.pageY };
           stateData.dragStarted = false;
           
-          console.log('[IMAGE POINTERDOWN] Tracking pointer position', stateData.pointerDownPos);
+          if (this.isDebugMode()) {
+            console.log('[IMAGE POINTERDOWN] Tracking pointer position', stateData.pointerDownPos);
+          }
           
           // Add pointer move listeners to detect drag
           stateData.mouseMoveListener = (moveEvent) => {
@@ -249,7 +251,9 @@ class ImageStateMachine extends StateMachine {
             
             // Only start drag if pointer has moved more than 5 pixels
             if (movedX > 5 || movedY > 5) {
-              console.log('[IMAGE POINTERMOVE] Starting drag', { movedX, movedY });
+              if (this.isDebugMode()) {
+                console.log('[IMAGE POINTERMOVE] Starting drag', { movedX, movedY });
+              }
               document.removeEventListener('mousemove', stateData.mouseMoveListener);
               if (stateData.touchMoveListener) {
                 document.removeEventListener('touchmove', stateData.touchMoveListener);
@@ -283,7 +287,9 @@ class ImageStateMachine extends StateMachine {
         },
         
         onClick: (event, stateData) => {
-          console.log('[IMAGE CLICK] Click event fired (connector mode)', { id: this.id, shiftKey: event.shiftKey, target: event.target });
+          if (this.isDebugMode()) {
+            console.log('[IMAGE CLICK] Click event fired (connector mode)', { id: this.id, shiftKey: event.shiftKey, target: event.target });
+          }
           
           // Clean up pointer listeners if they exist
           if (stateData.mouseMoveListener) {
@@ -297,7 +303,9 @@ class ImageStateMachine extends StateMachine {
           
           // Check if this was actually a drag - only return early if a drag actually started
           if (stateData.dragStarted) {
-            console.log('[IMAGE CLICK] This was a drag, not a click');
+            if (this.isDebugMode()) {
+              console.log('[IMAGE CLICK] This was a drag, not a click');
+            }
             stateData.pointerDownPos = null;
             stateData.dragStarted = false;
             return;
@@ -307,7 +315,9 @@ class ImageStateMachine extends StateMachine {
           
           // Ignore click if we just completed a drag
           if (window.dragManager && window.dragManager.justCompletedDrag) {
-            console.log('[IMAGE CLICK] Ignoring click after drag');
+            if (this.isDebugMode()) {
+              console.log('[IMAGE CLICK] Ignoring click after drag');
+            }
             return;
           }
           
@@ -329,7 +339,9 @@ class ImageStateMachine extends StateMachine {
         },
         
         onClick: (event, stateData) => {
-          console.log('[IMAGE CLICK] Click event fired', { id: this.id, shiftKey: event.shiftKey, target: event.target });
+          if (this.isDebugMode()) {
+            console.log('[IMAGE CLICK] Click event fired', { id: this.id, shiftKey: event.shiftKey, target: event.target });
+          }
           
           // Clean up pointer listeners if they exist
           if (stateData.mouseMoveListener) {
@@ -343,7 +355,9 @@ class ImageStateMachine extends StateMachine {
           
           // Check if this was actually a drag - only return early if a drag actually started
           if (stateData.dragStarted) {
-            console.log('[IMAGE CLICK] This was a drag, not a click');
+            if (this.isDebugMode()) {
+              console.log('[IMAGE CLICK] This was a drag, not a click');
+            }
             stateData.pointerDownPos = null;
             stateData.dragStarted = false;
             return;
@@ -353,7 +367,9 @@ class ImageStateMachine extends StateMachine {
           
           // Ignore click if we just completed a drag
           if (window.dragManager && window.dragManager.justCompletedDrag) {
-            console.log('[IMAGE CLICK] Ignoring click after drag');
+            if (this.isDebugMode()) {
+              console.log('[IMAGE CLICK] Ignoring click after drag');
+            }
             return;
           }
           

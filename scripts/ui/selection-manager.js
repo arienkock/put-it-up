@@ -49,7 +49,9 @@ export class SelectionManager {
    * @param {string} itemId - The ID of the item to select
    */
   addToSelection(typeName, itemId) {
-    console.log('[SELECTION MANAGER] addToSelection called', { typeName, itemId });
+    if (window.DEBUG_MODE) {
+      console.log('[SELECTION MANAGER] addToSelection called', { typeName, itemId });
+    }
     const targetSelection = this.selections.get(typeName);
     
     if (!targetSelection) {

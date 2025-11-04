@@ -60,10 +60,14 @@ export function getConnectorsBelowPoint(clickedConnectorContainer, boardElement)
   }
   
   const allConnectors = Array.from(boardElement.querySelectorAll('.connector-container'));
-  console.log('[ConnectorHitTesting] All connectors found:', allConnectors.length);
+  if (window.DEBUG_MODE) {
+    console.log('[ConnectorHitTesting] All connectors found:', allConnectors.length);
+  }
   
   const clickedIndex = allConnectors.indexOf(clickedConnectorContainer);
-  console.log('[ConnectorHitTesting] Clicked connector index:', clickedIndex, 'out of', allConnectors.length);
+  if (window.DEBUG_MODE) {
+    console.log('[ConnectorHitTesting] Clicked connector index:', clickedIndex, 'out of', allConnectors.length);
+  }
   
   if (clickedIndex === -1) {
     console.warn('[ConnectorHitTesting] Clicked connector not found in all connectors list');
@@ -74,7 +78,9 @@ export function getConnectorsBelowPoint(clickedConnectorContainer, boardElement)
   // (In DOM order, earlier = visually below since all have z-index: -1)
   // Reverse the order so we test from visually top-most to bottom-most
   const connectorsBelow = allConnectors.slice(0, clickedIndex).reverse();
-  console.log('[ConnectorHitTesting] Connectors below:', connectorsBelow.length);
+  if (window.DEBUG_MODE) {
+    console.log('[ConnectorHitTesting] Connectors below:', connectorsBelow.length);
+  }
   return connectorsBelow;
 }
 
