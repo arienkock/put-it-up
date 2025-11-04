@@ -736,3 +736,48 @@ body.boards-page .empty-state {
   color: #666;
 }
 
+/* Minimap styles */
+.minimap-container {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 500;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  pointer-events: auto;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.minimap-board-wrapper {
+  position: relative;
+  will-change: transform;
+  transform-origin: top left;
+  background-color: #f9f9f9;
+}
+
+.minimap-board-wrapper .sticky-container {
+  pointer-events: none;
+}
+
+.minimap-board-wrapper .image-container {
+  pointer-events: none;
+}
+
+.minimap-board-wrapper .connector-container {
+  pointer-events: none;
+}
+
+.minimap-viewport-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 2px solid #007bff;
+  background-color: rgba(0, 123, 255, 0.1);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+

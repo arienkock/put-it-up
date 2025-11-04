@@ -74,6 +74,7 @@ import { setupKeyboardHandlers, completeKeyboardAction } from "./keyboard-handle
 import { zoomScale, applyZoomToBoard } from "./zoom.js";
 import { colorPalette } from "./color-management.js";
 import { getPlugin } from "../board-items/plugin-registry.js";
+import { createMinimap } from "./minimap.js";
 
 export { colorPalette };
 
@@ -176,6 +177,10 @@ export function mount(board, root, Observer, store) {
   }
   const menu = createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, render, store);
   const renderMenu = menu.render;
+  
+  // Declare minimap variable before render() so it's in scope
+  let minimap = null;
+  
   // Track Shift pressed state globally to assist selection handlers in environments
   // where synthetic clicks may not carry modifier flags reliably
   if (typeof window !== 'undefined') {
@@ -185,7 +190,16 @@ export function mount(board, root, Observer, store) {
   }
   
   function render() {
+    const scaleBefore = appState.ui.boardScale;
     renderBoard();
+    const scaleAfter = appState.ui.boardScale;
+    
+    // Update minimap if zoom changed (re-render content and viewport)
+    if (minimap && scaleBefore !== scaleAfter) {
+      // Call immediately - updateOnZoomChange handles its own timing
+      minimap.updateOnZoomChange();
+    }
+    
     renderMenu();
     const state = board.getState();
     Object.entries(state.connectors).forEach(([connectorId, connector]) =>
@@ -438,8 +452,12 @@ export function mount(board, root, Observer, store) {
     });
   }
   
+  // Create minimap (pass board DOM element for cloning)
+  minimap = createMinimap(board, boardScrollContainer, domElement, store, render);
+  
   return {
     render,
     observer,
+    minimap,
   };
 }
