@@ -534,56 +534,84 @@ export function setupStickyEvents(
   let pointerMoveListener = null;
   let touchMoveListener = null;
   let dragStarted = false;
+  let isOnTextarea = false;
+  let preventFocus = false;
+  
+  // Intercept focus events in capture phase to prevent focus during drag detection
+  const focusInterceptor = (event) => {
+    if (preventFocus && event.target === container.inputElement) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (window.DEBUG_MODE) {
+        console.log('[STICKY FOCUS] Prevented focus during drag detection');
+      }
+    }
+  };
+  
+  container.inputElement.addEventListener('focus', focusInterceptor, true);
   
   const handlePointerDown = (event) => {
-    // Only track if not on textarea
-    if (event.target !== container.inputElement) {
-      const pageCoords = getEventPageCoordinates(event);
-      if (!pageCoords) return;
-      
-      pointerDownPos = { x: pageCoords.pageX, y: pageCoords.pageY };
-      dragStarted = false;
-      if (window.DEBUG_MODE) {
-        console.log('[STICKY POINTERDOWN] Tracking pointer position', pointerDownPos);
+    const pageCoords = getEventPageCoordinates(event);
+    if (!pageCoords) return;
+    
+    // Track whether the pointer down was on the textarea
+    isOnTextarea = (event.target === container.inputElement);
+    
+    pointerDownPos = { x: pageCoords.pageX, y: pageCoords.pageY };
+    dragStarted = false;
+    
+    // If on textarea, prevent focus until we know if it's a drag or click
+    if (isOnTextarea) {
+      preventFocus = true;
+      // Blur immediately if already focused (check both :focus and document.activeElement)
+      if (document.activeElement === container.inputElement || container.inputElement.matches(':focus')) {
+        container.inputElement.blur();
       }
-      
-      // Add pointer move listeners to detect drag
-      pointerMoveListener = (moveEvent) => {
-        const moveCoords = getEventPageCoordinates(moveEvent);
-        if (!moveCoords) return;
-        
-        const movedX = Math.abs(moveCoords.pageX - pointerDownPos.x);
-        const movedY = Math.abs(moveCoords.pageY - pointerDownPos.y);
-        
-        // Only start drag if pointer has moved more than 5 pixels
-        if (movedX > 5 || movedY > 5) {
-          if (window.DEBUG_MODE) {
-            console.log('[STICKY POINTERMOVE] Starting drag', { movedX, movedY });
-          }
-          document.removeEventListener('mousemove', pointerMoveListener);
-          if (touchMoveListener) {
-            document.removeEventListener('touchmove', touchMoveListener);
-          }
-          
-          dragStarted = true; // Mark that we started a drag
-          
-          // Start the drag
-          if (window.dragManager) {
-            window.dragManager.startDrag(id, 'sticky', moveEvent);
-            moveEvent.preventDefault();
-            moveEvent.stopPropagation();
-          }
-        }
-      };
-      
-      touchMoveListener = (moveEvent) => {
-        moveEvent.preventDefault(); // Prevent scrolling
-        pointerMoveListener(moveEvent);
-      };
-      
-      document.addEventListener('mousemove', pointerMoveListener);
-      document.addEventListener('touchmove', touchMoveListener, { passive: false });
     }
+    
+    if (window.DEBUG_MODE) {
+      console.log('[STICKY POINTERDOWN] Tracking pointer position', pointerDownPos, { isOnTextarea, preventFocus });
+    }
+    
+    // Add pointer move listeners to detect drag
+    pointerMoveListener = (moveEvent) => {
+      const moveCoords = getEventPageCoordinates(moveEvent);
+      if (!moveCoords) return;
+      
+      const movedX = Math.abs(moveCoords.pageX - pointerDownPos.x);
+      const movedY = Math.abs(moveCoords.pageY - pointerDownPos.y);
+      
+      // Only start drag if pointer has moved more than 5 pixels
+      if (movedX > 5 || movedY > 5) {
+        if (window.DEBUG_MODE) {
+          console.log('[STICKY POINTERMOVE] Starting drag', { movedX, movedY, isOnTextarea });
+        }
+        document.removeEventListener('mousemove', pointerMoveListener);
+        if (touchMoveListener) {
+          document.removeEventListener('touchmove', touchMoveListener);
+        }
+        
+        dragStarted = true; // Mark that we started a drag
+        
+        // Keep focus prevention active during drag
+        preventFocus = true;
+        
+        // Start the drag
+        if (window.dragManager) {
+          window.dragManager.startDrag(id, 'sticky', moveEvent);
+          moveEvent.preventDefault();
+          moveEvent.stopPropagation();
+        }
+      }
+    };
+    
+    touchMoveListener = (moveEvent) => {
+      moveEvent.preventDefault(); // Prevent scrolling
+      pointerMoveListener(moveEvent);
+    };
+    
+    document.addEventListener('mousemove', pointerMoveListener);
+    document.addEventListener('touchmove', touchMoveListener, { passive: false });
   };
   
   container.sticky.onmousedown = handlePointerDown;
@@ -594,6 +622,94 @@ export function setupStickyEvents(
     }
     handlePointerDown(event);
   }, { passive: false });
+  
+  // Handle pointer up for this sticky (scoped to container)
+  let pointerUpListener = null;
+  let touchEndListener = null;
+  
+  const handlePointerUp = (event) => {
+    cleanupPointerListeners();
+    
+    // Remove global listeners
+    if (pointerUpListener) {
+      document.removeEventListener('mouseup', pointerUpListener);
+      pointerUpListener = null;
+    }
+    if (touchEndListener) {
+      document.removeEventListener('touchend', touchEndListener);
+      touchEndListener = null;
+    }
+    
+    // If we started on textarea and no drag occurred, allow focus and focus manually
+    if (isOnTextarea && !dragStarted && pointerDownPos) {
+      preventFocus = false; // Allow focus now
+      // Use setTimeout to allow other handlers to complete first
+      setTimeout(() => {
+        if (!dragStarted && container.inputElement && document.activeElement !== container.inputElement) {
+          container.inputElement.focus();
+        }
+      }, 0);
+    } else if (dragStarted) {
+      // Reset focus prevention after drag completes (allow a short delay for drag completion)
+      setTimeout(() => {
+        preventFocus = false;
+      }, 150); // Slightly longer than dragManager's justCompletedDrag timeout
+    } else {
+      preventFocus = false;
+    }
+    
+    // Reset flags
+    if (!dragStarted) {
+      isOnTextarea = false;
+      preventFocus = false;
+    }
+    pointerDownPos = null;
+  };
+  
+  // Also handle pointer down directly on the textarea - use capture phase to intercept BEFORE default behavior
+  container.inputElement.addEventListener('mousedown', (event) => {
+    // Set preventFocus flag BEFORE handling the event
+    if (event.target === container.inputElement) {
+      preventFocus = true;
+      // Blur immediately if focused
+      if (document.activeElement === container.inputElement) {
+        container.inputElement.blur();
+      }
+    }
+    
+    // Prevent default to stop immediate focus
+    event.preventDefault();
+    event.stopPropagation();
+    handlePointerDown(event);
+    
+    // Set up global mouseup listener to detect end of interaction
+    if (!pointerUpListener) {
+      pointerUpListener = handlePointerUp;
+      document.addEventListener('mouseup', pointerUpListener);
+    }
+  }, true); // Use capture phase to intercept early
+  
+  container.inputElement.addEventListener('touchstart', (event) => {
+    // Set preventFocus flag BEFORE handling the event
+    if (event.target === container.inputElement) {
+      preventFocus = true;
+      // Blur immediately if focused
+      if (document.activeElement === container.inputElement) {
+        container.inputElement.blur();
+      }
+    }
+    
+    // Prevent default to stop immediate focus
+    event.preventDefault();
+    event.stopPropagation();
+    handlePointerDown(event);
+    
+    // Set up global touchend listener to detect end of interaction
+    if (!touchEndListener) {
+      touchEndListener = handlePointerUp;
+      document.addEventListener('touchend', touchEndListener);
+    }
+  }, { passive: false, capture: true }); // Use capture phase to intercept early
   
   // Cleanup function for pointer listeners
   const cleanupPointerListeners = () => {
@@ -713,6 +829,16 @@ export function setupStickyEvents(
     // Cleanup function
     cleanup: () => {
       resizeStateMachine.cleanup();
+      cleanupPointerListeners();
+      if (pointerUpListener) {
+        document.removeEventListener('mouseup', pointerUpListener);
+        pointerUpListener = null;
+      }
+      if (touchEndListener) {
+        document.removeEventListener('touchend', touchEndListener);
+        touchEndListener = null;
+      }
+      container.inputElement.removeEventListener('focus', focusInterceptor, true);
     },
     
     // Debug functions

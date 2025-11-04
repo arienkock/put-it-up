@@ -656,6 +656,114 @@ describe("Board UI", () => {
       expect(textContent).toContain("test");
     });
 
+    it("allows dragging sticky from inside textarea without focusing it", async () => {
+      await page.waitForSelector(".sticky-1 .sticky .text-input");
+      
+      // Get initial position
+      const initialPosition = await page.evaluate(() => {
+        const container = document.querySelector(".sticky-1");
+        return {
+          x: parseFloat(container.style.left) || 0,
+          y: parseFloat(container.style.top) || 0
+        };
+      });
+      
+      // Get textarea position
+      const textareaBox = await page.locator(".sticky-1 .text-input").boundingBox();
+      const startX = textareaBox.x + textareaBox.width / 2;
+      const startY = textareaBox.y + textareaBox.height / 2;
+      const endX = startX + 100; // Move 100px to the right
+      const endY = startY + 50;  // Move 50px down
+      
+      // Verify textarea is not focused initially
+      const initiallyFocused = await page.evaluate(() => {
+        const textarea = document.querySelector(".sticky-1 .text-input");
+        return document.activeElement === textarea;
+      });
+      expect(initiallyFocused).toBe(false);
+      
+      // Drag from inside the textarea
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.waitForTimeout(10); // Small delay to ensure mousedown is processed
+      
+      // Move mouse more than 5px threshold to trigger drag
+      await page.mouse.move(startX + 10, startY + 10);
+      await page.waitForTimeout(10);
+      
+      // Continue dragging to final position
+      await page.mouse.move(endX, endY);
+      await page.waitForTimeout(10);
+      
+      // Release mouse
+      await page.mouse.up();
+      await thingsSettleDown();
+      
+      // Verify the sticky moved
+      const finalPosition = await page.evaluate(() => {
+        const container = document.querySelector(".sticky-1");
+        return {
+          x: parseFloat(container.style.left) || 0,
+          y: parseFloat(container.style.top) || 0
+        };
+      });
+      
+      const deltaX = finalPosition.x - initialPosition.x;
+      const deltaY = finalPosition.y - initialPosition.y;
+      
+      // Sticky should have moved (allow tolerance for grid snapping)
+      expect(Math.abs(deltaX)).toBeGreaterThan(50);
+      expect(Math.abs(deltaY)).toBeGreaterThan(25);
+      
+      // Verify textarea is NOT focused after drag
+      const focusedAfterDrag = await page.evaluate(() => {
+        const textarea = document.querySelector(".sticky-1 .text-input");
+        return document.activeElement === textarea;
+      });
+      expect(focusedAfterDrag).toBe(false);
+      
+      // Verify not in editing mode
+      const isEditingMode = await page.evaluate(() => {
+        const container = document.querySelector(".sticky-1");
+        return container.classList.contains("editing");
+      });
+      expect(isEditingMode).toBe(false);
+    });
+
+    it("focuses textarea when clicking (not dragging) from inside textarea", async () => {
+      await page.waitForSelector(".sticky-1 .sticky .text-input");
+      
+      // Get textarea position
+      const textareaBox = await page.locator(".sticky-1 .text-input").boundingBox();
+      const clickX = textareaBox.x + textareaBox.width / 2;
+      const clickY = textareaBox.y + textareaBox.height / 2;
+      
+      // Verify textarea is not focused initially
+      const initiallyFocused = await page.evaluate(() => {
+        const textarea = document.querySelector(".sticky-1 .text-input");
+        return document.activeElement === textarea;
+      });
+      expect(initiallyFocused).toBe(false);
+      
+      // Click (without dragging) inside the textarea
+      await page.mouse.click(clickX, clickY);
+      await thingsSettleDown();
+      
+      // Verify textarea IS focused after click
+      const focusedAfterClick = await page.evaluate(() => {
+        const textarea = document.querySelector(".sticky-1 .text-input");
+        return document.activeElement === textarea;
+      });
+      expect(focusedAfterClick).toBe(true);
+      
+      // Verify in editing mode
+      const isEditingMode = await page.evaluate(() => {
+        const container = document.querySelector(".sticky-1");
+        return container.classList.contains("editing");
+      });
+      expect(isEditingMode).toBe(true);
+    });
+
     describe("BDD Scenarios", () => {
       it.skip("moves with custom drag", async () => {
         // Scenario: Move sticky with custom drag
