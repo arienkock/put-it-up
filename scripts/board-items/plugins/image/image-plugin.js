@@ -1,5 +1,5 @@
-import { BoardItemPlugin } from '../plugin-interface.js';
-import { createRenderer as createImageRenderer } from '../image.js';
+import { BoardItemPlugin } from '../../plugin-interface.js';
+import { createRenderer as createImageRenderer } from './image.js';
 
 export class ImagePlugin extends BoardItemPlugin {
   getType() { return 'image'; }

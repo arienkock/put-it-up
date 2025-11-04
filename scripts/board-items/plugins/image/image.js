@@ -1,7 +1,7 @@
 import { createImageContainerDOM } from "./image-dom.js";
 import { setImageStyles } from "./image-styling.js";
 import { setupImageEvents } from "./image-events.js";
-import { reorderBoardElements } from "./z-order-manager.js";
+import { reorderBoardElements } from "../../z-order-manager.js";
 
 export const IMAGE_TYPE = "application/image";
 

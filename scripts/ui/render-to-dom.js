@@ -56,7 +56,7 @@ Future changes:
 import {
   createRenderer,
   DEFAULT_STICKY_COLOR,
-} from "../board-items/sticky.js";
+} from "../board-items/plugins/sticky/sticky.js";
 import {
   createRenderer as createConnectorRenderer,
   DEFAULT_ARROW_HEAD,
@@ -64,7 +64,7 @@ import {
 import {
   createRenderer as createImageRenderer,
   IMAGE_TYPE,
-} from "../board-items/image.js";
+} from "../board-items/plugins/image/image.js";
 import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { Selection } from "./selection.js";
 import { SelectionManager } from "./selection-manager.js";

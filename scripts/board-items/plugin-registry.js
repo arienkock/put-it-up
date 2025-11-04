@@ -1,5 +1,5 @@
-import { StickyPlugin } from './plugins/sticky-plugin.js';
-import { ImagePlugin } from './plugins/image-plugin.js';
+import { StickyPlugin } from './plugins/sticky/sticky-plugin.js';
+import { ImagePlugin } from './plugins/image/image-plugin.js';
 
 const registry = new Map();
 

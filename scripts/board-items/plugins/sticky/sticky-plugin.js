@@ -1,5 +1,5 @@
-import { BoardItemPlugin } from '../plugin-interface.js';
-import { createRenderer as createStickyRenderer } from '../sticky.js';
+import { BoardItemPlugin } from '../../plugin-interface.js';
+import { createRenderer as createStickyRenderer } from './sticky.js';
 
 export class StickyPlugin extends BoardItemPlugin {
   getType() { return 'sticky'; }

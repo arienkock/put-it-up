@@ -1,8 +1,8 @@
-import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
-import { createStateConfig } from "../ui/state-config-pattern.js";
-import { fitContentInSticky } from "./text-fitting.js";
-import { SelectionManager } from "../ui/selection-manager.js";
-import { getEventPageCoordinates } from "../ui/movement-utils.js";
+import { StateMachine, GlobalListenerManager } from "../../../ui/state-machine-base.js";
+import { createStateConfig } from "../../../ui/state-config-pattern.js";
+import { fitContentInSticky } from "../../text-fitting.js";
+import { SelectionManager } from "../../../ui/selection-manager.js";
+import { getEventPageCoordinates } from "../../../ui/movement-utils.js";
 
 /**
  * Sticky Resize State Machine

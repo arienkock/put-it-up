@@ -1,6 +1,6 @@
-import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js";
-import { createStateConfig } from "../ui/state-config-pattern.js";
-import { getEventCoordinates, getEventPageCoordinates } from "../ui/movement-utils.js";
+import { StateMachine, GlobalListenerManager } from "../../../ui/state-machine-base.js";
+import { createStateConfig } from "../../../ui/state-config-pattern.js";
+import { getEventCoordinates, getEventPageCoordinates } from "../../../ui/movement-utils.js";
 
 /**
  * Image State Machine

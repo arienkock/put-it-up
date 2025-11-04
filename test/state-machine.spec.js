@@ -4,8 +4,8 @@ import { StateMachineValidator } from '../scripts/ui/state-machine-validator.js'
 import { StateMachineTester } from '../scripts/ui/state-machine-testing.js';
 import { setupConnectorEvents } from '../scripts/board-items/connector-events.js';
 import { KeyboardStateMachine } from '../scripts/ui/keyboard-handlers.js';
-import { ImageStateMachine } from '../scripts/board-items/image-events.js';
-import { StickyResizeStateMachine } from '../scripts/board-items/sticky-events.js';
+import { ImageStateMachine } from '../scripts/board-items/plugins/image/image-events.js';
+import { StickyResizeStateMachine } from '../scripts/board-items/plugins/sticky/sticky-events.js';
 
 // Mock window global for unit tests
 if (typeof window === 'undefined') {

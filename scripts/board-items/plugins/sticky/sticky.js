@@ -1,9 +1,9 @@
-import { fitContentInSticky } from "./text-fitting.js";
+import { fitContentInSticky } from "../../text-fitting.js";
 import { createStickyContainerDOM } from "./sticky-dom.js";
 import { setStickyStyles, DEFAULT_STICKY_COLOR } from "./sticky-styling.js";
 import { setupStickyEvents } from "./sticky-events.js";
-import { reorderBoardElements } from "./z-order-manager.js";
-import { getPlugin } from "./plugin-registry.js";
+import { reorderBoardElements } from "../../z-order-manager.js";
+import { getPlugin } from "../../plugin-registry.js";
 
 export { DEFAULT_STICKY_COLOR };
 

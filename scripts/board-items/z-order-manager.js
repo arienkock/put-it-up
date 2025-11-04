@@ -1,4 +1,4 @@
-import { removePx } from './sticky-dom.js';
+import { removePx } from './plugins/sticky/sticky-dom.js';
 import { isConnectorElement, isImageElement, isStickyElement, Z_ORDER_LAYERS } from './board-item-interface.js';
 
 /**
