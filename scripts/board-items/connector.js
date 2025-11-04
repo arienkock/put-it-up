@@ -26,16 +26,35 @@ export const createRenderer = (
       board.ensureConnectorHasColor(connectorId);
       
       // Resolve endpoints respecting type to avoid ID collisions
-      const originItem = connector.originId
-        ? board.getStickySafe(connector.originId)
-        : connector.originImageId
-          ? board.getImageSafe(connector.originImageId)
-          : null;
-      const destItem = connector.destinationId
-        ? board.getStickySafe(connector.destinationId)
-        : connector.destinationImageId
-          ? board.getImageSafe(connector.destinationImageId)
-          : null;
+      let originItem = null;
+      if (connector.originId) {
+        try {
+          originItem = board.getBoardItemByType('sticky', connector.originId);
+        } catch (e) {
+          // Item not found
+        }
+      } else if (connector.originImageId) {
+        try {
+          originItem = board.getBoardItemByType('image', connector.originImageId);
+        } catch (e) {
+          // Item not found
+        }
+      }
+      
+      let destItem = null;
+      if (connector.destinationId) {
+        try {
+          destItem = board.getBoardItemByType('sticky', connector.destinationId);
+        } catch (e) {
+          // Item not found
+        }
+      } else if (connector.destinationImageId) {
+        try {
+          destItem = board.getBoardItemByType('image', connector.destinationImageId);
+        } catch (e) {
+          // Item not found
+        }
+      }
       
       // Skip rendering if both endpoints are unconnected and have no points
       if (!originItem && !destItem && !connector.originPoint && !connector.destinationPoint) {

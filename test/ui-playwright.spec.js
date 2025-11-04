@@ -237,7 +237,7 @@ describe("Board UI", () => {
       
       // Helper to get current sticky text from the board state
       const getStickyText = async () => {
-        return await page.evaluate(() => board.getSticky(1).text);
+        return await page.evaluate(() => board.getBoardItemByType('sticky',1).text);
       };
       
       // Helper to get current textarea value
@@ -478,7 +478,7 @@ describe("Board UI", () => {
       await clickStickyOutsideOfText(1);
       // Get initial position in board coordinates
       const initialLocation = await page.evaluate(() => {
-        return board.getStickyLocation(1);
+        return board.getBoardItemLocationByType('sticky',1);
       });
       expect(initialLocation).toEqual({ x: 200, y: 200 });
       
@@ -488,7 +488,7 @@ describe("Board UI", () => {
       
       // Check board coordinates - should be constrained to minimum bounds
       const afterLeftAndUp = await page.evaluate(() => {
-        return board.getStickyLocation(1);
+        return board.getBoardItemLocationByType('sticky',1);
       });
       // Should be constrained to origin (0, 0) or close after grid snapping
       expect(afterLeftAndUp.x).toBeLessThanOrEqual(110); // Allow for grid snapping
@@ -502,13 +502,13 @@ describe("Board UI", () => {
       
       // Check board coordinates - should be constrained to maximum bounds
       const afterRightAndDown = await page.evaluate(() => {
-        return board.getStickyLocation(1);
+        return board.getBoardItemLocationByType('sticky',1);
       });
       const boardSize = await page.evaluate(() => {
         return board.getBoardSize();
       });
       const sticky = await page.evaluate(() => {
-        return board.getSticky(1);
+        return board.getBoardItemByType('sticky',1);
       });
       const stickySize = sticky.size || { x: 1, y: 1 };
       const stickyWidth = 70 * stickySize.x;
@@ -800,8 +800,8 @@ describe("Board UI", () => {
         expect(true).toBe(true);
       });
 
-      it("dragging unselected item adds to selection", async () => {
-        // Scenario: Drag unselected item adds to selection
+      it("dragging unselected item resets selection", async () => {
+        // Scenario: Drag unselected item resets selection
         await page.waitForSelector(".sticky-1 .sticky");
         await page.waitForSelector(".sticky-2 .sticky");
         
@@ -842,8 +842,8 @@ describe("Board UI", () => {
         await page.waitForTimeout(100); // Give more time for drag to start
         await thingsSettleDown(); // Wait for render to complete
         
-        // At this point, both stickies should be selected
-        expect(await isStickySelected(1)).toBe(true);
+        // At this point, sticky-1 should be deselected and sticky-2 should be selected
+        expect(await isStickySelected(1)).toBe(false);
         expect(await isStickySelected(2)).toBe(true);
         
         // Continue dragging to final position
@@ -852,11 +852,11 @@ describe("Board UI", () => {
         await page.mouse.up();
         await thingsSettleDown();
         
-        // Both stickies should still be selected after drag
-        expect(await isStickySelected(1)).toBe(true);
+        // After drag, sticky-2 should still be selected, sticky-1 should not
+        expect(await isStickySelected(1)).toBe(false);
         expect(await isStickySelected(2)).toBe(true);
         
-        // And both stickies should have moved together
+        // Only sticky-2 should have moved
         const finalPos1 = await page.evaluate(() => {
           const container = document.querySelector(".sticky-1");
           return {
@@ -873,17 +873,19 @@ describe("Board UI", () => {
           };
         });
         
-        // Both stickies should have moved by approximately the same amount
+        // Sticky-1 should not have moved (or moved minimally due to grid snapping)
         const delta1X = finalPos1.x - initialPos1.x;
         const delta1Y = finalPos1.y - initialPos1.y;
+        
+        // Sticky-2 should have moved
         const delta2X = finalPos2.x - initialPos2.x;
         const delta2Y = finalPos2.y - initialPos2.y;
         
-        // Verify both moved by similar amounts (within grid snapping tolerance)
-        expect(Math.abs(delta1X - delta2X)).toBeLessThan(20);
-        expect(Math.abs(delta1Y - delta2Y)).toBeLessThan(20);
+        // Verify sticky-1 did not move (or moved very little)
+        expect(Math.abs(delta1X)).toBeLessThan(20);
+        expect(Math.abs(delta1Y)).toBeLessThan(20);
         
-        // Verify they actually moved
+        // Verify sticky-2 actually moved
         expect(Math.abs(delta2X)).toBeGreaterThan(50);
         expect(Math.abs(delta2Y)).toBeGreaterThan(20);
       });

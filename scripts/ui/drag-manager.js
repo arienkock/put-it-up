@@ -153,7 +153,11 @@ class DragStateMachine extends StateMachine {
     let item = null;
     switch (itemType) {
       case 'sticky':
-        item = this.store.getSticky(itemId);
+        try {
+          item = this.store.getBoardItem('sticky', itemId);
+        } catch (e) {
+          // Item not found
+        }
         // Can't drag if sticky is being edited
         const container = document.querySelector(`[data-sticky-id="${itemId}"]`);
         if (container && container.classList.contains('editing')) {
@@ -161,7 +165,11 @@ class DragStateMachine extends StateMachine {
         }
         break;
       case 'image':
-        item = this.store.getImage(itemId);
+        try {
+          item = this.store.getBoardItem('image', itemId);
+        } catch (e) {
+          // Item not found
+        }
         break;
       case 'connector':
         item = this.store.getConnector(itemId);
@@ -198,28 +206,16 @@ class DragStateMachine extends StateMachine {
     let imageSelection = this.selectionManager.getSelection('images');
     let connectorSelection = this.selectionManager.getSelection('connectors');
     
-    // DEBUG: Log current selections
-    console.log('[DRAG START] Before checking selection:', {
-      itemId,
-      itemType,
-      selectedStickies: stickySelection ? Object.keys(appState.ui.selection || {}) : [],
-      selectedImages: imageSelection ? Object.keys(appState.ui.imageSelection || {}) : [],
-      selectedConnectors: connectorSelection ? Object.keys(appState.ui.connectorSelection || {}) : []
-    });
-    
     const isSelected = 
       (itemType === 'sticky' && stickySelection && stickySelection.isSelected(itemId)) ||
       (itemType === 'image' && imageSelection && imageSelection.isSelected(itemId)) ||
       (itemType === 'connector' && connectorSelection && connectorSelection.isSelected(itemId));
     
-    console.log('[DRAG START] Item is selected?', isSelected);
-    
-    // If not selected, add this item to the current selection without clearing others
-    // This ensures dragging an unselected item adds it to the selection (multi-drag)
+    // If not selected, clear previous selection and select only this item
+    // This ensures dragging an unselected item resets the selection to just that item
     if (!isSelected) {
-      console.log('[DRAG START] Adding dragged item to current selection');
       const selectionType = itemTypeToSelectionType(itemType);
-      this.selectionManager.addToSelection(selectionType, itemId);
+      this.selectionManager.selectItem(selectionType, itemId, { addToSelection: false });
       // Trigger render to show visual feedback of selection
       this.renderCallback();
       // Re-read selections after potential update
@@ -227,14 +223,6 @@ class DragStateMachine extends StateMachine {
       imageSelection = this.selectionManager.getSelection('images');
       connectorSelection = this.selectionManager.getSelection('connectors');
     }
-    
-    // DEBUG: Log selections after potential update
-    const appStateAfter = this.store.getAppState();
-    console.log('[DRAG START] After processing selection:', {
-      selectedStickies: Object.keys(appStateAfter.ui.selection || {}),
-      selectedImages: Object.keys(appStateAfter.ui.imageSelection || {}),
-      selectedConnectors: Object.keys(appStateAfter.ui.connectorSelection || {})
-    });
     
     // Store drag start information
     const boardScale = appState.ui.boardScale || 1;
@@ -255,11 +243,15 @@ class DragStateMachine extends StateMachine {
     if (stickySelection && stickySelection.hasItems()) {
       this.stateData.originalLocations.stickies = new Map();
       stickySelection.forEach((id) => {
-        const sticky = this.store.getSticky(id);
-        if (sticky) {
-          const location = { ...sticky.location };
-          this.stateData.originalLocations.stickies.set(id, location);
-          this.stateData.lastLocations.stickies.set(id, location);
+        try {
+          const sticky = this.store.getBoardItem('sticky', id);
+          if (sticky) {
+            const location = { ...sticky.location };
+            this.stateData.originalLocations.stickies.set(id, location);
+            this.stateData.lastLocations.stickies.set(id, location);
+          }
+        } catch (e) {
+          // Item not found
         }
       });
     }
@@ -267,11 +259,15 @@ class DragStateMachine extends StateMachine {
     if (imageSelection && imageSelection.hasItems()) {
       this.stateData.originalLocations.images = new Map();
       imageSelection.forEach((id) => {
-        const image = this.store.getImage(id);
-        if (image) {
-          const location = { ...image.location };
-          this.stateData.originalLocations.images.set(id, location);
-          this.stateData.lastLocations.images.set(id, location);
+        try {
+          const image = this.store.getBoardItem('image', id);
+          if (image) {
+            const location = { ...image.location };
+            this.stateData.originalLocations.images.set(id, location);
+            this.stateData.lastLocations.images.set(id, location);
+          }
+        } catch (e) {
+          // Item not found
         }
       });
     }
@@ -357,7 +353,7 @@ class DragStateMachine extends StateMachine {
     stickyIds.forEach((id) => {
       const lastLocation = this.stateData.lastLocations.stickies?.get(id);
       if (lastLocation) {
-        const newLocation = this.board.getStickyLocation(id);
+        const newLocation = this.board.getBoardItemLocationByType('sticky', id);
         // Calculate incremental delta from last position to current position
         const actualDeltaX = newLocation.x - lastLocation.x;
         const actualDeltaY = newLocation.y - lastLocation.y;
@@ -367,7 +363,7 @@ class DragStateMachine extends StateMachine {
         const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
         
         if (movementDistance > movementThreshold) {
-          this.board.moveConnectorsConnectedToItems([id], [], actualDeltaX, actualDeltaY, movedConnectors);
+          this.board.moveConnectorsConnectedToItems({ 'sticky': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
           // Update last position for next incremental calculation
           this.stateData.lastLocations.stickies.set(id, { ...newLocation });
         }
@@ -377,7 +373,7 @@ class DragStateMachine extends StateMachine {
     imageIds.forEach((id) => {
       const lastLocation = this.stateData.lastLocations.images?.get(id);
       if (lastLocation) {
-        const newLocation = this.board.getImageLocation(id);
+        const newLocation = this.board.getBoardItemLocationByType('image', id);
         // Calculate incremental delta from last position to current position
         const actualDeltaX = newLocation.x - lastLocation.x;
         const actualDeltaY = newLocation.y - lastLocation.y;
@@ -387,7 +383,7 @@ class DragStateMachine extends StateMachine {
         const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
         
         if (movementDistance > movementThreshold) {
-          this.board.moveConnectorsConnectedToItems([], [id], actualDeltaX, actualDeltaY, movedConnectors);
+          this.board.moveConnectorsConnectedToItems({ 'image': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
           // Update last position for next incremental calculation
           this.stateData.lastLocations.images.set(id, { ...newLocation });
         }

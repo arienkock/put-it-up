@@ -135,8 +135,8 @@ describe("Connector Functionality Tests", () => {
         ui: { currentColor: "blue" }
       };
 
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
         originStickyId: sticky1Id,
@@ -153,8 +153,8 @@ describe("Connector Functionality Tests", () => {
         ui: { currentColor: "red" }
       };
 
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
         originStickyId: sticky1Id,
@@ -163,8 +163,8 @@ describe("Connector Functionality Tests", () => {
       });
 
       // Move stickies
-      board.moveSticky(sticky1Id, { x: 150, y: 150 });
-      board.moveSticky(sticky2Id, { x: 250, y: 250 });
+      board.moveBoardItem('sticky', sticky1Id, { x: 150, y: 150 });
+      board.moveBoardItem('sticky', sticky2Id, { x: 250, y: 250 });
 
       const connector = board.getConnector(connectorId);
       expect(connector.color).toBe("red");
@@ -175,8 +175,8 @@ describe("Connector Functionality Tests", () => {
         ui: { currentColor: "green" }
       };
 
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 }, color: "yellow" });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 }, color: "purple" });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 }, color: "yellow" });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 }, color: "purple" });
 
       const connectorId = board.putConnector({
         originStickyId: sticky1Id,
@@ -195,9 +195,9 @@ describe("Connector Functionality Tests", () => {
         ui: { currentColor: "blue" }
       };
 
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
-      const sticky3Id = board.putSticky({ text: "sticky3", location: { x: 300, y: 300 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky3Id = board.putBoardItem('sticky', { text: "sticky3", location: { x: 300, y: 300 } });
 
       const connector1Id = board.putConnector({
         originStickyId: sticky1Id,
@@ -303,8 +303,8 @@ describe("Connector Functionality Tests", () => {
     it("should aim edge intersections toward control point for curved connectors (sticky↔sticky)", () => {
       const stickySize = 100;
       const board = new Board(new LocalDatastore());
-      const sticky1Id = board.putSticky({ text: "A", location: { x: 100, y: 100 }, size: { x: 1, y: 1 } });
-      const sticky2Id = board.putSticky({ text: "B", location: { x: 350, y: 100 }, size: { x: 1, y: 1 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "A", location: { x: 100, y: 100 }, size: { x: 1, y: 1 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "B", location: { x: 350, y: 100 }, size: { x: 1, y: 1 } });
 
       const connectorId = board.putConnector({ originStickyId: sticky1Id, destinationStickyId: sticky2Id, color: "#000" });
       // Bend upward: control point above the midpoint
@@ -328,7 +328,7 @@ describe("Connector Functionality Tests", () => {
     it("should aim edge intersections toward control point for mixed point↔sticky", () => {
       const stickySize = 100;
       const board = new Board(new LocalDatastore());
-      const stickyId = board.putSticky({ text: "A", location: { x: 300, y: 300 }, size: { x: 1, y: 1 } });
+      const stickyId = board.putBoardItem('sticky', { text: "A", location: { x: 300, y: 300 }, size: { x: 1, y: 1 } });
 
       const connectorId = board.putConnector({ originPoint: { x: 100, y: 300 }, destinationStickyId: stickyId, color: "#000" });
       // Control point above midpoint between free point and sticky center
@@ -349,8 +349,8 @@ describe("Connector Functionality Tests", () => {
 
   describe("Connector-to-Image Connections", () => {
     it("should create connector from sticky to image", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
-      const imageId = board.putImage({ 
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
+      const imageId = board.putBoardItem('image', { 
         location: { x: 200, y: 200 }, 
         width: 150, 
         height: 100,
@@ -373,7 +373,7 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should create connector from image to sticky", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -382,7 +382,7 @@ describe("Connector Functionality Tests", () => {
         naturalWidth: 300,
         naturalHeight: 200
       });
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 200, y: 200 } });
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
         originImageId: imageId,
@@ -397,7 +397,7 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should create connector from image to image", () => {
-      const image1Id = board.putImage({ 
+      const image1Id = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -406,7 +406,7 @@ describe("Connector Functionality Tests", () => {
         naturalWidth: 300,
         naturalHeight: 200
       });
-      const image2Id = board.putImage({ 
+      const image2Id = board.putBoardItem('image', { 
         location: { x: 200, y: 200 }, 
         width: 150, 
         height: 100,
@@ -430,8 +430,8 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should handle connector updates with image connections", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
-      const imageId = board.putImage({ 
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
+      const imageId = board.putBoardItem('image', { 
         location: { x: 200, y: 200 }, 
         width: 150, 
         height: 100,
@@ -448,7 +448,7 @@ describe("Connector Functionality Tests", () => {
       });
 
       // Move image and verify connector updates
-      board.moveImage(imageId, { x: 250, y: 250 });
+      board.moveBoardItem('image', imageId, { x: 250, y: 250 });
       
       const connector = board.getConnector(connectorId);
       expect(connector.destinationImageId).toBe(imageId);
@@ -477,7 +477,7 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should move connector with one connected and one free endpoint", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
       
       // Create a connector with one connected and one free endpoint
       const connectorId = board.putConnector({
@@ -499,8 +499,8 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should not move fully connected connector", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       // Create a fully connected connector
       const connectorId = board.putConnector({
@@ -525,8 +525,8 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should move curve handle when sticky moves", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       // Create a fully connected connector with curve handle
       const connectorId = board.putConnector({
@@ -540,15 +540,15 @@ describe("Connector Functionality Tests", () => {
       expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
 
       // Move the sticky
-      board.moveSticky(sticky1Id, { x: 150, y: 120 });
+      board.moveBoardItem('sticky', sticky1Id, { x: 150, y: 120 });
       
       // Manually trigger connector movement after moving the sticky
       // Calculate actual delta after snapping (sticky snaps to grid 10)
       const originalLocation = { x: 100, y: 100 };
-      const newLocation = board.getStickyLocation(sticky1Id);
+      const newLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       const deltaX = newLocation.x - originalLocation.x;
       const deltaY = newLocation.y - originalLocation.y;
-      board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+      board.moveConnectorsConnectedToItems({ 'sticky': [sticky1Id] }, deltaX, deltaY);
 
       const connectorAfterMove = board.getConnector(connectorId);
       // Curve handle should move by the same delta as the sticky (50, 20)
@@ -556,9 +556,9 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should move curve handles for multiple connectors when sticky moves", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
-      const sticky3Id = board.putSticky({ text: "sticky3", location: { x: 300, y: 300 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky3Id = board.putBoardItem('sticky', { text: "sticky3", location: { x: 300, y: 300 } });
       
       // Create two connectors connected to the same sticky
       const connector1Id = board.putConnector({
@@ -576,15 +576,15 @@ describe("Connector Functionality Tests", () => {
       });
 
       // Move sticky1
-      board.moveSticky(sticky1Id, { x: 150, y: 120 });
+      board.moveBoardItem('sticky', sticky1Id, { x: 150, y: 120 });
       
       // Manually trigger connector movement after moving the sticky
       // Calculate actual delta after snapping (sticky snaps to grid 10)
       const originalLocation = { x: 100, y: 100 };
-      const newLocation = board.getStickyLocation(sticky1Id);
+      const newLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       const deltaX = newLocation.x - originalLocation.x;
       const deltaY = newLocation.y - originalLocation.y;
-      board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+      board.moveConnectorsConnectedToItems({ 'sticky': [sticky1Id] }, deltaX, deltaY);
 
       // Both connectors' curve handles should move by the same delta (50, 20)
       const connector1 = board.getConnector(connector1Id);
@@ -595,7 +595,7 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should move curve handle when image moves", () => {
-      const image1Id = board.putImage({ 
+      const image1Id = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -604,7 +604,7 @@ describe("Connector Functionality Tests", () => {
         naturalWidth: 300,
         naturalHeight: 200
       });
-      const image2Id = board.putImage({ 
+      const image2Id = board.putBoardItem('image', { 
         location: { x: 200, y: 200 }, 
         width: 150, 
         height: 100,
@@ -626,14 +626,14 @@ describe("Connector Functionality Tests", () => {
       expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
 
       // Move the image
-      board.moveImage(image1Id, { x: 150, y: 120 });
+      board.moveBoardItem('image',image1Id, { x: 150, y: 120 });
       
       // Manually trigger connector movement after moving the image
       const originalLocation = { x: 100, y: 100 };
-      const newLocation = board.getImageLocation(image1Id);
+      const newLocation = board.getBoardItemLocationByType('image', image1Id);
       const deltaX = newLocation.x - originalLocation.x;
       const deltaY = newLocation.y - originalLocation.y;
-      board.moveConnectorsConnectedToItems([], [image1Id], deltaX, deltaY);
+      board.moveConnectorsConnectedToItems({ 'image': [image1Id] }, deltaX, deltaY);
 
       const connectorAfterMove = board.getConnector(connectorId);
       // Curve handle should move by the same delta as the image (50, 20)
@@ -644,8 +644,8 @@ describe("Connector Functionality Tests", () => {
   describe("Connector Curve Handle Movement During Group Operations", () => {
     it("should move curve handle with connected stickies using moveSelection", () => {
       // This test simulates arrow key movement of a sticky with a connected connector
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
         originId: sticky1Id,
@@ -672,7 +672,7 @@ describe("Connector Functionality Tests", () => {
       moveSelection(10, 0, board, selectedStickies, selectedImages, selectedConnectors);
 
       const connectorAfterMove = board.getConnector(connectorId);
-      const newStickyLocation = board.getStickyLocation(sticky1Id);
+      const newStickyLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       
       // Calculate actual delta after snapping
       const actualDeltaX = newStickyLocation.x - 100;
@@ -684,8 +684,8 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should move curve handle only once when both origin and destination stickies are moved", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       // Create connector between the two stickies
       const connectorId = board.putConnector({
@@ -699,27 +699,27 @@ describe("Connector Functionality Tests", () => {
       expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
 
       // Move both stickies (simulating group movement)
-      board.moveSticky(sticky1Id, { x: 150, y: 120 });
-      board.moveSticky(sticky2Id, { x: 250, y: 220 });
+      board.moveBoardItem('sticky', sticky1Id, { x: 150, y: 120 });
+      board.moveBoardItem('sticky', sticky2Id, { x: 250, y: 220 });
       
       // Track moved connectors to prevent double movement
       const movedConnectors = new Set();
       
       // Calculate actual deltas after snapping and move connectors
       const originalLocation1 = { x: 100, y: 100 };
-      const newLocation1 = board.getStickyLocation(sticky1Id);
+      const newLocation1 = board.getBoardItemLocationByType('sticky', sticky1Id);
       const delta1X = newLocation1.x - originalLocation1.x;
       const delta1Y = newLocation1.y - originalLocation1.y;
-      board.moveConnectorsConnectedToItems([sticky1Id], [], delta1X, delta1Y, movedConnectors);
+      board.moveConnectorsConnectedToItems({ 'sticky': [sticky1Id] }, delta1X, delta1Y, movedConnectors);
       
       // After first call, connector should be in movedConnectors set
       expect(movedConnectors.has(connectorId)).toBe(true);
       
       const originalLocation2 = { x: 200, y: 200 };
-      const newLocation2 = board.getStickyLocation(sticky2Id);
+      const newLocation2 = board.getBoardItemLocationByType('sticky', sticky2Id);
       const delta2X = newLocation2.x - originalLocation2.x;
       const delta2Y = newLocation2.y - originalLocation2.y;
-      board.moveConnectorsConnectedToItems([sticky2Id], [], delta2X, delta2Y, movedConnectors);
+      board.moveConnectorsConnectedToItems({ 'sticky': [sticky2Id] }, delta2X, delta2Y, movedConnectors);
 
       const connectorAfterMove = board.getConnector(connectorId);
       // Curve handle should move by only delta1 (not delta1 + delta2)
@@ -729,8 +729,8 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should not move curve handle when sticky movement is below threshold", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
         originId: sticky1Id,
@@ -740,10 +740,10 @@ describe("Connector Functionality Tests", () => {
       });
 
       // Try to move sticky by 1 pixel (should be below threshold)
-      board.moveSticky(sticky1Id, { x: 101, y: 100 });
+      board.moveBoardItem('sticky', sticky1Id, { x: 101, y: 100 });
       
       const originalLocation = { x: 100, y: 100 };
-      const newLocation = board.getStickyLocation(sticky1Id);
+      const newLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       const deltaX = newLocation.x - originalLocation.x;
       const deltaY = newLocation.y - originalLocation.y;
       const movementDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -753,7 +753,7 @@ describe("Connector Functionality Tests", () => {
       
       // Don't move connectors if below threshold
       if (movementDistance > 1) {
-        board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+        board.moveConnectorsConnectedToItems({ 'sticky': [sticky1Id] }, deltaX, deltaY);
       }
 
       const connector = board.getConnector(connectorId);
@@ -762,8 +762,8 @@ describe("Connector Functionality Tests", () => {
     });
 
     it("should use incremental deltas during drag operations", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
         originId: sticky1Id,
@@ -777,12 +777,12 @@ describe("Connector Functionality Tests", () => {
 
       // Simulate multiple drag frames with incremental deltas
       // Frame 1: Move 10 pixels
-      board.moveSticky(sticky1Id, { x: 110, y: 100 });
+      board.moveBoardItem('sticky', sticky1Id, { x: 110, y: 100 });
       let lastLocation = { x: 100, y: 100 };
-      let newLocation = board.getStickyLocation(sticky1Id);
+      let newLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       let deltaX = newLocation.x - lastLocation.x;
       let deltaY = newLocation.y - lastLocation.y;
-      board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+      board.moveConnectorsConnectedToItems({ 'sticky': [sticky1Id] }, deltaX, deltaY);
       
       let connectorAfterFrame1 = board.getConnector(connectorId);
       let expectedX = 150 + deltaX;
@@ -790,25 +790,25 @@ describe("Connector Functionality Tests", () => {
       
       // Frame 2: Move another 10 pixels (should be incremental from frame 1)
       lastLocation = { ...newLocation };
-      board.moveSticky(sticky1Id, { x: 120, y: 100 });
-      newLocation = board.getStickyLocation(sticky1Id);
+      board.moveBoardItem('sticky', sticky1Id, { x: 120, y: 100 });
+      newLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       deltaX = newLocation.x - lastLocation.x;
       deltaY = newLocation.y - lastLocation.y;
-      board.moveConnectorsConnectedToItems([sticky1Id], [], deltaX, deltaY);
+      board.moveConnectorsConnectedToItems({ 'sticky': [sticky1Id] }, deltaX, deltaY);
       
       const connectorAfterFrame2 = board.getConnector(connectorId);
       expectedX = expectedX + deltaX;
       expect(connectorAfterFrame2.curveControlPoint).toEqual({ x: expectedX, y: 150 });
       
       // Total movement should be from original (100, 100) to final (120, 100) = 20 pixels
-      const finalLocation = board.getStickyLocation(sticky1Id);
+      const finalLocation = board.getBoardItemLocationByType('sticky', sticky1Id);
       const totalDeltaX = finalLocation.x - 100;
       expect(connectorAfterFrame2.curveControlPoint.x).toBe(150 + totalDeltaX);
     });
 
     it("should handle connectors connected to mixed item types (sticky and image)", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
-      const imageId = board.putImage({ 
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
+      const imageId = board.putBoardItem('image', { 
         location: { x: 200, y: 200 }, 
         width: 150, 
         height: 100,
@@ -829,12 +829,12 @@ describe("Connector Functionality Tests", () => {
       expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
 
       // Move the sticky
-      board.moveSticky(stickyId, { x: 150, y: 120 });
+      board.moveBoardItem('sticky', stickyId, { x: 150, y: 120 });
       const originalLocation = { x: 100, y: 100 };
-      const newLocation = board.getStickyLocation(stickyId);
+      const newLocation = board.getBoardItemLocationByType('sticky',stickyId);
       const deltaX = newLocation.x - originalLocation.x;
       const deltaY = newLocation.y - originalLocation.y;
-      board.moveConnectorsConnectedToItems([stickyId], [], deltaX, deltaY);
+      board.moveConnectorsConnectedToItems({ 'sticky': [stickyId] }, deltaX, deltaY);
 
       const connectorAfterMove = board.getConnector(connectorId);
       // Curve handle should move by the same delta as the sticky
@@ -847,8 +847,8 @@ describe("Connector Functionality Tests", () => {
 
   describe("Connector Error Handling", () => {
     it("should handle connector deletion gracefully", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
         originStickyId: sticky1Id,

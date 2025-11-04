@@ -30,7 +30,12 @@ export function BufferedObserver(board, render, renderSticky, renderConnector, r
 
   this.onStickyChange = (id) => {
     scheduleRenderTask(() => {
-      renderSticky(id, board.getStickySafe(id));
+      try {
+        const sticky = board.getBoardItemByType('sticky', id);
+        renderSticky(id, sticky);
+      } catch (e) {
+        renderSticky(id, undefined);
+      }
       // Re-render all connectors connected to this sticky
       const state = board.getState();
       Object.entries(state.connectors).forEach(([connectorId, connector]) => {
@@ -45,7 +50,12 @@ export function BufferedObserver(board, render, renderSticky, renderConnector, r
   };
   this.onImageChange = (id) => {
     scheduleRenderTask(() => {
-      renderImage(id, board.getImageSafe(id));
+      try {
+        const image = board.getBoardItemByType('image', id);
+        renderImage(id, image);
+      } catch (e) {
+        renderImage(id, undefined);
+      }
       // Re-render all connectors connected to this image
       const state = board.getState();
       Object.entries(state.connectors).forEach(([connectorId, connector]) => {
@@ -54,6 +64,14 @@ export function BufferedObserver(board, render, renderSticky, renderConnector, r
         }
       });
     });
+  };
+  // Support generic observer pattern
+  this.onBoardItemChange = (type, id) => {
+    if (type === 'sticky') {
+      this.onStickyChange(id);
+    } else if (type === 'image') {
+      this.onImageChange(id);
+    }
   };
   this.onBoardChange = () => {
     scheduleRenderTask(() => render());

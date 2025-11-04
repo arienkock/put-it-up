@@ -202,7 +202,7 @@ class StickyResizeStateMachine extends StateMachine {
           event.preventDefault();
           event.stopPropagation();
           
-          const sticky = this.store.getSticky(this.id);
+          const sticky = this.store.getBoardItem('sticky', this.id);
           if (!sticky) return;
 
           const currentSize = {

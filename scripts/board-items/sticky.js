@@ -3,6 +3,7 @@ import { createStickyContainerDOM } from "./sticky-dom.js";
 import { setStickyStyles, DEFAULT_STICKY_COLOR } from "./sticky-styling.js";
 import { setupStickyEvents } from "./sticky-events.js";
 import { reorderBoardElements } from "./z-order-manager.js";
+import { getPlugin } from "./plugin-registry.js";
 
 export { DEFAULT_STICKY_COLOR };
 
@@ -31,8 +32,15 @@ export const createRenderer = (
     const container = getStickyElement(
       domElement,
       stickyId,
-      board.updateText,
-      board.getStickyLocation,
+      (id, text) => {
+        const plugin = getPlugin('sticky');
+        if (plugin) {
+          plugin.updateItem(board, id, { text });
+          return text;
+        }
+        return text;
+      },
+      (id) => board.getBoardItemLocationByType('sticky', id),
       selectionManager,
       shouldDelete,
       store

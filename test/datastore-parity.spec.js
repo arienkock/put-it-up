@@ -248,10 +248,10 @@ describe("Datastore Parity Tests", () => {
         describe("Sticky Operations", () => {
           it("should create and retrieve stickies", () => {
             const stickyData = { text: "Test sticky", location: { x: 100, y: 200 }, color: "yellow" };
-            const id = testStore.createSticky(stickyData);
+            const id = testStore.createBoardItem('sticky', stickyData);
             
             expect(typeof id).toBe("string");
-            const retrieved = testStore.getSticky(id);
+            const retrieved = testStore.getBoardItem('sticky', id);
             expect(retrieved.text).toBe(stickyData.text);
             expect(retrieved.location).toEqual(stickyData.location);
             expect(retrieved.color).toBe(stickyData.color);
@@ -259,52 +259,52 @@ describe("Datastore Parity Tests", () => {
 
           it("should update sticky text", () => {
             const stickyData = { text: "Original", location: { x: 100, y: 200 } };
-            const id = testStore.createSticky(stickyData);
+            const id = testStore.createBoardItem('sticky', stickyData);
             
-            testStore.updateText(id, "Updated text");
-            const updated = testStore.getSticky(id);
+            testStore.updateBoardItem('sticky', id, { text: "Updated text" });
+            const updated = testStore.getBoardItem('sticky', id);
             expect(updated.text).toBe("Updated text");
           });
 
           it("should update sticky color", () => {
             const stickyData = { text: "Test", location: { x: 100, y: 200 }, color: "red" };
-            const id = testStore.createSticky(stickyData);
+            const id = testStore.createBoardItem('sticky', stickyData);
             
-            testStore.updateColor(id, "blue");
-            const updated = testStore.getSticky(id);
+            testStore.updateBoardItem('sticky', id, { color: "blue" });
+            const updated = testStore.getBoardItem('sticky', id);
             expect(updated.color).toBe("blue");
           });
 
           it("should update sticky location", () => {
             const stickyData = { text: "Test", location: { x: 100, y: 200 } };
-            const id = testStore.createSticky(stickyData);
+            const id = testStore.createBoardItem('sticky', stickyData);
             
             const newLocation = { x: 300, y: 400 };
-            testStore.setLocation(id, newLocation);
-            const updated = testStore.getSticky(id);
+            testStore.updateBoardItem('sticky', id, { location: newLocation });
+            const updated = testStore.getBoardItem('sticky', id);
             expect(updated.location).toEqual(newLocation);
           });
 
           it("should update sticky size", () => {
             const stickyData = { text: "Test", location: { x: 100, y: 200 }, size: { width: 100, height: 50 } };
-            const id = testStore.createSticky(stickyData);
+            const id = testStore.createBoardItem('sticky', stickyData);
             
             const newSize = { width: 200, height: 100 };
-            testStore.updateSize(id, newSize);
-            const updated = testStore.getSticky(id);
+            testStore.updateBoardItem('sticky', id, { size: newSize });
+            const updated = testStore.getBoardItem('sticky', id);
             expect(updated.size).toEqual(newSize);
           });
 
           it("should delete stickies", () => {
             const stickyData = { text: "To be deleted", location: { x: 100, y: 200 } };
-            const id = testStore.createSticky(stickyData);
+            const id = testStore.createBoardItem('sticky', stickyData);
             
-            testStore.deleteSticky(id);
-            expect(() => testStore.getSticky(id)).toThrow("No such sticky id=");
+            testStore.deleteBoardItem('sticky', id);
+            expect(() => testStore.getBoardItem('sticky', id)).toThrow("No such sticky id=");
           });
 
           it("should throw error for non-existent sticky", () => {
-            expect(() => testStore.getSticky("non-existent")).toThrow("No such sticky id=");
+            expect(() => testStore.getBoardItem('sticky',"non-existent")).toThrow("No such sticky id=");
           });
         });
 
@@ -365,10 +365,10 @@ describe("Datastore Parity Tests", () => {
               width: 200, 
               height: 150 
             };
-            const id = testStore.createImage(imageData);
+            const id = testStore.createBoardItem('image', imageData);
             
             expect(typeof id).toBe("string");
-            const retrieved = testStore.getImage(id);
+            const retrieved = testStore.getBoardItem('image', id);
             expect(retrieved.src).toBe(imageData.src);
             expect(retrieved.location).toEqual(imageData.location);
             expect(retrieved.width).toBe(imageData.width);
@@ -377,34 +377,34 @@ describe("Datastore Parity Tests", () => {
 
           it("should update image location", () => {
             const imageData = { src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 };
-            const id = testStore.createImage(imageData);
+            const id = testStore.createBoardItem('image', imageData);
             
             const newLocation = { x: 300, y: 400 };
-            testStore.setImageLocation(id, newLocation);
-            const updated = testStore.getImage(id);
+            testStore.updateBoardItem('image', id, { location: newLocation });
+            const updated = testStore.getBoardItem('image', id);
             expect(updated.location).toEqual(newLocation);
           });
 
           it("should update image size", () => {
             const imageData = { src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 };
-            const id = testStore.createImage(imageData);
+            const id = testStore.createBoardItem('image', imageData);
             
-            testStore.updateImageSize(id, 300, 200);
-            const updated = testStore.getImage(id);
+            testStore.updateBoardItem('image', id, { width: 300, height: 200 });
+            const updated = testStore.getBoardItem('image', id);
             expect(updated.width).toBe(300);
             expect(updated.height).toBe(200);
           });
 
           it("should delete images", () => {
             const imageData = { src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 };
-            const id = testStore.createImage(imageData);
+            const id = testStore.createBoardItem('image', imageData);
             
-            testStore.deleteImage(id);
-            expect(() => testStore.getImage(id)).toThrow("No such image id=");
+            testStore.deleteBoardItem('image', id);
+            expect(() => testStore.getBoardItem('image', id)).toThrow("No such image id=");
           });
 
           it("should throw error for non-existent image", () => {
-            expect(() => testStore.getImage("non-existent")).toThrow("No such image id=");
+            expect(() => testStore.getBoardItem('image',"non-existent")).toThrow("No such image id=");
           });
         });
 
@@ -427,9 +427,9 @@ describe("Datastore Parity Tests", () => {
         describe("State Operations", () => {
           it("should get and set state", () => {
             // Create some test data
-            const stickyId = testStore.createSticky({ text: "Test", location: { x: 100, y: 200 } });
+            const stickyId = testStore.createBoardItem('sticky',{ text: "Test", location: { x: 100, y: 200 } });
             const connectorId = testStore.createConnector({ originId: stickyId, destinationId: "other" });
-            const imageId = testStore.createImage({ src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 });
+            const imageId = testStore.createBoardItem('image',{ src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 });
             
             const state = testStore.getState();
             expect(state.stickies).toBeDefined();
@@ -467,10 +467,10 @@ describe("Datastore Parity Tests", () => {
             
             testStore.addObserver(observer);
             
-            const id = testStore.createSticky({ text: "Test", location: { x: 100, y: 200 } });
+            const id = testStore.createBoardItem('sticky',{ text: "Test", location: { x: 100, y: 200 } });
             expect(observer.onStickyChange).toHaveBeenCalledWith(id);
             
-            testStore.updateText(id, "Updated");
+            testStore.updateBoardItem('sticky',id, "Updated");
             expect(observer.onStickyChange).toHaveBeenCalledTimes(2);
           });
 
@@ -501,7 +501,7 @@ describe("Datastore Parity Tests", () => {
             
             testStore.addObserver(observer);
             
-            const id = testStore.createImage({ src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 });
+            const id = testStore.createBoardItem('image',{ src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 });
             expect(observer.onImageChange).toHaveBeenCalledWith(id);
             
             testStore.setImageLocation(id, { x: 300, y: 400 });
@@ -584,8 +584,8 @@ describe("Datastore Parity Tests", () => {
       // Test sticky creation
       const stickyData = { text: "Consistency test", location: { x: 100, y: 200 }, color: "green" };
       
-      const localId = localStore.createSticky(stickyData);
-      const firestoreId = firestoreStore.createSticky(stickyData);
+      const localId = localStore.createBoardItem('sticky',stickyData);
+      const firestoreId = firestoreStore.createBoardItem('sticky',stickyData);
       
       // Both should return string IDs
       expect(typeof localId).toBe("string");

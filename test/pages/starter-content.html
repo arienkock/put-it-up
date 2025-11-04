@@ -24,22 +24,22 @@
       );
       store.connect();
       window.board = board;
-      board.putSticky({
+      board.putBoardItem('sticky', {
         text: "One",
         color: colorPalette[0],
         location: { x: 200, y: 200 },
       });
-      board.putSticky({
+      board.putBoardItem('sticky', {
         text: "Two",
         color: colorPalette[1],
         location: { x: 300, y: 200 },
       });
-      board.putSticky({
+      board.putBoardItem('sticky', {
         text: "Three",
         color: colorPalette[2],
         location: { x: 400, y: 200 },
       });
-      board.putSticky({
+      board.putBoardItem('sticky', {
         text: "Four",
         color: colorPalette[3],
         location: { x: 500, y: 200 },

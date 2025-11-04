@@ -315,19 +315,19 @@ describe("Coordinate Calculation and Board Scale Tests", () => {
       const boardScale = 1.5;
       
       // Create a sticky at a specific board coordinate
-      const stickyId = board.putSticky({ 
+      const stickyId = board.putBoardItem('sticky', { 
         text: "test", 
         location: { x: 100, y: 100 } 
       });
 
       // Verify the sticky is at the expected location
-      const stickyLocation = board.getStickyLocation(stickyId);
+      const stickyLocation = board.getBoardItemLocationByType('sticky', stickyId);
       expect(stickyLocation.x).toBe(100);
       expect(stickyLocation.y).toBe(100);
 
       // Move the sticky and verify new location
-      board.moveSticky(stickyId, { x: 150, y: 150 });
-      const newLocation = board.getStickyLocation(stickyId);
+      board.moveBoardItem('sticky',stickyId, { x: 150, y: 150 });
+      const newLocation = board.getBoardItemLocationByType('sticky', stickyId);
       expect(newLocation.x).toBe(150);
       expect(newLocation.y).toBe(150);
     });

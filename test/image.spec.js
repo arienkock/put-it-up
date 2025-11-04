@@ -83,7 +83,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         ui: { boardScale: 2.0 }
       };
 
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -93,7 +93,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 200
       });
 
-      const originalLocation = board.getImageLocation(imageId);
+      const originalLocation = board.getBoardItemLocationByType('image',imageId);
       
       // Simulate mouse movement of 50 pixels
       // With boardScale of 2.0, this should result in 25 board units of movement
@@ -105,16 +105,16 @@ describe("Image Interaction and Manipulation Tests", () => {
         y: originalLocation.y + mouseMovement.y / boardScale
       };
 
-      board.moveImage(imageId, newLocation);
+      board.moveBoardItem('image',imageId, newLocation);
       
-      const finalLocation = board.getImageLocation(imageId);
+      const finalLocation = board.getBoardItemLocationByType('image',imageId);
       // Board snaps movement to a 10px grid; 125 snaps to 130
       expect(finalLocation.x).toBe(130);
       expect(finalLocation.y).toBe(130);
     });
 
     it("should handle image movement at different zoom levels", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -134,15 +134,15 @@ describe("Image Interaction and Manipulation Tests", () => {
       testCases.forEach(({ boardScale, mouseMovement, expectedMovement }) => {
         window.appState = { ui: { boardScale } };
         
-        const originalLocation = board.getImageLocation(imageId);
+        const originalLocation = board.getBoardItemLocationByType('image',imageId);
         const newLocation = {
           x: originalLocation.x + mouseMovement.x / boardScale,
           y: originalLocation.y + mouseMovement.y / boardScale
         };
 
-        board.moveImage(imageId, newLocation);
+        board.moveBoardItem('image',imageId, newLocation);
         
-        const finalLocation = board.getImageLocation(imageId);
+        const finalLocation = board.getBoardItemLocationByType('image',imageId);
         // Account for 10px grid snapping when asserting final position
         const snap = (v) => {
           const grid = 10;
@@ -156,7 +156,7 @@ describe("Image Interaction and Manipulation Tests", () => {
     });
 
     it("should maintain image position within board boundaries", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -167,16 +167,16 @@ describe("Image Interaction and Manipulation Tests", () => {
       });
 
       // Try to move image to negative coordinates
-      board.moveImage(imageId, { x: -50, y: -50 });
+      board.moveBoardItem('image',imageId, { x: -50, y: -50 });
       
-      const location = board.getImageLocation(imageId);
+      const location = board.getBoardItemLocationByType('image',imageId);
       expect(location.x).toBeGreaterThanOrEqual(0);
       expect(location.y).toBeGreaterThanOrEqual(0);
     });
 
     it("should maintain image position within board limits", () => {
       const boardSize = board.getBoardSize();
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -187,12 +187,12 @@ describe("Image Interaction and Manipulation Tests", () => {
       });
 
       // Try to move image beyond board limits
-      board.moveImage(imageId, { 
+      board.moveBoardItem('image',imageId, { 
         x: boardSize.width + 100, 
         y: boardSize.height + 100 
       });
       
-      const location = board.getImageLocation(imageId);
+      const location = board.getBoardItemLocationByType('image',imageId);
       expect(location.x).toBeLessThanOrEqual(boardSize.width);
       expect(location.y).toBeLessThanOrEqual(boardSize.height);
     });
@@ -200,7 +200,7 @@ describe("Image Interaction and Manipulation Tests", () => {
 
   describe("Image Resize Functionality", () => {
     it("should resize image with correct aspect ratio preservation", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 200, 
         height: 100,
@@ -213,16 +213,16 @@ describe("Image Interaction and Manipulation Tests", () => {
       const originalAspectRatio = 400 / 200; // 2:1
       
       // Resize image
-      board.resizeImage(imageId, true, 'right');
+      board.resizeBoardItem('image', imageId, { isGrow: true, side: 'right' });
       
-      const image = board.getImage(imageId);
+      const image = board.getBoardItemByType('image', imageId);
       const newAspectRatio = image.width / image.height;
       
       expect(newAspectRatio).toBeCloseTo(originalAspectRatio, 2);
     });
 
     it("should handle resize with movement threshold", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 200, 
         height: 100,
@@ -244,7 +244,7 @@ describe("Image Interaction and Manipulation Tests", () => {
       const smallDelta = smallMovement;
       if (Math.abs(smallDelta) < 5) {
         // Should not resize - get current image size
-        const image = board.getImage(imageId);
+        const image = board.getBoardItemByType('image', imageId);
         expect(image.width).toBeGreaterThan(0); // Just verify it has a width
         expect(image.height).toBeGreaterThan(0); // Just verify it has a height
       }
@@ -253,15 +253,15 @@ describe("Image Interaction and Manipulation Tests", () => {
       const largeDelta = largeMovement;
       if (Math.abs(largeDelta) >= 5) {
         // Should resize
-        board.resizeImage(imageId, largeDelta > 0, 'right');
-        const image = board.getImage(imageId);
+        board.resizeBoardItem('image', imageId, { isGrow: largeDelta > 0, side: 'right' });
+        const image = board.getBoardItemByType('image', imageId);
         expect(image.width).toBeGreaterThan(0); // Just verify it has a width
         expect(image.height).toBeGreaterThan(0); // Just verify it has a height
       }
     });
 
     it("should handle resize from different sides correctly", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 200, 
         height: 100,
@@ -271,39 +271,39 @@ describe("Image Interaction and Manipulation Tests", () => {
         dataUrl: "data:image/jpeg;base64,test"
       });
 
-      const originalLocation = board.getImageLocation(imageId);
+      const originalLocation = board.getBoardItemLocationByType('image',imageId);
       const originalSize = { width: 200, height: 100 };
       
       // Test right side resize
-      board.resizeImage(imageId, true, 'right');
-      let image = board.getImage(imageId);
+      board.resizeBoardItem('image', imageId, { isGrow: true, side: 'right' });
+      let image = board.getBoardItemByType('image', imageId);
       expect(image.width).toBeGreaterThan(originalSize.width);
       expect(image.location.x).toBe(originalLocation.x); // X should not change
       
       // Reset for next test
-      board.resizeImage(imageId, false, 'right');
+      board.resizeBoardItem('image', imageId, { isGrow: false, side: 'right' });
       
       // Test left side resize
-      board.resizeImage(imageId, true, 'left');
-      image = board.getImage(imageId);
+      board.resizeBoardItem('image', imageId, { isGrow: true, side: 'left' });
+      image = board.getBoardItemByType('image', imageId);
       expect(image.width).toBeGreaterThan(originalSize.width);
       // X location might change for left resize
       
       // Reset for next test
-      board.resizeImage(imageId, false, 'left');
+      board.resizeBoardItem('image', imageId, { isGrow: false, side: 'left' });
       
       // Test bottom side resize
-      board.resizeImage(imageId, true, 'bottom');
-      image = board.getImage(imageId);
+      board.resizeBoardItem('image', imageId, { isGrow: true, side: 'bottom' });
+      image = board.getBoardItemByType('image', imageId);
       expect(image.height).toBeGreaterThan(originalSize.height);
       expect(image.location.y).toBe(originalLocation.y); // Y should not change
       
       // Reset for next test
-      board.resizeImage(imageId, false, 'bottom');
+      board.resizeBoardItem('image', imageId, { isGrow: false, side: 'bottom' });
       
       // Test top side resize
-      board.resizeImage(imageId, true, 'top');
-      image = board.getImage(imageId);
+      board.resizeBoardItem('image', imageId, { isGrow: true, side: 'top' });
+      image = board.getBoardItemByType('image', imageId);
       expect(image.height).toBeGreaterThan(originalSize.height);
       // Y location might change for top resize
     });
@@ -341,7 +341,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         ui: { nextClickCreatesConnector: true }
       };
 
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -462,7 +462,7 @@ describe("Image Interaction and Manipulation Tests", () => {
   describe("Image Selection Behavior", () => {
     it("should allow multiple images to be selected independently", () => {
       // Create multiple images
-      const imageId1 = board.putImage({ 
+      const imageId1 = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -472,7 +472,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 200
       });
 
-      const imageId2 = board.putImage({ 
+      const imageId2 = board.putBoardItem('image', { 
         location: { x: 300, y: 200 }, 
         width: 150, 
         height: 100,
@@ -482,7 +482,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 200
       });
 
-      const imageId3 = board.putImage({ 
+      const imageId3 = board.putBoardItem('image', { 
         location: { x: 500, y: 300 }, 
         width: 150, 
         height: 100,
@@ -493,9 +493,9 @@ describe("Image Interaction and Manipulation Tests", () => {
       });
 
       // Verify all images exist
-      expect(board.getImage(imageId1)).toBeDefined();
-      expect(board.getImage(imageId2)).toBeDefined();
-      expect(board.getImage(imageId3)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId1)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId2)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId3)).toBeDefined();
 
       // Test that each image can be selected independently
       // This test verifies that the imageHandlers are instance-specific
@@ -507,12 +507,12 @@ describe("Image Interaction and Manipulation Tests", () => {
       
       images.forEach((imageId, index) => {
         // Verify the image exists and can be accessed
-        const image = board.getImage(imageId);
+        const image = board.getBoardItemByType('image', imageId);
         expect(image).toBeDefined();
         expect(image.src).toBe(`test-image${index + 1}.jpg`);
         
         // Verify the image location is correct
-        const location = board.getImageLocation(imageId);
+        const location = board.getBoardItemLocationByType('image',imageId);
         expect(location.x).toBe(100 + (index * 200)); // 100, 300, 500
         expect(location.y).toBe(100 + (index * 100)); // 100, 200, 300
       });
@@ -523,7 +523,7 @@ describe("Image Interaction and Manipulation Tests", () => {
 
     it("should support multi-selection with shift key", () => {
       // Create multiple images
-      const imageId1 = board.putImage({ 
+      const imageId1 = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         src: "test-image1.jpg",
         dataUrl: "data:image/jpeg;base64,test1",
@@ -531,7 +531,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 160
       });
 
-      const imageId2 = board.putImage({ 
+      const imageId2 = board.putBoardItem('image', { 
         location: { x: 300, y: 200 }, 
         src: "test-image2.jpg",
         dataUrl: "data:image/jpeg;base64,test2",
@@ -539,7 +539,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 180
       });
 
-      const imageId3 = board.putImage({ 
+      const imageId3 = board.putBoardItem('image', { 
         location: { x: 500, y: 300 }, 
         src: "test-image3.jpg",
         dataUrl: "data:image/jpeg;base64,test3",
@@ -548,9 +548,9 @@ describe("Image Interaction and Manipulation Tests", () => {
       });
 
       // Verify all images exist
-      expect(board.getImage(imageId1)).toBeDefined();
-      expect(board.getImage(imageId2)).toBeDefined();
-      expect(board.getImage(imageId3)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId1)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId2)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId3)).toBeDefined();
 
       // Test multi-selection behavior
       // This test verifies that:
@@ -562,12 +562,12 @@ describe("Image Interaction and Manipulation Tests", () => {
       
       // Verify each image can be accessed independently
       images.forEach((imageId, index) => {
-        const image = board.getImage(imageId);
+        const image = board.getBoardItemByType('image', imageId);
         expect(image).toBeDefined();
         expect(image.src).toBe(`test-image${index + 1}.jpg`);
         
         // Verify the image location is correct
-        const location = board.getImageLocation(imageId);
+        const location = board.getBoardItemLocationByType('image',imageId);
         expect(location.x).toBe(100 + (index * 200)); // 100, 300, 500
         expect(location.y).toBe(100 + (index * 100)); // 100, 200, 300
       });
@@ -578,7 +578,7 @@ describe("Image Interaction and Manipulation Tests", () => {
 
     it("should support multi-image dragging", () => {
       // Create multiple images
-      const imageId1 = board.putImage({ 
+      const imageId1 = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         src: "test-image1.jpg",
         dataUrl: "data:image/jpeg;base64,test1",
@@ -586,7 +586,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 160
       });
 
-      const imageId2 = board.putImage({ 
+      const imageId2 = board.putBoardItem('image', { 
         location: { x: 300, y: 200 }, 
         src: "test-image2.jpg",
         dataUrl: "data:image/jpeg;base64,test2",
@@ -594,7 +594,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 180
       });
 
-      const imageId3 = board.putImage({ 
+      const imageId3 = board.putBoardItem('image', { 
         location: { x: 500, y: 300 }, 
         src: "test-image3.jpg",
         dataUrl: "data:image/jpeg;base64,test3",
@@ -603,9 +603,9 @@ describe("Image Interaction and Manipulation Tests", () => {
       });
 
       // Verify all images exist
-      expect(board.getImage(imageId1)).toBeDefined();
-      expect(board.getImage(imageId2)).toBeDefined();
-      expect(board.getImage(imageId3)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId1)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId2)).toBeDefined();
+      expect(board.getBoardItemByType('image',imageId3)).toBeDefined();
 
       // Test multi-image dragging behavior
       // This test verifies that:
@@ -617,23 +617,23 @@ describe("Image Interaction and Manipulation Tests", () => {
       
       // Verify each image can be accessed independently
       images.forEach((imageId, index) => {
-        const image = board.getImage(imageId);
+        const image = board.getBoardItemByType('image', imageId);
         expect(image).toBeDefined();
         expect(image.src).toBe(`test-image${index + 1}.jpg`);
         
         // Verify the image location is correct
-        const location = board.getImageLocation(imageId);
+        const location = board.getBoardItemLocationByType('image',imageId);
         expect(location.x).toBe(100 + (index * 200)); // 100, 300, 500
         expect(location.y).toBe(100 + (index * 100)); // 100, 200, 300
       });
 
       // Test that images can be moved independently
       // This verifies the movement-utils integration works
-      board.moveImage(imageId1, { x: 150, y: 150 });
-      board.moveImage(imageId2, { x: 350, y: 250 });
+      board.moveBoardItem('image',imageId1, { x: 150, y: 150 });
+      board.moveBoardItem('image',imageId2, { x: 350, y: 250 });
       
-      const location1 = board.getImageLocation(imageId1);
-      const location2 = board.getImageLocation(imageId2);
+      const location1 = board.getBoardItemLocationByType('image',imageId1);
+      const location2 = board.getBoardItemLocationByType('image',imageId2);
       
       expect(location1.x).toBe(150);
       expect(location1.y).toBe(150);
@@ -647,7 +647,7 @@ describe("Image Interaction and Manipulation Tests", () => {
 
     it("should maintain separate state for each image instance", () => {
       // Create two images at different locations with different natural dimensions
-      const imageId1 = board.putImage({ 
+      const imageId1 = board.putBoardItem('image', { 
         location: { x: 50, y: 50 }, 
         src: "test-image1.jpg",
         dataUrl: "data:image/jpeg;base64,test1",
@@ -655,7 +655,7 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 160
       });
 
-      const imageId2 = board.putImage({ 
+      const imageId2 = board.putBoardItem('image', { 
         location: { x: 200, y: 150 }, 
         src: "test-image2.jpg",
         dataUrl: "data:image/jpeg;base64,test2",
@@ -664,8 +664,8 @@ describe("Image Interaction and Manipulation Tests", () => {
       });
 
       // Verify each image maintains its own properties
-      const image1 = board.getImage(imageId1);
-      const image2 = board.getImage(imageId2);
+      const image1 = board.getBoardItemByType('image',imageId1);
+      const image2 = board.getBoardItemByType('image',imageId2);
 
       // Width/height are calculated by putImage based on natural dimensions
       expect(image1.width).toBeGreaterThan(0);
@@ -681,12 +681,12 @@ describe("Image Interaction and Manipulation Tests", () => {
       expect(image1.height).not.toBe(image2.height);
 
       // Move each image independently
-      board.moveImage(imageId1, { x: 60, y: 60 });
-      board.moveImage(imageId2, { x: 220, y: 170 });
+      board.moveBoardItem('image',imageId1, { x: 60, y: 60 });
+      board.moveBoardItem('image',imageId2, { x: 220, y: 170 });
 
       // Verify they moved independently
-      const location1 = board.getImageLocation(imageId1);
-      const location2 = board.getImageLocation(imageId2);
+      const location1 = board.getBoardItemLocationByType('image',imageId1);
+      const location2 = board.getBoardItemLocationByType('image',imageId2);
 
       expect(location1.x).toBe(60);
       expect(location1.y).toBe(60);
@@ -698,20 +698,20 @@ describe("Image Interaction and Manipulation Tests", () => {
   describe("Image Error Handling", () => {
     it("should handle non-existent image operations gracefully", () => {
       expect(() => {
-        board.getImage(999);
+        board.getBoardItemByType('image',999);
       }).toThrow();
 
       expect(() => {
-        board.moveImage(999, { x: 100, y: 100 });
+        board.moveBoardItem('image',999, { x: 100, y: 100 });
       }).toThrow();
 
       expect(() => {
-        board.resizeImage(999, true, 'right');
+        board.resizeBoardItem('image', 999, { isGrow: true, side: 'right' });
       }).toThrow();
     });
 
     it("should handle invalid resize parameters", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 200, 
         height: 100,
@@ -723,12 +723,12 @@ describe("Image Interaction and Manipulation Tests", () => {
 
       // resizeImage doesn't validate the side parameter, it just uses default case
       expect(() => {
-        board.resizeImage(imageId, true, 'invalid-side');
+        board.resizeBoardItem('image', imageId, { isGrow: true, side: 'invalid-side' });
       }).not.toThrow();
     });
 
     it("should handle image deletion", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', { 
         location: { x: 100, y: 100 }, 
         width: 200, 
         height: 100,
@@ -738,12 +738,12 @@ describe("Image Interaction and Manipulation Tests", () => {
         naturalHeight: 200
       });
 
-      expect(board.getImage(imageId)).toBeDefined();
+      expect(board.getBoardItemByType('image', imageId)).toBeDefined();
       
-      board.deleteImage(imageId);
+      board.deleteBoardItem('image',imageId);
       
       expect(() => {
-        board.getImage(imageId);
+        board.getBoardItemByType('image', imageId);
       }).toThrow();
     });
   });

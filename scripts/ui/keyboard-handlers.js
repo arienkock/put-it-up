@@ -370,13 +370,13 @@ class KeyboardStateMachine extends StateMachine {
    */
   deleteSelectedItems() {
     this.selectedStickies.forEach((id) => {
-      this.board.deleteSticky(id);
+      this.board.deleteBoardItem('sticky', id);
     });
     this.selectedConnectors.forEach((id) => {
       this.board.deleteConnector(id);
     });
     this.selectedImages.forEach((id) => {
-      this.board.deleteImage(id);
+      this.board.deleteBoardItem('image', id);
     });
   }
   
@@ -473,13 +473,13 @@ export { KeyboardStateMachine };
  */
 export function deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages) {
   selectedStickies.forEach((id) => {
-    board.deleteSticky(id);
+    board.deleteBoardItem('sticky', id);
   });
   selectedConnectors.forEach((id) => {
     board.deleteConnector(id);
   });
   selectedImages.forEach((id) => {
-    board.deleteImage(id);
+    board.deleteBoardItem('image', id);
   });
 }
 

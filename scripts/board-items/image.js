@@ -30,7 +30,7 @@ export const createRenderer = (
     const container = getImageElement(
       domElement,
       imageId,
-      board.getImageLocation,
+      (id) => board.getBoardItemLocationByType('image', id),
       selectionManager,
       shouldDelete,
       store

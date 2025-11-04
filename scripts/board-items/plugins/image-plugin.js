@@ -11,22 +11,162 @@ export class ImagePlugin extends BoardItemPlugin {
     return createImageRenderer(board, domElement, selectionManager, itemsMovedByDragging, store);
   }
 
-  createItem(board, itemData) { return board.putImage(itemData); }
-  deleteItem(board, id) { return board.deleteImage(id); }
-  moveItem(board, id, location) { return board.moveImage(id, location); }
-  resizeItem(board, id, params) {
-    if (params && typeof params === 'object') {
-      if (typeof board.resizeImage === 'function') {
-        return board.resizeImage(id, params.isGrow, params.side);
+  createItem(board, itemData) {
+    const store = board.getStore();
+    const type = this.getType();
+    
+    // Validate image data
+    if (!itemData.dataUrl || !itemData.naturalWidth || !itemData.naturalHeight) {
+      throw new Error("Invalid image data");
+    }
+    
+    // Set initial size capped at 75% of viewport, maintaining aspect ratio
+    const maxWidth = window.innerWidth * 0.75;
+    const maxHeight = window.innerHeight * 0.75;
+    const aspectRatio = itemData.naturalWidth / itemData.naturalHeight;
+    
+    let width = itemData.naturalWidth;
+    let height = itemData.naturalHeight;
+    
+    if (width > maxWidth) {
+      width = maxWidth;
+      height = width / aspectRatio;
+    }
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+    
+    itemData.width = width;
+    itemData.height = height;
+    itemData.location = itemData.location || { x: 0, y: 0 };
+    
+    return store.createBoardItem(type, itemData);
+  }
+
+  deleteItem(board, id) {
+    const store = board.getStore();
+    const type = this.getType();
+    
+    // Delete all connectors attached to this image
+    const state = store.getState();
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      if (connector.originImageId == id || connector.destinationImageId == id) {
+        store.deleteConnector(connectorId);
       }
+    });
+    
+    store.deleteBoardItem(type, id);
+  }
+
+  moveItem(board, id, location) {
+    const store = board.getStore();
+    const type = this.getType();
+    
+    const image = store.getBoardItem(type, id);
+    const widthPx = image.width;
+    const heightPx = image.height;
+
+    // Snap images to grid just like stickies, while respecting boundaries
+    const snappedLocation = board.snapLocationWithSize(
+      location || { x: 0, y: 0 },
+      widthPx,
+      heightPx
+    );
+    
+    store.updateBoardItem(type, id, { location: snappedLocation });
+  }
+
+  resizeItem(board, id, params) {
+    if (params && typeof params === 'object' && params.isGrow !== undefined && params.side) {
+      const store = board.getStore();
+      const type = this.getType();
+      const image = store.getBoardItem(type, id);
+      const aspectRatio = image.naturalWidth / image.naturalHeight;
+      const sizeIncrement = 20; // pixels
+      const factor = params.isGrow ? 1 : -1;
+      const increment = sizeIncrement * factor;
+      
+      let newWidth = image.width;
+      let newHeight = image.height;
+      let location = { x: image.location.x, y: image.location.y };
+      
+      // Calculate new dimensions maintaining aspect ratio
+      switch (params.side) {
+        case "left":
+          newWidth += increment;
+          newHeight = newWidth / aspectRatio;
+          location.x -= (newWidth - image.width);
+          break;
+        case "right":
+          newWidth += increment;
+          newHeight = newWidth / aspectRatio;
+          break;
+        case "top":
+          newHeight += increment;
+          newWidth = newHeight * aspectRatio;
+          location.y -= (newHeight - image.height);
+          break;
+        case "bottom":
+          newHeight += increment;
+          newWidth = newHeight * aspectRatio;
+          break;
+        default:
+          return false;
+      }
+      
+      // Enforce minimum size
+      newWidth = Math.max(20, newWidth);
+      newHeight = Math.max(20, newHeight);
+      
+      // Check board boundaries
+      const { origin, limit } = board.getBoardBounds();
+      if (location.x < origin.x) {
+        location.x = origin.x;
+      }
+      if (location.y < origin.y) {
+        location.y = origin.y;
+      }
+      if (location.x + newWidth > limit.x) {
+        newWidth = limit.x - location.x;
+        newHeight = newWidth / aspectRatio;
+      }
+      if (location.y + newHeight > limit.y) {
+        newHeight = limit.y - location.y;
+        newWidth = newHeight * aspectRatio;
+      }
+      
+      store.updateBoardItem(type, id, { width: newWidth, height: newHeight, location });
+      return true;
     }
     return false;
   }
-  getItem(board, id) { return board.getImage(id); }
-  getLocation(board, id) { return board.getImageLocation(id); }
-  updateItem(board, id, updates) {
-    // Currently images have no generic updates here
+
+  getItem(board, id) {
+    const store = board.getStore();
+    const type = this.getType();
+    return store.getBoardItem(type, id);
   }
+
+  getLocation(board, id) {
+    const item = this.getItem(board, id);
+    return item.location;
+  }
+
+  updateItem(board, id, updates) {
+    const store = board.getStore();
+    const type = this.getType();
+    const updateData = {};
+    
+    if ('width' in updates) updateData.width = updates.width;
+    if ('height' in updates) updateData.height = updates.height;
+    if ('location' in updates) updateData.location = updates.location;
+    
+    if (Object.keys(updateData).length > 0) {
+      store.updateBoardItem(type, id, updateData);
+    }
+  }
+
   isItem(itemData) { return !!(itemData && typeof itemData.width === 'number' && typeof itemData.height === 'number'); }
   isElement(element) { return element?.classList?.contains('image-container'); }
   getBounds(item, boardOrigin) {

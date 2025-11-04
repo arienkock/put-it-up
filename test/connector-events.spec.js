@@ -128,8 +128,8 @@ describe("Connector Events Logic Tests", () => {
 
   describe("Connector Creation Logic", () => {
     it("should create connector with correct properties", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
         originId: sticky1Id,
@@ -161,7 +161,7 @@ describe("Connector Events Logic Tests", () => {
     });
 
     it("should create connector with mixed endpoints", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
 
       const connectorId = board.putConnector({
         originId: stickyId,
@@ -195,7 +195,7 @@ describe("Connector Events Logic Tests", () => {
     });
 
     it("should connect endpoint to sticky", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
       const connectorId = board.putConnector({
         originPoint: { x: 50, y: 50 },
         destinationPoint: { x: 200, y: 200 },
@@ -212,7 +212,7 @@ describe("Connector Events Logic Tests", () => {
     });
 
     it("should connect endpoint to image", () => {
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', {
         location: { x: 100, y: 100 }, 
         width: 100, 
         height: 100,
@@ -258,7 +258,7 @@ describe("Connector Events Logic Tests", () => {
     });
 
     it("should move connector with one connected endpoint", () => {
-      const stickyId = board.putSticky({ text: "sticky", location: { x: 100, y: 100 } });
+      const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
       
       const connectorId = board.putConnector({
         originId: stickyId,
@@ -279,8 +279,8 @@ describe("Connector Events Logic Tests", () => {
     });
 
     it("should not move fully connected connector", () => {
-      const sticky1Id = board.putSticky({ text: "sticky1", location: { x: 100, y: 100 } });
-      const sticky2Id = board.putSticky({ text: "sticky2", location: { x: 200, y: 200 } });
+      const sticky1Id = board.putBoardItem('sticky', { text: "sticky1", location: { x: 100, y: 100 } });
+      const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
         originId: sticky1Id,

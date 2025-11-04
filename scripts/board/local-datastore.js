@@ -311,6 +311,83 @@ export class LocalDatastore {
       return false;
     }
   };
+
+  // Generic board item methods
+  _getStorageKeyForType(type) {
+    const typeMap = {
+      'sticky': 'stickies',
+      'image': 'images'
+    };
+    return typeMap[type] || null;
+  }
+
+  _getIdGenKeyForType(type) {
+    const idGenMap = {
+      'sticky': 'idGen',
+      'image': 'imageIdGen'
+    };
+    return idGenMap[type] || null;
+  }
+
+  createBoardItem = (type, data) => {
+    const storageKey = this._getStorageKeyForType(type);
+    const idGenKey = this._getIdGenKeyForType(type);
+    if (!storageKey || !idGenKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    const state = getAppState();
+    const id = ++state[idGenKey];
+    state[storageKey][id] = data;
+    this.notifyBoardItemChange(type, id.toString());
+    return id.toString();
+  };
+
+  getBoardItem = (type, id) => {
+    const storageKey = this._getStorageKeyForType(type);
+    if (!storageKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    const item = getAppState()[storageKey][id];
+    if (!item) {
+      throw new Error(`No such ${type} id=${id}`);
+    }
+    return item;
+  };
+
+  deleteBoardItem = (type, id) => {
+    const storageKey = this._getStorageKeyForType(type);
+    if (!storageKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    const state = getAppState();
+    delete state[storageKey][id];
+    this.notifyBoardItemChange(type, id);
+  };
+
+  updateBoardItem = (type, id, updates) => {
+    const storageKey = this._getStorageKeyForType(type);
+    if (!storageKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    const item = this.getBoardItem(type, id);
+    Object.assign(item, updates);
+    this.notifyBoardItemChange(type, id);
+  };
+
+  notifyBoardItemChange = (type, id) => {
+    // Maintain backward compatibility with old observer methods
+    this.observers.forEach((o) => {
+      if (o.onBoardItemChange) {
+        o.onBoardItemChange(type, id);
+      }
+      // Also call type-specific methods for backward compatibility
+      if (type === 'sticky' && o.onStickyChange) {
+        o.onStickyChange(id);
+      } else if (type === 'image' && o.onImageChange) {
+        o.onImageChange(id);
+      }
+    });
+  };
 }
 
 function clone(data) {

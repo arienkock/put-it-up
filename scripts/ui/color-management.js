@@ -1,3 +1,5 @@
+import { getPlugin } from '../board-items/plugin-registry.js';
+
 export const stickyColorPalette = [
   "khaki",
   "#F8C471",
@@ -41,7 +43,10 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
     
     // Update selected stickies
     selectedStickies.forEach((id) => {
-      board.updateColor(id, newColor);
+      const plugin = getPlugin('sticky');
+      if (plugin) {
+        plugin.updateItem(board, id, { color: newColor });
+      }
     });
     
     // Update selected connectors
@@ -124,7 +129,14 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
 
   function selectedColors() {
     const colors = [];
-    selectedStickies.forEach((id) => colors.push(board.getSticky(id).color));
+    selectedStickies.forEach((id) => {
+      try {
+        const sticky = board.getBoardItemByType('sticky', id);
+        colors.push(sticky.color);
+      } catch (e) {
+        // Item not found
+      }
+    });
     if (selectedConnectors) {
       selectedConnectors.forEach((id) => {
         const connector = board.getConnector(id);

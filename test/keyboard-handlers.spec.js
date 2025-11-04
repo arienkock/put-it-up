@@ -658,9 +658,8 @@ describe("deleteSelectedItems", () => {
 
   beforeEach(() => {
     board = {
-      deleteSticky: jest.fn(),
-      deleteConnector: jest.fn(),
-      deleteImage: jest.fn()
+      deleteBoardItem: jest.fn(),
+      deleteConnector: jest.fn()
     };
     
     selectedStickies = {
@@ -682,8 +681,8 @@ describe("deleteSelectedItems", () => {
     
     deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
     
-    expect(board.deleteSticky).toHaveBeenCalledWith('sticky1');
-    expect(board.deleteSticky).toHaveBeenCalledWith('sticky2');
+    expect(board.deleteBoardItem).toHaveBeenCalledWith('sticky', 'sticky1');
+    expect(board.deleteBoardItem).toHaveBeenCalledWith('sticky', 'sticky2');
   });
 
   it("should delete all selected connectors", () => {
@@ -706,15 +705,14 @@ describe("deleteSelectedItems", () => {
     
     deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
     
-    expect(board.deleteImage).toHaveBeenCalledWith('image1');
-    expect(board.deleteImage).toHaveBeenCalledWith('image2');
+    expect(board.deleteBoardItem).toHaveBeenCalledWith('image', 'image1');
+    expect(board.deleteBoardItem).toHaveBeenCalledWith('image', 'image2');
   });
 
   it("should handle empty selections", () => {
     deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
     
-    expect(board.deleteSticky).not.toHaveBeenCalled();
+    expect(board.deleteBoardItem).not.toHaveBeenCalled();
     expect(board.deleteConnector).not.toHaveBeenCalled();
-    expect(board.deleteImage).not.toHaveBeenCalled();
   });
 });

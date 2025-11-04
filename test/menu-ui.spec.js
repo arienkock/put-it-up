@@ -364,7 +364,7 @@ describe("Menu Button Functionality Tests", () => {
   describe("Menu Button Integration", () => {
     it("should work with board state changes", () => {
       // Create a sticky
-      const stickyId = board.putSticky({ 
+      const stickyId = board.putBoardItem('sticky', { 
         text: "test sticky", 
         location: { x: 100, y: 100 } 
       });
@@ -379,7 +379,7 @@ describe("Menu Button Functionality Tests", () => {
       expect(shouldShowStickySizeButton).toBe(true);
 
       // Add another sticky and select both
-      const sticky2Id = board.putSticky({ 
+      const sticky2Id = board.putBoardItem('sticky', { 
         text: "test sticky 2", 
         location: { x: 200, y: 200 } 
       });
@@ -391,15 +391,15 @@ describe("Menu Button Functionality Tests", () => {
     });
 
     it("should handle rapid selection changes", () => {
-      const sticky1Id = board.putSticky({ 
+      const sticky1Id = board.putBoardItem('sticky', { 
         text: "sticky 1", 
         location: { x: 100, y: 100 } 
       });
-      const sticky2Id = board.putSticky({ 
+      const sticky2Id = board.putBoardItem('sticky', { 
         text: "sticky 2", 
         location: { x: 200, y: 200 } 
       });
-      const sticky3Id = board.putSticky({ 
+      const sticky3Id = board.putBoardItem('sticky', { 
         text: "sticky 3", 
         location: { x: 300, y: 300 } 
       });

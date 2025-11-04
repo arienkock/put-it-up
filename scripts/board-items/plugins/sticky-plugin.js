@@ -11,27 +11,113 @@ export class StickyPlugin extends BoardItemPlugin {
     return createStickyRenderer(board, domElement, selectionManager, itemsMovedByDragging, store);
   }
 
-  createItem(board, itemData) { return board.putSticky(itemData); }
-  deleteItem(board, id) { return board.deleteSticky(id); }
-  moveItem(board, id, location) { return board.moveSticky(id, location); }
-  resizeItem(board, id, params) {
-    // Stickies resize via updateSize + setLocation; board exposes update via store operations
-    if (params && params.size) {
-      if (board?.getStore?.()) {
-        const store = board.getStore();
-        store.updateSize(id, params.size);
-        if (params.location) store.setLocation(id, params.location);
-        return true;
+  createItem(board, itemData) {
+    const store = board.getStore();
+    const type = this.getType();
+    
+    // Normalize text
+    itemData.text = itemData.text || "";
+    itemData.text = board.removeNewlines(itemData.text);
+    
+    // Calculate size
+    const sizeUnits = (itemData.size && { x: itemData.size.x || 1, y: itemData.size.y || 1 }) || { x: 1, y: 1 };
+    const sizeIncrements = { x: 70, y: 70 };
+    const widthPx = sizeIncrements.x * sizeUnits.x;
+    const heightPx = sizeIncrements.y * sizeUnits.y;
+    
+    // Snap location
+    itemData.location = board.snapLocationWithSize(
+      itemData.location || { x: 0, y: 0 },
+      widthPx,
+      heightPx
+    );
+    
+    return store.createBoardItem(type, itemData);
+  }
+
+  deleteItem(board, id) {
+    const store = board.getStore();
+    const type = this.getType();
+    
+    // Delete all connectors attached to this sticky
+    const state = store.getState();
+    Object.entries(state.connectors).forEach(([connectorId, connector]) => {
+      if (connector.originId == id || connector.destinationId == id) {
+        store.deleteConnector(connectorId);
       }
+    });
+    
+    store.deleteBoardItem(type, id);
+  }
+
+  moveItem(board, id, location) {
+    const store = board.getStore();
+    const type = this.getType();
+    
+    const sticky = store.getBoardItem(type, id);
+    const sizeUnits = (sticky.size && { x: sticky.size.x || 1, y: sticky.size.y || 1 }) || { x: 1, y: 1 };
+    const sizeIncrements = { x: 70, y: 70 };
+    const widthPx = sizeIncrements.x * sizeUnits.x;
+    const heightPx = sizeIncrements.y * sizeUnits.y;
+    
+    const snappedLocation = board.snapLocationWithSize(
+      location || { x: 0, y: 0 },
+      widthPx,
+      heightPx
+    );
+    
+    store.updateBoardItem(type, id, { location: snappedLocation });
+  }
+
+  resizeItem(board, id, params) {
+    if (params && params.size) {
+      const store = board.getStore();
+      const type = this.getType();
+      store.updateBoardItem(type, id, { size: params.size });
+      if (params.location) {
+        store.updateBoardItem(type, id, { location: params.location });
+      }
+      return true;
     }
     return false;
   }
-  getItem(board, id) { return board.getSticky(id); }
-  getLocation(board, id) { return board.getStickyLocation(id); }
-  updateItem(board, id, updates) {
-    if ('text' in updates) board.updateText(id, updates.text);
-    if ('color' in updates) board.updateColor(id, updates.color);
+
+  getItem(board, id) {
+    const store = board.getStore();
+    const type = this.getType();
+    return store.getBoardItem(type, id);
   }
+
+  getLocation(board, id) {
+    const item = this.getItem(board, id);
+    return item.location;
+  }
+
+  updateItem(board, id, updates) {
+    const store = board.getStore();
+    const type = this.getType();
+    const updateData = {};
+    
+    if ('text' in updates) {
+      let text = updates.text || "";
+      text = board.removeNewlines(text);
+      updateData.text = text;
+    }
+    if ('color' in updates) {
+      updateData.color = updates.color;
+    }
+    if ('size' in updates) {
+      updateData.size = updates.size;
+    }
+    if ('location' in updates) {
+      updateData.location = updates.location;
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      store.updateBoardItem(type, id, updateData);
+    }
+  }
+
   isItem(itemData) { return !!(itemData && typeof itemData.text === 'string'); }
   isElement(element) { return element?.classList?.contains('sticky-container'); }
   getBounds(item, boardOrigin, options) {
@@ -47,5 +133,6 @@ export class StickyPlugin extends BoardItemPlugin {
     };
   }
 }
+
 
 

@@ -252,7 +252,12 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     if (selectedStickies.hasItems() && selectedStickies.size() === 1) {
       let selectedStickyId;
       selectedStickies.forEach((id) => (selectedStickyId = id));
-      const sticky = board.getStickySafe(selectedStickyId);
+      let sticky;
+      try {
+        sticky = board.getBoardItemByType('sticky', selectedStickyId);
+      } catch (e) {
+        sticky = null;
+      }
       if (sticky && sticky.color) {
         appState.ui.currentStickyColor = sticky.color;
         appState.ui.currentColor = sticky.color; // Legacy compatibility

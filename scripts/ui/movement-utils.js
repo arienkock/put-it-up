@@ -86,21 +86,21 @@ export function getEventPageCoordinates(event) {
 export function moveItem(id, dx, dy, board, type) {
   switch (type) {
     case 'sticky':
-      const stickyLocation = board.getStickyLocation(id);
+      const stickyLocation = board.getBoardItemLocationByType('sticky', id);
       const newStickyLocation = {
         x: stickyLocation.x + dx,
         y: stickyLocation.y + dy,
       };
-      board.moveSticky(id, newStickyLocation);
+      board.moveBoardItem('sticky', id, newStickyLocation);
       break;
       
     case 'image':
-      const imageLocation = board.getImageLocation(id);
+      const imageLocation = board.getBoardItemLocationByType('image', id);
       const newImageLocation = {
         x: imageLocation.x + dx,
         y: imageLocation.y + dy,
       };
-      board.moveImage(id, newImageLocation);
+      board.moveBoardItem('image', id, newImageLocation);
       break;
       
     case 'connector':
@@ -128,14 +128,14 @@ export function moveSelection(dx, dy, board, selectedStickies, selectedImages, s
   const stickyOriginalLocations = new Map();
   selectedStickies.forEach((id) => {
     stickyIds.push(id);
-    stickyOriginalLocations.set(id, board.getStickyLocation(id));
+    stickyOriginalLocations.set(id, board.getBoardItemLocationByType('sticky', id));
   });
   
   const imageIds = [];
   const imageOriginalLocations = new Map();
   selectedImages.forEach((id) => {
     imageIds.push(id);
-    imageOriginalLocations.set(id, board.getImageLocation(id));
+    imageOriginalLocations.set(id, board.getBoardItemLocationByType('image', id));
   });
   
   // Move stickies
@@ -160,7 +160,7 @@ export function moveSelection(dx, dy, board, selectedStickies, selectedImages, s
   
   stickyIds.forEach((id) => {
     const originalLocation = stickyOriginalLocations.get(id);
-    const newLocation = board.getStickyLocation(id);
+    const newLocation = board.getBoardItemLocationByType('sticky', id);
     const actualDeltaX = newLocation.x - originalLocation.x;
     const actualDeltaY = newLocation.y - originalLocation.y;
     
@@ -169,13 +169,13 @@ export function moveSelection(dx, dy, board, selectedStickies, selectedImages, s
     const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
     
     if (movementDistance > movementThreshold) {
-      board.moveConnectorsConnectedToItems([id], [], actualDeltaX, actualDeltaY, movedConnectors);
+      board.moveConnectorsConnectedToItems({ 'sticky': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
     }
   });
   
   imageIds.forEach((id) => {
     const originalLocation = imageOriginalLocations.get(id);
-    const newLocation = board.getImageLocation(id);
+    const newLocation = board.getBoardItemLocationByType('image', id);
     const actualDeltaX = newLocation.x - originalLocation.x;
     const actualDeltaY = newLocation.y - originalLocation.y;
     
@@ -184,7 +184,7 @@ export function moveSelection(dx, dy, board, selectedStickies, selectedImages, s
     const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
     
     if (movementDistance > movementThreshold) {
-      board.moveConnectorsConnectedToItems([], [id], actualDeltaX, actualDeltaY, movedConnectors);
+      board.moveConnectorsConnectedToItems({ 'image': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
     }
   });
 }
@@ -273,10 +273,10 @@ export function moveItemFromOriginal(id, originalLocation, dx, dy, board, type) 
   
   switch (type) {
     case 'sticky':
-      board.moveSticky(id, newLocation);
+      board.moveBoardItem('sticky', id, newLocation);
       break;
     case 'image':
-      board.moveImage(id, newLocation);
+      board.moveBoardItem('image', id, newLocation);
       break;
     case 'connector':
       board.moveConnector(id, dx, dy);

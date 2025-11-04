@@ -1,5 +1,6 @@
 import { Board } from "../scripts/board/board.js";
 import { LocalDatastore } from "../scripts/board/local-datastore.js";
+import { getPlugin } from "../scripts/board-items/plugin-registry.js";
 
 // Mock window global for unit tests that import modules directly
 if (typeof window === 'undefined') {
@@ -13,53 +14,66 @@ beforeEach(() => {
 
 it("snapping", () => {
   const b = new Board(new LocalDatastore());
-  let id = b.putSticky({ text: "hey", location: { x: 28, y: 28 } });
-  expect(b.getStickyLocation(id)).toEqual({ x: 30, y: 30 });
-  id = b.putSticky({ text: "hey", location: { x: 45, y: 45 } });
-  expect(b.getStickyLocation(id)).toEqual({ x: 50, y: 50 });
+  let id = b.putBoardItem('sticky', { text: "hey", location: { x: 28, y: 28 } });
+  expect(b.getBoardItemLocationByType('sticky', id)).toEqual({ x: 30, y: 30 });
+  id = b.putBoardItem('sticky', { text: "hey", location: { x: 45, y: 45 } });
+  expect(b.getBoardItemLocationByType('sticky', id)).toEqual({ x: 50, y: 50 });
 });
 
 it("expect throwing behavior", () => {
   const b = new Board(new LocalDatastore());
-  expect(() => b.moveSticky(1, { x: 0, y: 0 })).toThrow("No such sticky id=1");
-  expect(() => b.updateText(2, "test")).toThrow("No such sticky id=2");
+  expect(() => b.moveBoardItem('sticky', 1, { x: 0, y: 0 })).toThrow("No such sticky id=1");
+  const plugin = getPlugin('sticky');
+  expect(() => plugin.updateItem(b, 2, { text: "test" })).toThrow("No such sticky id=2");
 });
 
 it("getStickySafe returns undefined for non-existent sticky", () => {
   const b = new Board(new LocalDatastore());
-  expect(b.getStickySafe(999)).toBeUndefined();
+  try {
+    b.getBoardItemByType('sticky', 999);
+    expect(false).toBe(true); // Should not reach here
+  } catch (e) {
+    expect(e.message).toContain("No such sticky");
+  }
 });
 
 it("getStickySafe returns sticky for existing sticky", () => {
   const b = new Board(new LocalDatastore());
-  const id = b.putSticky({ text: "test", location: { x: 50, y: 50 } });
-  const sticky = b.getStickySafe(id);
+  const id = b.putBoardItem('sticky', { text: "test", location: { x: 50, y: 50 } });
+  const sticky = b.getBoardItemByType('sticky', id);
   expect(sticky).toBeDefined();
   expect(sticky.text).toBe("test");
 });
 
 it("deleteSticky removes sticky from board", () => {
   const b = new Board(new LocalDatastore());
-  const id = b.putSticky({ text: "delete me", location: { x: 50, y: 50 } });
-  expect(b.getStickySafe(id)).toBeDefined();
-  b.deleteSticky(id);
-  expect(b.getStickySafe(id)).toBeUndefined();
+  const id = b.putBoardItem('sticky', { text: "delete me", location: { x: 50, y: 50 } });
+  expect(b.getBoardItemByType('sticky', id)).toBeDefined();
+  b.deleteBoardItem('sticky', id);
+  try {
+    b.getBoardItemByType('sticky', id);
+    expect(false).toBe(true); // Should not reach here
+  } catch (e) {
+    expect(e.message).toContain("No such sticky");
+  }
 });
 
 it("updateColor changes sticky color", () => {
   const b = new Board(new LocalDatastore());
-  const id = b.putSticky({ text: "colorful", location: { x: 50, y: 50 } });
-  b.updateColor(id, "red");
-  expect(b.getSticky(id).color).toBe("red");
-  b.updateColor(id, "blue");
-  expect(b.getSticky(id).color).toBe("blue");
+  const id = b.putBoardItem('sticky', { text: "colorful", location: { x: 50, y: 50 } });
+  const plugin = getPlugin('sticky');
+  plugin.updateItem(b, id, { color: "red" });
+  expect(b.getBoardItemByType('sticky', id).color).toBe("red");
+  plugin.updateItem(b, id, { color: "blue" });
+  expect(b.getBoardItemByType('sticky', id).color).toBe("blue");
 });
 
 it("getState and setState preserve board state", () => {
   const b = new Board(new LocalDatastore());
-  const id1 = b.putSticky({ text: "first", location: { x: 50, y: 50 } });
-  const id2 = b.putSticky({ text: "second", location: { x: 100, y: 100 } });
-  b.updateColor(id1, "red");
+  const id1 = b.putBoardItem('sticky', { text: "first", location: { x: 50, y: 50 } });
+  const id2 = b.putBoardItem('sticky', { text: "second", location: { x: 100, y: 100 } });
+  const plugin = getPlugin('sticky');
+  plugin.updateItem(b, id1, { color: "red" });
   
   const state = b.getState();
   expect(state.stickies[id1]).toBeDefined();
@@ -69,9 +83,9 @@ it("getState and setState preserve board state", () => {
   
   const b2 = new Board(new LocalDatastore());
   b2.setState(state);
-  expect(b2.getSticky(id1).text).toBe("first");
-  expect(b2.getSticky(id2).text).toBe("second");
-  expect(b2.getSticky(id1).color).toBe("red");
+  expect(b2.getBoardItemByType('sticky', id1).text).toBe("first");
+  expect(b2.getBoardItemByType('sticky', id2).text).toBe("second");
+  expect(b2.getBoardItemByType('sticky', id1).color).toBe("red");
 });
 
 it("getBoardSize returns correct dimensions", () => {
@@ -90,30 +104,32 @@ it("getOrigin returns board origin", () => {
 
 it("removes newlines from text", () => {
   const b = new Board(new LocalDatastore());
-  const id = b.putSticky({ text: "line1\nline2\nline3", location: { x: 50, y: 50 } });
-  expect(b.getSticky(id).text).toBe("line1line2line3");
+  const id = b.putBoardItem('sticky', { text: "line1\nline2\nline3", location: { x: 50, y: 50 } });
+  expect(b.getBoardItemByType('sticky', id).text).toBe("line1line2line3");
   
-  b.updateText(id, "new\ntext\nhere");
-  expect(b.getSticky(id).text).toBe("newtexthere");
+  const plugin = getPlugin('sticky');
+  plugin.updateItem(b, id, { text: "new\ntext\nhere" });
+  expect(b.getBoardItemByType('sticky', id).text).toBe("newtexthere");
 });
 
 it("handles empty text gracefully", () => {
   const b = new Board(new LocalDatastore());
-  const id = b.putSticky({ location: { x: 50, y: 50 } });
-  expect(b.getSticky(id).text).toBe("");
+  const id = b.putBoardItem('sticky', { location: { x: 50, y: 50 } });
+  expect(b.getBoardItemByType('sticky', id).text).toBe("");
   
-  b.updateText(id, "");
-  expect(b.getSticky(id).text).toBe("");
+  const plugin = getPlugin('sticky');
+  plugin.updateItem(b, id, { text: "" });
+  expect(b.getBoardItemByType('sticky', id).text).toBe("");
   
-  b.updateText(id, null);
-  expect(b.getSticky(id).text).toBe("");
+  plugin.updateItem(b, id, { text: null });
+  expect(b.getBoardItemByType('sticky', id).text).toBe("");
 });
 
 it("snaps negative coordinates to origin", () => {
   const b = new Board(new LocalDatastore());
   const origin = b.getOrigin();
-  const id = b.putSticky({ text: "negative", location: { x: -100, y: -100 } });
-  const location = b.getStickyLocation(id);
+  const id = b.putBoardItem('sticky', { text: "negative", location: { x: -100, y: -100 } });
+  const location = b.getBoardItemLocationByType('sticky', id);
   expect(location.x).toBe(origin.x);
   expect(location.y).toBe(origin.y);
 });
@@ -121,8 +137,8 @@ it("snaps negative coordinates to origin", () => {
 it("snaps coordinates exceeding board limits", () => {
   const b = new Board(new LocalDatastore());
   const size = b.getBoardSize();
-  const id = b.putSticky({ text: "far", location: { x: 10000, y: 10000 } });
-  const location = b.getStickyLocation(id);
+  const id = b.putBoardItem('sticky', { text: "far", location: { x: 10000, y: 10000 } });
+  const location = b.getBoardItemLocationByType('sticky', id);
   expect(location.x).toBeLessThanOrEqual(size.width);
   expect(location.y).toBeLessThanOrEqual(size.height);
 });
@@ -136,7 +152,7 @@ describe("LocalDatastore", () => {
     };
     store.addObserver(observer);
     
-    const id = store.createSticky({ text: "new", location: { x: 50, y: 50 } });
+    const id = store.createBoardItem('sticky', { text: "new", location: { x: 50, y: 50 } });
     expect(observer.onStickyChange).toHaveBeenCalledWith(id);
     expect(observer.onStickyChange).toHaveBeenCalledTimes(1);
   });
@@ -147,11 +163,11 @@ describe("LocalDatastore", () => {
       onStickyChange: jest.fn(),
       onBoardChange: jest.fn(),
     };
-    const id = store.createSticky({ text: "initial", location: { x: 50, y: 50 } });
+    const id = store.createBoardItem('sticky', { text: "initial", location: { x: 50, y: 50 } });
     observer.onStickyChange.mockClear();
     
     store.addObserver(observer);
-    store.updateText(id, "updated");
+    store.updateBoardItem('sticky', id, { text: "updated" });
     
     expect(observer.onStickyChange).toHaveBeenCalledWith(id);
     expect(observer.onStickyChange).toHaveBeenCalledTimes(1);
@@ -163,11 +179,11 @@ describe("LocalDatastore", () => {
       onStickyChange: jest.fn(),
       onBoardChange: jest.fn(),
     };
-    const id = store.createSticky({ text: "colorful", location: { x: 50, y: 50 } });
+    const id = store.createBoardItem('sticky', { text: "colorful", location: { x: 50, y: 50 } });
     observer.onStickyChange.mockClear();
     
     store.addObserver(observer);
-    store.updateColor(id, "red");
+    store.updateBoardItem('sticky', id, { color: "red" });
     
     expect(observer.onStickyChange).toHaveBeenCalledWith(id);
     expect(observer.onStickyChange).toHaveBeenCalledTimes(1);
@@ -179,11 +195,11 @@ describe("LocalDatastore", () => {
       onStickyChange: jest.fn(),
       onBoardChange: jest.fn(),
     };
-    const id = store.createSticky({ text: "moving", location: { x: 50, y: 50 } });
+    const id = store.createBoardItem('sticky', { text: "moving", location: { x: 50, y: 50 } });
     observer.onStickyChange.mockClear();
     
     store.addObserver(observer);
-    store.setLocation(id, { x: 100, y: 100 });
+    store.updateBoardItem('sticky', id, { location: { x: 100, y: 100 } });
     
     expect(observer.onStickyChange).toHaveBeenCalledWith(id);
     expect(observer.onStickyChange).toHaveBeenCalledTimes(1);
@@ -195,11 +211,11 @@ describe("LocalDatastore", () => {
       onStickyChange: jest.fn(),
       onBoardChange: jest.fn(),
     };
-    const id = store.createSticky({ text: "delete me", location: { x: 50, y: 50 } });
+    const id = store.createBoardItem('sticky', { text: "delete me", location: { x: 50, y: 50 } });
     observer.onStickyChange.mockClear();
     
     store.addObserver(observer);
-    store.deleteSticky(id);
+    store.deleteBoardItem('sticky', id);
     
     expect(observer.onStickyChange).toHaveBeenCalledWith(id);
     expect(observer.onStickyChange).toHaveBeenCalledTimes(1);
@@ -234,7 +250,7 @@ describe("LocalDatastore", () => {
     store.addObserver(observer1);
     store.addObserver(observer2);
     
-    const id = store.createSticky({ text: "notify all", location: { x: 50, y: 50 } });
+    const id = store.createBoardItem('sticky', { text: "notify all", location: { x: 50, y: 50 } });
     
     expect(observer1.onStickyChange).toHaveBeenCalledWith(id);
     expect(observer2.onStickyChange).toHaveBeenCalledWith(id);
@@ -286,7 +302,7 @@ describe("LocalDatastore", () => {
     
     store.setState(state);
     
-    expect(store.getSticky(1).text).toBe("restored");
+    expect(store.getBoardItem('sticky', 1).text).toBe("restored");
     expect(observer.onBoardChange).toHaveBeenCalledTimes(1);
   });
 
@@ -297,9 +313,9 @@ describe("LocalDatastore", () => {
 
   it("increments idGen when creating stickies", () => {
     const store = new LocalDatastore();
-    const id1 = store.createSticky({ text: "first", location: { x: 50, y: 50 } });
-    const id2 = store.createSticky({ text: "second", location: { x: 100, y: 100 } });
-    const id3 = store.createSticky({ text: "third", location: { x: 150, y: 150 } });
+    const id1 = store.createBoardItem('sticky', { text: "first", location: { x: 50, y: 50 } });
+    const id2 = store.createBoardItem('sticky', { text: "second", location: { x: 100, y: 100 } });
+    const id3 = store.createBoardItem('sticky', { text: "third", location: { x: 150, y: 150 } });
     
     expect(parseInt(id2)).toBe(parseInt(id1) + 1);
     expect(parseInt(id3)).toBe(parseInt(id2) + 1);
@@ -312,18 +328,18 @@ describe("Text fitting on size changes", () => {
     const board = new Board(store);
     
     // Create a sticky with some text
-    const id = board.putSticky({ 
+    const id = board.putBoardItem('sticky', { 
       text: "This is a longer text that should fit better in a larger sticky", 
       location: { x: 100, y: 100 } 
     });
     
-    const sticky = store.getSticky(id);
+    const sticky = store.getBoardItem('sticky', id);
     expect(sticky.size).toBeUndefined(); // Default size is 1x1
     
     // Change the size
-    store.updateSize(id, { x: 2, y: 2 });
+    store.updateBoardItem('sticky', id, { size: { x: 2, y: 2 } });
     
-    const updatedSticky = store.getSticky(id);
+    const updatedSticky = store.getBoardItem('sticky', id);
     expect(updatedSticky.size).toEqual({ x: 2, y: 2 });
     
     // The size change should trigger a re-render which will call text fitting

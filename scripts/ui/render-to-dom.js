@@ -252,7 +252,7 @@ export function mount(board, root, Observer, store) {
               location: location
             };
             
-            const id = board.putImage(imageData);
+            const id = board.putBoardItem('image', imageData);
             selectedImages.replaceSelection(id);
             render();
           };
@@ -279,7 +279,7 @@ export function mount(board, root, Observer, store) {
             appState.ui.boardScale +
           origin.y,
       };
-      const id = board.putSticky({ color: appState.ui.currentStickyColor, location });
+      const id = board.putBoardItem('sticky', { color: appState.ui.currentStickyColor, location });
       selectedStickies.replaceSelection(id);
       renderBoard();
       renderMenu();

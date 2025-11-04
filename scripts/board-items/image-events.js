@@ -210,7 +210,7 @@ class ImageStateMachine extends StateMachine {
           stateData.resizeSide = resizeSide;
           stateData.resizeStart = { x: coords.clientX, y: coords.clientY };
           
-          const image = this.store.getImage(this.id);
+          const image = this.store.getBoardItem('image', this.id);
           stateData.originalSize = { width: image.width, height: image.height };
           stateData.aspectRatio = image.naturalWidth / image.naturalHeight;
           
@@ -450,8 +450,11 @@ class ImageStateMachine extends StateMachine {
     if (Math.abs(delta) >= 5) {
       const isGrow = delta > 0;
       
-      // Resize the image (this will be handled by the board)
-      window.board.resizeImage(this.stateData.imageId, isGrow, this.stateData.resizeSide);
+      // Resize the image using generic board method
+      const board = this.store.getAppState?.()?.board || window.board;
+      if (board && board.resizeBoardItem) {
+        board.resizeBoardItem('image', this.stateData.imageId, { isGrow, side: this.stateData.resizeSide });
+      }
       
       // Update resize start to prevent accumulation
       this.stateData.resizeStart = { x: coords.clientX, y: coords.clientY };

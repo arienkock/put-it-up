@@ -1065,6 +1065,97 @@ export class FirestoreStore {
       throw error;
     }
   }
+
+  // Generic board item methods
+  _getStorageKeyForType(type) {
+    const typeMap = {
+      'sticky': 'stickies',
+      'image': 'images'
+    };
+    return typeMap[type] || null;
+  }
+
+  _getCollectionRefForType(type) {
+    const refMap = {
+      'sticky': this.stickyRef,
+      'image': this.imageRef
+    };
+    return refMap[type] || null;
+  }
+
+  createBoardItem = (type, data) => {
+    const collectionRef = this._getCollectionRefForType(type);
+    if (!collectionRef) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    const docRef = collectionRef.doc();
+    docRef.set(data, { merge: true });
+    const storageKey = this._getStorageKeyForType(type);
+    getAppState()[storageKey][docRef.id] = data;
+    this.notifyBoardItemChange(type, docRef.id);
+    return docRef.id;
+  };
+
+  getBoardItem = (type, id) => {
+    const storageKey = this._getStorageKeyForType(type);
+    if (!storageKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    const item = getAppState()[storageKey][id];
+    if (!item) {
+      throw new Error(`No such ${type} id=${id}`);
+    }
+    return item;
+  };
+
+  deleteBoardItem = (type, id) => {
+    const collectionRef = this._getCollectionRefForType(type);
+    const storageKey = this._getStorageKeyForType(type);
+    if (!collectionRef || !storageKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    if (collectionRef) {
+      const docRef = collectionRef.doc(id);
+      // Cancel any pending writes for this document
+      this.debouncer.cancelWrite(docRef.path);
+      docRef.delete();
+    }
+    // Update local state immediately
+    const state = getAppState();
+    delete state[storageKey][id];
+    this.notifyBoardItemChange(type, id);
+  };
+
+  updateBoardItem = (type, id, updates) => {
+    const collectionRef = this._getCollectionRefForType(type);
+    const storageKey = this._getStorageKeyForType(type);
+    if (!collectionRef || !storageKey) {
+      throw new Error(`Unknown board item type: ${type}`);
+    }
+    if (collectionRef) {
+      const docRef = collectionRef.doc(id);
+      this.debouncer.debounceUpdate(docRef, updates);
+    }
+    // Update local state immediately
+    const item = this.getBoardItem(type, id);
+    Object.assign(item, updates);
+    this.notifyBoardItemChange(type, id);
+  };
+
+  notifyBoardItemChange = (type, id) => {
+    // Maintain backward compatibility with old observer methods
+    this.observers.forEach((o) => {
+      if (o.onBoardItemChange) {
+        o.onBoardItemChange(type, id);
+      }
+      // Also call type-specific methods for backward compatibility
+      if (type === 'sticky' && o.onStickyChange) {
+        o.onStickyChange(id);
+      } else if (type === 'image' && o.onImageChange) {
+        o.onImageChange(id);
+      }
+    });
+  };
 }
 
 function clone(data) {

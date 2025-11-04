@@ -458,7 +458,7 @@ describe("Event Handler Conflict and Propagation Tests", () => {
         ui: { nextClickCreatesConnector: true }
       };
 
-      const imageId = board.putImage({ 
+      const imageId = board.putBoardItem('image', {
         location: { x: 100, y: 100 }, 
         width: 150, 
         height: 100,
@@ -494,7 +494,7 @@ describe("Event Handler Conflict and Propagation Tests", () => {
         ui: { nextClickCreatesConnector: true }
       };
 
-      const stickyId = board.putSticky({ 
+      const stickyId = board.putBoardItem('sticky', { 
         text: "test sticky", 
         location: { x: 100, y: 100 } 
       });
