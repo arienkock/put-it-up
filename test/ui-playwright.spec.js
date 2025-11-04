@@ -416,6 +416,128 @@ describe("Board UI", () => {
       );
     });
 
+    it("adjusts scroll position to keep viewport center pointing at same board area when zoom changes", async () => {
+      // Wait for board to be ready
+      await page.waitForFunction(() => window.board && window.board.isReadyForUse());
+      await thingsSettleDown();
+
+      // First, zoom out to the smallest scale so we can then zoom in
+      // This ensures we're testing zoom in, which works better for scroll adjustment
+      await page.evaluate(() => {
+        // Set to smallest zoom level
+        const zoomScale = [0.3, 0.6, 1];
+        window.appState.ui.boardScale = zoomScale[0]; // 0.3
+        window.appState.ui.previousBoardScale = zoomScale[0];
+      });
+      await thingsSettleDown();
+
+      // Set initial scroll position at the smaller zoom level
+      await page.evaluate(() => {
+        const scrollContainer = document.querySelector('.board-scroll-container');
+        const viewportWidth = scrollContainer.clientWidth;
+        const viewportHeight = scrollContainer.clientHeight;
+        
+        // Set scroll to a reasonable position
+        scrollContainer.scrollLeft = 500;
+        scrollContainer.scrollTop = 300;
+      });
+      await thingsSettleDown();
+
+      // Get viewport center in board coordinates before zoom
+      const centerBeforeZoom = await page.evaluate(() => {
+        const scrollContainer = document.querySelector('.board-scroll-container');
+        const boardScale = window.appState.ui.boardScale || 1;
+        const origin = window.board.getOrigin();
+        const viewportWidth = scrollContainer.clientWidth;
+        const viewportHeight = scrollContainer.clientHeight;
+        const scrollLeft = scrollContainer.scrollLeft;
+        const scrollTop = scrollContainer.scrollTop;
+
+        // Calculate center of viewport in board coordinates
+        const centerBoardX = (scrollLeft + viewportWidth / 2) / boardScale + origin.x;
+        const centerBoardY = (scrollTop + viewportHeight / 2) / boardScale + origin.y;
+
+        return {
+          boardX: centerBoardX,
+          boardY: centerBoardY,
+          scrollLeft,
+          scrollTop,
+          viewportWidth,
+          viewportHeight,
+          boardScale
+        };
+      });
+
+      // Zoom in (press 'o' to cycle from 0.3 to 0.6)
+      await press("o");
+      await thingsSettleDown();
+
+      // Get viewport center in board coordinates after zoom
+      const centerAfterZoom = await page.evaluate(() => {
+        const scrollContainer = document.querySelector('.board-scroll-container');
+        const boardScale = window.appState.ui.boardScale || 1;
+        const origin = window.board.getOrigin();
+        const viewportWidth = scrollContainer.clientWidth;
+        const viewportHeight = scrollContainer.clientHeight;
+        const scrollLeft = scrollContainer.scrollLeft;
+        const scrollTop = scrollContainer.scrollTop;
+
+        // Calculate center of viewport in board coordinates
+        const centerBoardX = (scrollLeft + viewportWidth / 2) / boardScale + origin.x;
+        const centerBoardY = (scrollTop + viewportHeight / 2) / boardScale + origin.y;
+
+        return {
+          boardX: centerBoardX,
+          boardY: centerBoardY,
+          scrollLeft,
+          scrollTop,
+          viewportWidth,
+          viewportHeight,
+          boardScale
+        };
+      });
+
+
+      // Verify that the center point in board coordinates is the same (within tolerance for floating point and rounding)
+      // Use 1 pixel tolerance to account for rounding in scroll position calculations
+      expect(Math.abs(centerAfterZoom.boardX - centerBeforeZoom.boardX)).toBeLessThan(1);
+      expect(Math.abs(centerAfterZoom.boardY - centerBeforeZoom.boardY)).toBeLessThan(1);
+
+      // Verify that scroll position actually changed (since zoom changed)
+      expect(centerAfterZoom.boardScale).not.toBe(centerBeforeZoom.boardScale);
+      expect(centerAfterZoom.scrollLeft).not.toBe(centerBeforeZoom.scrollLeft);
+      expect(centerAfterZoom.scrollTop).not.toBe(centerBeforeZoom.scrollTop);
+
+      // Now test zoom out
+      await page.keyboard.down("Shift");
+      await press("O");
+      await page.keyboard.up("Shift");
+      await thingsSettleDown();
+
+      const centerAfterZoomOut = await page.evaluate(() => {
+        const scrollContainer = document.querySelector('.board-scroll-container');
+        const boardScale = window.appState.ui.boardScale || 1;
+        const origin = window.board.getOrigin();
+        const viewportWidth = scrollContainer.clientWidth;
+        const viewportHeight = scrollContainer.clientHeight;
+        const scrollLeft = scrollContainer.scrollLeft;
+        const scrollTop = scrollContainer.scrollTop;
+
+        const centerBoardX = (scrollLeft + viewportWidth / 2) / boardScale + origin.x;
+        const centerBoardY = (scrollTop + viewportHeight / 2) / boardScale + origin.y;
+
+        return {
+          boardX: centerBoardX,
+          boardY: centerBoardY,
+          boardScale
+        };
+      });
+
+      // Verify that after zooming out, the center point is still the same
+      expect(Math.abs(centerAfterZoomOut.boardX - centerBeforeZoom.boardX)).toBeLessThan(1);
+      expect(Math.abs(centerAfterZoomOut.boardY - centerBeforeZoom.boardY)).toBeLessThan(1);
+    });
+
   async function cycleZoom(zoomAction, reverseZoomAction) {
     for (let i = 0; i < 2; i++) {
       const boardBox = await page.locator(".board").boundingBox();

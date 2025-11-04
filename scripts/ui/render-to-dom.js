@@ -190,12 +190,65 @@ export function mount(board, root, Observer, store) {
   }
   
   function render() {
-    const scaleBefore = appState.ui.boardScale;
+    // Track previous scale to detect zoom changes
+    const currentScale = appState.ui.boardScale || zoomScale[zoomScale.length - 1];
+    // Initialize previous scale on first render if not set
+    if (appState.ui.previousBoardScale === undefined) {
+      appState.ui.previousBoardScale = currentScale;
+    }
+    const previousScale = appState.ui.previousBoardScale;
+    const scaleChanged = previousScale !== currentScale;
+    
+    // If zoom changed, capture the center point in board coordinates before applying zoom
+    let centerBoardX = null;
+    let centerBoardY = null;
+    if (scaleChanged && board.isReadyForUse()) {
+      const oldScale = previousScale || 1;
+      const origin = board.getOrigin();
+      const viewportWidth = boardScrollContainer.clientWidth;
+      const viewportHeight = boardScrollContainer.clientHeight;
+      const scrollLeft = boardScrollContainer.scrollLeft;
+      const scrollTop = boardScrollContainer.scrollTop;
+      
+      // Calculate center of viewport in board coordinates
+      centerBoardX = (scrollLeft + viewportWidth / 2) / oldScale + origin.x;
+      centerBoardY = (scrollTop + viewportHeight / 2) / oldScale + origin.y;
+    }
+    
     renderBoard();
-    const scaleAfter = appState.ui.boardScale;
+    const scaleAfter = appState.ui.boardScale || zoomScale[zoomScale.length - 1];
+    
+    // Adjust scroll position if zoom changed to keep center point the same
+    if (scaleChanged && centerBoardX !== null && centerBoardY !== null && board.isReadyForUse()) {
+      const newScale = scaleAfter || 1;
+      const origin = board.getOrigin();
+      // Re-read viewport dimensions after renderBoard() in case they changed
+      const viewportWidth = boardScrollContainer.clientWidth;
+      const viewportHeight = boardScrollContainer.clientHeight;
+      
+      // Calculate new scroll position to keep the same board coordinate at center
+      const newScrollLeft = (centerBoardX - origin.x) * newScale - viewportWidth / 2;
+      const newScrollTop = (centerBoardY - origin.y) * newScale - viewportHeight / 2;
+      
+      // Get max scroll to ensure we don't scroll beyond bounds
+      const maxScrollLeft = Math.max(0, boardScrollContainer.scrollWidth - viewportWidth);
+      const maxScrollTop = Math.max(0, boardScrollContainer.scrollHeight - viewportHeight);
+      
+      // Apply scroll adjustment instantly, clamped to valid range
+      const finalScrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft));
+      const finalScrollTop = Math.max(0, Math.min(maxScrollTop, newScrollTop));
+      
+      boardScrollContainer.scrollLeft = finalScrollLeft;
+      boardScrollContainer.scrollTop = finalScrollTop;
+    }
+    
+    // Update previous scale only if it actually changed (not on every render)
+    if (scaleChanged) {
+      appState.ui.previousBoardScale = scaleAfter;
+    }
     
     // Update minimap if zoom changed (re-render content and viewport)
-    if (minimap && scaleBefore !== scaleAfter) {
+    if (minimap && scaleChanged) {
       // Call immediately - updateOnZoomChange handles its own timing
       minimap.updateOnZoomChange();
     }
