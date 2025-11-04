@@ -113,11 +113,8 @@ export function createMinimap(board, boardScrollContainer, boardElement, store, 
       stickyText.style.display = 'none';
     }
     
-    // Hide image content (keep just the container)
-    const images = clone.querySelectorAll('img');
-    images.forEach(img => {
-      img.style.display = 'none';
-    });
+    // Keep images visible in minimap - they are the visual content
+    // Images will be automatically scaled down by the minimap transform
     
     // Simplify connector paths - keep them visible but minimal
     const connectorPaths = clone.querySelectorAll('.connector-path');
