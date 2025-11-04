@@ -60,7 +60,10 @@ class ImageStateMachine extends StateMachine {
     stateConfig[ImageState.RESIZING] = {
       setup: (stateData, stateMachine) => {
         if (stateMachine.globalListeners) {
-          stateMachine.setCursor(stateMachine.getCursorForResizeSide(stateData.resizeSide));
+          // Set cursor for resize side if available
+          if (stateData.resizeSide) {
+            stateMachine.setCursor(stateMachine.getCursorForResizeSide(stateData.resizeSide));
+          }
           stateMachine.setupResizeListeners();
         }
       },
@@ -100,18 +103,42 @@ class ImageStateMachine extends StateMachine {
   }
   
   setupResizeListeners() {
+    const boundHandleResize = (e) => {
+      if (this.isDebugMode()) {
+        console.log('[ImageResize] mousemove/touchmove event received', {
+          currentState: this.currentState,
+          hasStateData: !!this.stateData,
+          imageId: this.stateData?.imageId
+        });
+      }
+      this.handleImageResize(e);
+    };
+    
+    const boundHandleResizeEnd = (e) => {
+      if (this.isDebugMode()) {
+        console.log('[ImageResize] mouseup/touchend event received');
+      }
+      this.handleImageResizeEnd(e);
+    };
+    
     this.globalListeners.setListeners({
-      'mousemove': this.handleImageResize.bind(this),
-      'mouseup': this.handleImageResizeEnd.bind(this),
+      'mousemove': boundHandleResize,
+      'mouseup': boundHandleResizeEnd,
       'touchmove': (e) => {
         e.preventDefault(); // Prevent scrolling during resize
-        this.handleImageResize(e);
+        boundHandleResize(e);
       },
       'touchend': (e) => {
         e.preventDefault();
-        this.handleImageResizeEnd(e);
+        boundHandleResizeEnd(e);
       }
     });
+    
+    if (this.isDebugMode()) {
+      console.log('[ImageResize] Resize listeners set up', {
+        activeListeners: this.globalListeners.getActiveListeners()
+      });
+    }
   }
   
   handleImageResizeEnd(event) {
@@ -129,7 +156,16 @@ class ImageStateMachine extends StateMachine {
   extractResizeSide(handle) {
     if (!handle) return null;
     
-    const classNames = handle.className.split(' ');
+    // Handle both className (string) and classList (DOMTokenList)
+    let classNames;
+    if (typeof handle.className === 'string') {
+      classNames = handle.className.split(' ').filter(c => c.length > 0);
+    } else if (handle.classList) {
+      classNames = Array.from(handle.classList);
+    } else {
+      return null;
+    }
+    
     for (const className of classNames) {
       if (className.startsWith('resize-handle-')) {
         return className.replace('resize-handle-', '');
@@ -184,14 +220,28 @@ class ImageStateMachine extends StateMachine {
       // Handler for resize operations
       resizeHandler: {
         canHandle: (event, state, appState) => {
+          // Check if the target itself is a resize handle or if it's a child of one
           const handle = event.target?.closest?.('.resize-handle');
+          // Also check if the target is directly a resize handle
+          const isDirectHandle = event.target?.classList?.contains?.('resize-handle') || 
+                                 (event.target?.className && typeof event.target.className === 'string' && event.target.className.includes('resize-handle'));
           return state === ImageState.IDLE && 
-                 handle !== null &&
+                 (handle !== null || isDirectHandle) &&
                  !appState.ui.nextClickCreatesConnector;
         },
         
         onMouseDown: (event, stateData) => {
-          const handle = event.target.closest('.resize-handle');
+          // Try to find the resize handle - check target first, then closest
+          let handle = event.target?.closest?.('.resize-handle');
+          if (!handle && event.target?.classList?.contains?.('resize-handle')) {
+            handle = event.target;
+          }
+          
+          if (!handle) {
+            console.error('[ImageResize] Could not find resize handle element');
+            return;
+          }
+          
           const resizeSide = this.extractResizeSide(handle);
           
           if (!resizeSide) {
@@ -211,10 +261,32 @@ class ImageStateMachine extends StateMachine {
           stateData.resizeStart = { x: coords.clientX, y: coords.clientY };
           
           const image = this.store.getBoardItem('image', this.id);
+          if (!image) {
+            console.error('[ImageResize] Image not found:', this.id);
+            return;
+          }
+          
           stateData.originalSize = { width: image.width, height: image.height };
           stateData.aspectRatio = image.naturalWidth / image.naturalHeight;
           
+          if (this.isDebugMode()) {
+            console.log('[ImageResize] Starting resize', {
+              imageId: this.id,
+              resizeSide,
+              resizeStart: stateData.resizeStart,
+              originalSize: stateData.originalSize
+            });
+          }
+          
           this.transitionTo(ImageState.RESIZING, 'resize started');
+          
+          if (this.isDebugMode()) {
+            console.log('[ImageResize] State transitioned to RESIZING', {
+              currentState: this.currentState,
+              hasGlobalListeners: !!this.globalListeners,
+              activeListeners: this.globalListeners?.getActiveListeners()
+            });
+          }
         }
       },
       
@@ -434,12 +506,28 @@ class ImageStateMachine extends StateMachine {
   handleImageResize(event) {
     if (this.currentState !== ImageState.RESIZING) return;
     
+    // Validate state data
+    if (!this.stateData.resizeStart || !this.stateData.resizeSide || !this.stateData.imageId) {
+      console.error('[ImageResize] Missing required state data:', {
+        resizeStart: this.stateData.resizeStart,
+        resizeSide: this.stateData.resizeSide,
+        imageId: this.stateData.imageId
+      });
+      this.transitionTo(ImageState.IDLE, 'invalid state data');
+      return;
+    }
+    
     const appState = this.store.getAppState();
     const boardScale = appState.ui.boardScale || 1;
     
     // Extract coordinates from touch or mouse event
     const coords = getEventCoordinates(event);
-    if (!coords) return;
+    if (!coords) {
+      if (this.isDebugMode()) {
+        console.warn('[ImageResize] Could not extract coordinates from event');
+      }
+      return;
+    }
     
     const dx = coords.clientX - this.stateData.resizeStart.x;
     const dy = coords.clientY - this.stateData.resizeStart.y;
@@ -462,14 +550,61 @@ class ImageStateMachine extends StateMachine {
         break;
     }
     
+    if (this.isDebugMode()) {
+      console.log('[ImageResize] Move event', {
+        dx,
+        dy,
+        delta,
+        boardScale,
+        side: this.stateData.resizeSide,
+        threshold: 5
+      });
+    }
+    
     // Only resize if there's significant movement (threshold of 5 pixels)
     if (Math.abs(delta) >= 5) {
       const isGrow = delta > 0;
       
       // Resize the image using generic board method
-      const board = this.store.getAppState?.()?.board || window.board;
-      if (board && board.resizeBoardItem) {
-        board.resizeBoardItem('image', this.stateData.imageId, { isGrow, side: this.stateData.resizeSide });
+      // Try window.board first (most reliable), then check appState
+      const board = window.board || (this.store.getAppState?.()?.boardInstance);
+      
+      if (this.isDebugMode()) {
+        console.log('[ImageResize] Calling board.resizeBoardItem', {
+          board: !!board,
+          windowBoard: !!window.board,
+          hasResizeMethod: !!(board && board.resizeBoardItem),
+          imageId: this.stateData.imageId,
+          isGrow,
+          side: this.stateData.resizeSide,
+          delta
+        });
+      }
+      
+      if (!board) {
+        console.error('[ImageResize] Board instance not found', {
+          windowBoard: !!window.board,
+          appState: !!this.store.getAppState?.(),
+          appStateBoard: !!this.store.getAppState?.()?.boardInstance
+        });
+        return;
+      }
+      
+      if (!board.resizeBoardItem) {
+        console.error('[ImageResize] board.resizeBoardItem method not found', {
+          board: !!board,
+          boardMethods: board ? Object.keys(board) : []
+        });
+        return;
+      }
+      
+      const result = board.resizeBoardItem('image', this.stateData.imageId, { isGrow, side: this.stateData.resizeSide });
+      if (this.isDebugMode()) {
+        console.log('[ImageResize] resizeBoardItem called successfully', {
+          result,
+          imageId: this.stateData.imageId,
+          params: { isGrow, side: this.stateData.resizeSide }
+        });
       }
       
       // Update resize start to prevent accumulation

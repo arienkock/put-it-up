@@ -22,6 +22,7 @@ export function createImageContainerDOM(imageIdClass) {
     handle.style.border = "1px solid white";
     handle.style.opacity = "0";
     handle.style.transition = "opacity 0.2s";
+    handle.style.pointerEvents = "auto"; // Ensure handles are clickable even when opacity is 0
     
     switch (side) {
       case 'top':
