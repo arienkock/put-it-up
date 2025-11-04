@@ -6,13 +6,20 @@ import { createRenderer } from "../scripts/board-items/connector.js";
 describe("connector self-loop rendering", () => {
   it("renders 3+ cubic segments for self-loop and bulges outward", () => {
     // Minimal board stub
+    const stickyItem = { id: "s1", location: { x: 100, y: 100 }, size: { x: 2, y: 1 }, text: "" };
     const board = {
       ensureConnectorHasColor: () => {},
       getOrigin: () => ({ x: 0, y: 0 }),
       getStickyBaseSize: () => 70,
-      getStickySafe: (id) => ({ id, location: { x: 100, y: 100 }, size: { x: 2, y: 1 }, text: "" }),
+      getStickySafe: (id) => stickyItem,
       getImageSafe: () => null,
-      getBoardItem: (id) => ({ id, location: { x: 100, y: 100 }, size: { x: 2, y: 1 }, text: "" }),
+      getBoardItem: (id) => stickyItem,
+      getBoardItemByType: (type, id) => {
+        if (type === 'sticky' && id === "s1") {
+          return stickyItem;
+        }
+        throw new Error(`Item not found: ${type} ${id}`);
+      },
     };
     const container = document.createElement("div");
     const selected = { isSelected: () => false };
