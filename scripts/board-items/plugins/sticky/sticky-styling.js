@@ -42,4 +42,9 @@ export function setStickyStyles(
   container.style.width = widthPx;
   container.style.height = heightPx;
   stickyElement.style.backgroundColor = sticky.color || DEFAULT_STICKY_COLOR;
+  
+  // Apply z-index from sticky data
+  if (sticky.zIndex !== undefined) {
+    container.style.zIndex = sticky.zIndex.toString();
+  }
 }

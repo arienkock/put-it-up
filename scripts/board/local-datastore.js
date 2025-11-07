@@ -131,6 +131,11 @@ export class LocalDatastore {
     this.notifyConnectorChange(id);
   };
 
+  updateConnectorZIndex = (id, zIndex) => {
+    this.getConnector(id).zIndex = zIndex;
+    this.notifyConnectorChange(id);
+  };
+
   // Ensure connector has a default color if none exists
   ensureConnectorHasColor = (id) => {
     const connector = this.getConnector(id);
@@ -372,6 +377,10 @@ export class LocalDatastore {
     const item = this.getBoardItem(type, id);
     Object.assign(item, updates);
     this.notifyBoardItemChange(type, id);
+  };
+
+  updateBoardItemZIndex = (type, id, zIndex) => {
+    this.updateBoardItem(type, id, { zIndex });
   };
 
   notifyBoardItemChange = (type, id) => {

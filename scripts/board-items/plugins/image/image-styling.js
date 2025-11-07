@@ -32,4 +32,9 @@ export function setImageStyles(image, container, shouldAnimateMove, isSelected, 
   
   // Disable movement animation for images to ensure instant snapping
   container.style.transition = "none";
+  
+  // Apply z-index from image data
+  if (image.zIndex !== undefined) {
+    container.style.zIndex = image.zIndex.toString();
+  }
 }

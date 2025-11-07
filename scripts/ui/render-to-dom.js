@@ -75,6 +75,7 @@ import { zoomScale, applyZoomToBoard } from "./zoom.js";
 import { colorPalette } from "./color-management.js";
 import { getPlugin } from "../board-items/plugin-registry.js";
 import { createMinimap } from "./minimap.js";
+import { getAllItemsWithZIndex, getNextZIndex, ensureUniqueZIndices } from "./z-index-manager.js";
 
 export { colorPalette };
 
@@ -140,6 +141,48 @@ export function mount(board, root, Observer, store) {
   selectedStickies.observer = observer;
   selectedConnectors.observer = observer;
   selectedImages.observer = observer;
+  
+  // Migration: Assign z-index values to existing items that don't have them
+  const state = store.getState();
+  let needsMigration = false;
+  let currentZIndex = 1000; // Start from Z_INDEX_MIN
+  
+  // Migrate stickies
+  Object.entries(state.stickies || {}).forEach(([id, sticky]) => {
+    if (sticky.zIndex === undefined) {
+      needsMigration = true;
+      store.updateBoardItem('sticky', id, { zIndex: currentZIndex });
+      currentZIndex += 10; // Z_INDEX_STEP
+    }
+  });
+  
+  // Migrate images
+  Object.entries(state.images || {}).forEach(([id, image]) => {
+    if (image.zIndex === undefined) {
+      needsMigration = true;
+      store.updateBoardItem('image', id, { zIndex: currentZIndex });
+      currentZIndex += 10; // Z_INDEX_STEP
+    }
+  });
+  
+  // Migrate connectors
+  Object.entries(state.connectors || {}).forEach(([id, connector]) => {
+    if (connector.zIndex === undefined) {
+      needsMigration = true;
+      if (store.updateConnectorZIndex) {
+        store.updateConnectorZIndex(id, currentZIndex);
+      } else {
+        connector.zIndex = currentZIndex;
+        store.notifyConnectorChange(id);
+      }
+      currentZIndex += 10; // Z_INDEX_STEP
+    }
+  });
+  
+  // Ensure all z-index values are unique after migration
+  if (needsMigration) {
+    ensureUniqueZIndices(store);
+  }
   
   appState.ui.currentColor = appState.ui.currentColor || colorPalette[0]; // Legacy
   appState.ui.currentStickyColor = appState.ui.currentStickyColor || colorPalette[0];

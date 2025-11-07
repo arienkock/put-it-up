@@ -99,7 +99,7 @@ body {
 .connector-container {
   position: absolute;
   pointer-events: none;
-  z-index: -1;
+  /* z-index is now managed dynamically via JavaScript based on connector.zIndex property */
   user-select: none; /* Prevent native text selection on connectors */
 }
 

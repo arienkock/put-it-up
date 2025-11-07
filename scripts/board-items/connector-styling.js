@@ -417,6 +417,11 @@ export function setConnectorStyles(
     container.path.setAttribute("stroke", connectorColor);
     container.path.setAttribute("stroke-width", "4");
   }
+  
+  // Apply z-index from connector data
+  if (connector.zIndex !== undefined) {
+    container.style.zIndex = connector.zIndex.toString();
+  }
 }
 
 /**

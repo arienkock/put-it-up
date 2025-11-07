@@ -186,6 +186,118 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       },
     },
     {
+      itemLabel: "Move Up",
+      className: "move-up",
+      icon: "images/move-up-icon.svg",
+      itemClickHandler: () => {
+        const itemsToMove = [];
+        
+        // Collect selected stickies
+        selectedStickies.forEach((id) => {
+          itemsToMove.push({ type: 'sticky', id });
+        });
+        
+        // Collect selected images
+        selectedImages.forEach((id) => {
+          itemsToMove.push({ type: 'image', id });
+        });
+        
+        // Collect selected connectors
+        selectedConnectors.forEach((id) => {
+          itemsToMove.push({ type: 'connector', id });
+        });
+        
+        if (itemsToMove.length > 0) {
+          board.moveSelectedItemsZIndex(itemsToMove, 'up');
+          renderCallback();
+        }
+      },
+    },
+    {
+      itemLabel: "Move Down",
+      className: "move-down",
+      icon: "images/move-down-icon.svg",
+      itemClickHandler: () => {
+        const itemsToMove = [];
+        
+        // Collect selected stickies
+        selectedStickies.forEach((id) => {
+          itemsToMove.push({ type: 'sticky', id });
+        });
+        
+        // Collect selected images
+        selectedImages.forEach((id) => {
+          itemsToMove.push({ type: 'image', id });
+        });
+        
+        // Collect selected connectors
+        selectedConnectors.forEach((id) => {
+          itemsToMove.push({ type: 'connector', id });
+        });
+        
+        if (itemsToMove.length > 0) {
+          board.moveSelectedItemsZIndex(itemsToMove, 'down');
+          renderCallback();
+        }
+      },
+    },
+    {
+      itemLabel: "Move to Top",
+      className: "move-to-top",
+      icon: "images/move-to-top-icon.svg",
+      itemClickHandler: () => {
+        const itemsToMove = [];
+        
+        // Collect selected stickies
+        selectedStickies.forEach((id) => {
+          itemsToMove.push({ type: 'sticky', id });
+        });
+        
+        // Collect selected images
+        selectedImages.forEach((id) => {
+          itemsToMove.push({ type: 'image', id });
+        });
+        
+        // Collect selected connectors
+        selectedConnectors.forEach((id) => {
+          itemsToMove.push({ type: 'connector', id });
+        });
+        
+        if (itemsToMove.length > 0) {
+          board.moveSelectedItemsZIndex(itemsToMove, 'to-top');
+          renderCallback();
+        }
+      },
+    },
+    {
+      itemLabel: "Move to Back",
+      className: "move-to-back",
+      icon: "images/move-to-back-icon.svg",
+      itemClickHandler: () => {
+        const itemsToMove = [];
+        
+        // Collect selected stickies
+        selectedStickies.forEach((id) => {
+          itemsToMove.push({ type: 'sticky', id });
+        });
+        
+        // Collect selected images
+        selectedImages.forEach((id) => {
+          itemsToMove.push({ type: 'image', id });
+        });
+        
+        // Collect selected connectors
+        selectedConnectors.forEach((id) => {
+          itemsToMove.push({ type: 'connector', id });
+        });
+        
+        if (itemsToMove.length > 0) {
+          board.moveSelectedItemsZIndex(itemsToMove, 'to-back');
+          renderCallback();
+        }
+      },
+    },
+    {
       itemLabel: "Delete",
       className: "delete",
       icon: "images/delete-icon.svg",
@@ -403,7 +515,8 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     // Conditionally render selection-dependent items
     const hasStickiesSelected = selectedStickies.hasItems();
     const hasConnectorsSelected = selectedConnectors.hasItems();
-    const hasAnySelection = hasStickiesSelected || hasConnectorsSelected;
+    const hasImagesSelected = selectedImages.hasItems();
+    const hasAnySelection = hasStickiesSelected || hasConnectorsSelected || hasImagesSelected;
     
     if (hasAnySelection) {
       // Show Color button only when a single type is selected (not mixed)
@@ -417,6 +530,19 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
         if (arrowHeadItem) menuElement.appendChild(renderMenuButton(arrowHeadItem));
       }
+      
+      // Show z-index menu items when any items are selected
+      const moveUpItem = selectionDependentItems.find(item => item.className === "move-up");
+      if (moveUpItem) menuElement.appendChild(renderMenuButton(moveUpItem));
+      
+      const moveDownItem = selectionDependentItems.find(item => item.className === "move-down");
+      if (moveDownItem) menuElement.appendChild(renderMenuButton(moveDownItem));
+      
+      const moveToTopItem = selectionDependentItems.find(item => item.className === "move-to-top");
+      if (moveToTopItem) menuElement.appendChild(renderMenuButton(moveToTopItem));
+      
+      const moveToBackItem = selectionDependentItems.find(item => item.className === "move-to-back");
+      if (moveToBackItem) menuElement.appendChild(renderMenuButton(moveToBackItem));
       
       // Show Delete button when items are selected
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
@@ -439,6 +565,19 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         const arrowHeadItem = selectionDependentItems.find(item => item.className === "change-arrow-head");
         if (arrowHeadItem) allItems.push(arrowHeadItem);
       }
+      
+      // Add z-index items
+      const moveUpItem = selectionDependentItems.find(item => item.className === "move-up");
+      if (moveUpItem) allItems.push(moveUpItem);
+      
+      const moveDownItem = selectionDependentItems.find(item => item.className === "move-down");
+      if (moveDownItem) allItems.push(moveDownItem);
+      
+      const moveToTopItem = selectionDependentItems.find(item => item.className === "move-to-top");
+      if (moveToTopItem) allItems.push(moveToTopItem);
+      
+      const moveToBackItem = selectionDependentItems.find(item => item.className === "move-to-back");
+      if (moveToBackItem) allItems.push(moveToBackItem);
       
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
       if (deleteItem) allItems.push(deleteItem);

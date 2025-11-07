@@ -508,15 +508,10 @@ export function setupStickyEvents(
     }
   };
 
-  // Move sticky to front (z-index)
+  // Legacy moveToFront function - no longer needed as z-index is managed via z-index property
+  // Z-index is now applied in setStickyStyles based on sticky.zIndex property
   function moveToFront() {
-    [...container.parentNode.children].forEach((el) => {
-      if (el === container) {
-        el.style.zIndex = "1";
-      } else {
-        el.style.zIndex = "unset";
-      }
-    });
+    // No-op: z-index is now managed via the z-index property system
   }
 
   // Input event for text updates

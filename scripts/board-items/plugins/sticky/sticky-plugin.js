@@ -1,5 +1,6 @@
 import { BoardItemPlugin } from '../../plugin-interface.js';
 import { createRenderer as createStickyRenderer } from './sticky.js';
+import { getNextZIndex } from '../../../ui/z-index-manager.js';
 
 export class StickyPlugin extends BoardItemPlugin {
   getType() { return 'sticky'; }
@@ -31,6 +32,11 @@ export class StickyPlugin extends BoardItemPlugin {
       widthPx,
       heightPx
     );
+    
+    // Initialize zIndex if not provided
+    if (itemData.zIndex === undefined) {
+      itemData.zIndex = getNextZIndex(store);
+    }
     
     return store.createBoardItem(type, itemData);
   }

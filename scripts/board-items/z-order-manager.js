@@ -1,67 +1,66 @@
-import { removePx } from './plugins/sticky/sticky-dom.js';
-import { isConnectorElement, isImageElement, isStickyElement, Z_ORDER_LAYERS } from './board-item-interface.js';
+/**
+ * Z-Index Management for Board Elements
+ * Applies z-index CSS to board elements based on their stored zIndex property.
+ */
 
 /**
- * Reorders board elements to ensure proper layering:
- * Connectors first (lowest z-index), then stickies, then images (highest z-index)
- * Elements within the same layer are sorted by position (top to bottom, left to right)
- * 
- * Only called when elements are added or removed to avoid unnecessary DOM manipulation
+ * Applies z-index to board elements based on their stored zIndex property.
+ * This function is called to ensure DOM elements have the correct z-index CSS applied.
  * 
  * @param {HTMLElement} domElement - The board container element
+ * @param {Object} store - Datastore instance to get z-index values
  */
-export function reorderBoardElements(domElement) {
+export function applyZIndexToElements(domElement, store) {
+  if (!store) return;
+  
+  const state = store.getState();
+  
+  // Apply z-index to all elements based on their stored zIndex property
   const elementsOnBoard = [...domElement.children];
-  const activeElement = document.activeElement;
-  let shouldRefocus = false;
-  if (elementsOnBoard.some((el) => el.contains(activeElement))) {
-    shouldRefocus = true;
-  }
-  
-  elementsOnBoard.sort((a, b) => {
-    // First, sort by type (z-order layer)
-    const aIsConnector = isConnectorElement(a);
-    const bIsConnector = isConnectorElement(b);
-    const aIsImage = isImageElement(a);
-    const bIsImage = isImageElement(b);
+  elementsOnBoard.forEach((el) => {
+    let zIndex = null;
     
-    // Connectors first (lowest z-index)
-    if (aIsConnector && !bIsConnector) return -1;
-    if (!aIsConnector && bIsConnector) return 1;
+    // Extract ID from element class or data attribute
+    const stickyMatch = el.className.match(/sticky-(\d+)/);
+    const imageMatch = el.className.match(/image-(\d+)/);
+    const connectorMatch = el.className.match(/connector-(\d+)/);
     
-    // Images last (highest z-index)
-    if (aIsImage && !bIsImage) return 1;
-    if (!aIsImage && bIsImage) return -1;
-    
-    // Both same type - sort by position
-    const aTop = removePx(a.style.top);
-    const bTop = removePx(b.style.top);
-    const aLeft = removePx(a.style.left);
-    const bLeft = removePx(b.style.left);
-    
-    // Validate that positions are valid numbers
-    if (isNaN(aTop) || isNaN(bTop) || isNaN(aLeft) || isNaN(bLeft)) {
-      // If positions are invalid, maintain current order
-      return 0;
-    }
-    
-    let yDif = aTop - bTop;
-    if (yDif === 0) {
-      const xDif = aLeft - bLeft;
-      if (xDif === 0) {
-        return b.className > a.className;
+    if (stickyMatch) {
+      const id = stickyMatch[1];
+      const sticky = state.stickies?.[id];
+      if (sticky && sticky.zIndex !== undefined) {
+        zIndex = sticky.zIndex;
       }
-      return xDif;
+    } else if (imageMatch) {
+      const id = imageMatch[1];
+      const image = state.images?.[id];
+      if (image && image.zIndex !== undefined) {
+        zIndex = image.zIndex;
+      }
+    } else if (connectorMatch) {
+      const id = connectorMatch[1];
+      const connector = state.connectors?.[id];
+      if (connector && connector.zIndex !== undefined) {
+        zIndex = connector.zIndex;
+      }
     }
-    return yDif;
+    
+    // Apply z-index if found, otherwise use default
+    if (zIndex !== null) {
+      el.style.zIndex = zIndex.toString();
+    }
   });
-  
-  // Reorder elements by removing all and adding back in sorted order
-  elementsOnBoard.forEach((el) => domElement.removeChild(el));
-  elementsOnBoard.forEach((el) => domElement.appendChild(el));
-  
-  if (shouldRefocus) {
-    activeElement.focus();
-  }
 }
 
+/**
+ * Legacy function for backward compatibility.
+ * Now just applies z-index instead of reordering DOM.
+ * 
+ * @param {HTMLElement} domElement - The board container element
+ * @deprecated Use applyZIndexToElements instead
+ */
+export function reorderBoardElements(domElement) {
+  // This function is kept for backward compatibility but no longer reorders DOM.
+  // Z-index is now applied directly in renderers based on item's zIndex property.
+  // This is a no-op now, but kept to avoid breaking existing code.
+}

@@ -1,4 +1,5 @@
 import { getPlugin, getAllPlugins } from '../board-items/plugin-registry.js';
+import { getNextZIndex, updateItemZIndex, moveItemsZIndex } from '../ui/z-index-manager.js';
 
 const DEFAULT_BOARD = {
   origin: { x: 0, y: 0 },
@@ -65,6 +66,10 @@ export function Board(aStore) {
   };
 
   this.putConnector = (connector) => {
+    // Initialize zIndex if not provided
+    if (connector.zIndex === undefined) {
+      connector.zIndex = getNextZIndex(store);
+    }
     const id = store.createConnector(connector);
     return id;
   };
@@ -125,6 +130,34 @@ export function Board(aStore) {
     return plugin.getLocation(this, id);
   };
 
+  /**
+   * Update a board item's z-index
+   * @param {string} type - Item type ('sticky', 'image', 'connector')
+   * @param {string} id - Item ID
+   * @param {number} zIndex - New z-index value
+   */
+  this.updateBoardItemZIndex = (type, id, zIndex) => {
+    updateItemZIndex(store, type, id, zIndex);
+  };
+
+  /**
+   * Move a board item's z-index
+   * @param {string} type - Item type ('sticky', 'image', 'connector')
+   * @param {string} id - Item ID
+   * @param {string} direction - 'up', 'down', 'to-top', 'to-back'
+   */
+  this.moveBoardItemZIndex = (type, id, direction) => {
+    moveItemsZIndex(store, [{ type, id }], direction);
+  };
+
+  /**
+   * Move multiple selected items' z-index together
+   * @param {Array} selectedItems - Array of {type, id} objects
+   * @param {string} direction - 'up', 'down', 'to-top', 'to-back'
+   */
+  this.moveSelectedItemsZIndex = (selectedItems, direction) => {
+    moveItemsZIndex(store, selectedItems, direction);
+  };
 
   /**
    * Move a connector's curve handle by delta

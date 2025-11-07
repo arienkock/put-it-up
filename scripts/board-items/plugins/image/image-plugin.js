@@ -1,5 +1,6 @@
 import { BoardItemPlugin } from '../../plugin-interface.js';
 import { createRenderer as createImageRenderer } from './image.js';
+import { getNextZIndex } from '../../../ui/z-index-manager.js';
 
 export class ImagePlugin extends BoardItemPlugin {
   getType() { return 'image'; }
@@ -40,6 +41,11 @@ export class ImagePlugin extends BoardItemPlugin {
     itemData.width = width;
     itemData.height = height;
     itemData.location = itemData.location || { x: 0, y: 0 };
+    
+    // Initialize zIndex if not provided
+    if (itemData.zIndex === undefined) {
+      itemData.zIndex = getNextZIndex(store);
+    }
     
     return store.createBoardItem(type, itemData);
   }
