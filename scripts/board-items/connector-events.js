@@ -2,7 +2,7 @@ import { StateMachine, GlobalListenerManager } from "../ui/state-machine-base.js
 import { createStateConfig } from "../ui/state-config-pattern.js";
 import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
-import { isClickOnConnectorStroke, getConnectorsBelowPoint } from "./connector-hit-testing.js";
+import { isClickOnConnectorStroke } from "./connector-hit-testing.js";
 import { getEventCoordinates } from "../ui/movement-utils.js";
 import { getAllPlugins } from "./plugin-registry.js";
 
