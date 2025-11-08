@@ -36,6 +36,10 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
   let logoElement;
   let titleElement;
   let lastValidTitle = '';
+  let layerSubMenuOpen = false;
+  let layerGroupButton = null;
+  let layerSubMenuContainer = null;
+  let clickOutsideHandler = null;
 
   const alwaysRelevantItems = [
     {
@@ -186,6 +190,24 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       },
     },
     {
+      itemLabel: "Delete",
+      className: "delete",
+      icon: "images/delete-icon.svg",
+      itemClickHandler: () => {
+        // Use the standard deleteSelectedItems function which works with Selection objects
+        deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+        
+        // Trigger full re-render so DOM reflects deletions
+        if (typeof renderCallback === 'function') {
+          renderCallback();
+        }
+      },
+    },
+  ];
+
+  // Layer sub-menu items (extracted for use in sub-menu)
+  const layerSubMenuItems = [
+    {
       itemLabel: "Move Up",
       className: "move-up",
       icon: "images/move-up-icon.svg",
@@ -297,21 +319,18 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         }
       },
     },
-    {
-      itemLabel: "Delete",
-      className: "delete",
-      icon: "images/delete-icon.svg",
-      itemClickHandler: () => {
-        // Use the standard deleteSelectedItems function which works with Selection objects
-        deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
-        
-        // Trigger full re-render so DOM reflects deletions
-        if (typeof renderCallback === 'function') {
-          renderCallback();
-        }
-      },
-    },
   ];
+
+  // Layer group item (replaces individual z-index items in main menu)
+  const layerGroupItem = {
+    itemLabel: "Layer",
+    className: "layer-group",
+    icon: "images/move-to-top-icon.svg",
+    itemClickHandler: (event) => {
+      event.stopPropagation();
+      toggleLayerSubMenu();
+    },
+  };
 
   /**
    * Renders a single menu button/item
@@ -354,6 +373,73 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     
     item.dom = itemElement;
     return itemElement;
+  }
+
+  /**
+   * Closes the layer sub-menu
+   */
+  function closeLayerSubMenu() {
+    if (layerGroupButton) {
+      layerGroupButton.classList.remove('active');
+    }
+    if (layerSubMenuContainer) {
+      layerSubMenuContainer.style.visibility = 'hidden';
+    }
+    layerSubMenuOpen = false;
+    
+    // Remove click outside handler
+    if (clickOutsideHandler) {
+      document.removeEventListener('click', clickOutsideHandler);
+      clickOutsideHandler = null;
+    }
+  }
+
+  /**
+   * Opens the layer sub-menu
+   */
+  function openLayerSubMenu() {
+    if (layerGroupButton) {
+      layerGroupButton.classList.add('active');
+    }
+    if (layerSubMenuContainer) {
+      layerSubMenuContainer.style.visibility = 'visible';
+    }
+    layerSubMenuOpen = true;
+    
+    // Add click outside handler
+    if (!clickOutsideHandler) {
+      clickOutsideHandler = (event) => {
+        // Check if click is outside the layer group button and sub-menu
+        if (layerGroupButton && layerSubMenuContainer) {
+          // Use composedPath to check all elements in the click path
+          const path = event.composedPath ? event.composedPath() : [event.target];
+          const isClickInside = path.some(element => 
+            element === layerGroupButton || 
+            element === layerSubMenuContainer ||
+            layerGroupButton.contains(element) ||
+            layerSubMenuContainer.contains(element)
+          );
+          if (!isClickInside) {
+            closeLayerSubMenu();
+          }
+        }
+      };
+      // Use setTimeout to avoid immediate closure when opening
+      setTimeout(() => {
+        document.addEventListener('click', clickOutsideHandler);
+      }, 0);
+    }
+  }
+
+  /**
+   * Toggles the layer sub-menu
+   */
+  function toggleLayerSubMenu() {
+    if (layerSubMenuOpen) {
+      closeLayerSubMenu();
+    } else {
+      openLayerSubMenu();
+    }
   }
 
   /**
@@ -402,6 +488,18 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
    * Renders the menu element
    */
   function renderMenu() {
+    // Save sub-menu open state before closing (will restore if still relevant)
+    const wasSubMenuOpen = layerSubMenuOpen;
+    
+    // Close sub-menu if open (will be recreated if needed)
+    if (layerSubMenuOpen) {
+      closeLayerSubMenu();
+    }
+    
+    // Reset layer group references (will be recreated)
+    layerGroupButton = null;
+    layerSubMenuContainer = null;
+    
     // Sync selectors with current selection before rendering
     syncSelectorsWithSelection();
     
@@ -531,18 +629,43 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         if (arrowHeadItem) menuElement.appendChild(renderMenuButton(arrowHeadItem));
       }
       
-      // Show z-index menu items when any items are selected
-      const moveUpItem = selectionDependentItems.find(item => item.className === "move-up");
-      if (moveUpItem) menuElement.appendChild(renderMenuButton(moveUpItem));
+      // Show layer group button when any items are selected
+      const layerGroupWrapper = document.createElement('div');
+      layerGroupWrapper.classList.add('group', 'layer-group-wrapper');
       
-      const moveDownItem = selectionDependentItems.find(item => item.className === "move-down");
-      if (moveDownItem) menuElement.appendChild(renderMenuButton(moveDownItem));
+      // Render the layer group button
+      layerGroupButton = renderMenuButton(layerGroupItem);
+      layerGroupWrapper.appendChild(layerGroupButton);
       
-      const moveToTopItem = selectionDependentItems.find(item => item.className === "move-to-top");
-      if (moveToTopItem) menuElement.appendChild(renderMenuButton(moveToTopItem));
+      // Create sub-menu container
+      layerSubMenuContainer = document.createElement('div');
+      layerSubMenuContainer.classList.add('group-items', 'layer-submenu');
+      layerSubMenuContainer.style.visibility = 'hidden';
       
-      const moveToBackItem = selectionDependentItems.find(item => item.className === "move-to-back");
-      if (moveToBackItem) menuElement.appendChild(renderMenuButton(moveToBackItem));
+      // Render sub-menu items
+      layerSubMenuItems.forEach((item) => {
+        const subMenuItem = renderMenuButton(item);
+        // Add stopPropagation to prevent click-outside handler from closing sub-menu
+        const originalOnClick = subMenuItem.onclick;
+        subMenuItem.onclick = (event) => {
+          event.stopPropagation();
+          if (originalOnClick) {
+            originalOnClick(event);
+          }
+        };
+        layerSubMenuContainer.appendChild(subMenuItem);
+      });
+      
+      layerGroupWrapper.appendChild(layerSubMenuContainer);
+      menuElement.appendChild(layerGroupWrapper);
+      
+      // Restore sub-menu open state if it was open before renderMenu() was called
+      if (wasSubMenuOpen) {
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(() => {
+          openLayerSubMenu();
+        }, 0);
+      }
       
       // Show Delete button when items are selected
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
@@ -566,18 +689,11 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         if (arrowHeadItem) allItems.push(arrowHeadItem);
       }
       
-      // Add z-index items
-      const moveUpItem = selectionDependentItems.find(item => item.className === "move-up");
-      if (moveUpItem) allItems.push(moveUpItem);
+      // Add layer group item
+      allItems.push(layerGroupItem);
       
-      const moveDownItem = selectionDependentItems.find(item => item.className === "move-down");
-      if (moveDownItem) allItems.push(moveDownItem);
-      
-      const moveToTopItem = selectionDependentItems.find(item => item.className === "move-to-top");
-      if (moveToTopItem) allItems.push(moveToTopItem);
-      
-      const moveToBackItem = selectionDependentItems.find(item => item.className === "move-to-back");
-      if (moveToBackItem) allItems.push(moveToBackItem);
+      // Add layer sub-menu items for custom label processing (if needed)
+      layerSubMenuItems.forEach(item => allItems.push(item));
       
       const deleteItem = selectionDependentItems.find(item => item.className === "delete");
       if (deleteItem) allItems.push(deleteItem);
@@ -604,3 +720,4 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     render: renderMenu,
   };
 }
+

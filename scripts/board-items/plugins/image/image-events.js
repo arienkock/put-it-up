@@ -400,6 +400,10 @@ class ImageStateMachine extends StateMachine {
           }
           
           this.selectionManager.getSelection('images').toggleSelected(this.id);
+          
+          if (window.menuRenderCallback) {
+            window.menuRenderCallback();
+          }
         }
       },
       
@@ -452,6 +456,10 @@ class ImageStateMachine extends StateMachine {
           }
           
           this.selectionManager.getSelection('images').toggleSelected(this.id);
+          
+          if (window.menuRenderCallback) {
+            window.menuRenderCallback();
+          }
         }
       }
     };
