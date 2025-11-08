@@ -1,4 +1,5 @@
 import { getAppState } from "../app-state.js";
+import { getStorageKeyForType } from "../board-items/plugin-registry.js";
 
 export class LocalDatastore {
   observers = [];
@@ -319,19 +320,17 @@ export class LocalDatastore {
 
   // Generic board item methods
   _getStorageKeyForType(type) {
-    const typeMap = {
-      'sticky': 'stickies',
-      'image': 'images'
-    };
-    return typeMap[type] || null;
+    // Use plugin registry to get storage key
+    return getStorageKeyForType(type);
   }
 
   _getIdGenKeyForType(type) {
-    const idGenMap = {
-      'sticky': 'idGen',
-      'image': 'imageIdGen'
-    };
-    return idGenMap[type] || null;
+    // Generate idGen key from type (e.g., 'sticky' -> 'stickyIdGen', 'image' -> 'imageIdGen')
+    // For backward compatibility, 'sticky' uses 'idGen'
+    if (type === 'sticky') {
+      return 'idGen';
+    }
+    return `${type}IdGen`;
   }
 
   createBoardItem = (type, data) => {
@@ -390,10 +389,10 @@ export class LocalDatastore {
         o.onBoardItemChange(type, id);
       }
       // Also call type-specific methods for backward compatibility
-      if (type === 'sticky' && o.onStickyChange) {
-        o.onStickyChange(id);
-      } else if (type === 'image' && o.onImageChange) {
-        o.onImageChange(id);
+      // Generate method name dynamically (e.g., 'sticky' -> 'onStickyChange')
+      const methodName = `on${type.charAt(0).toUpperCase() + type.slice(1)}Change`;
+      if (o[methodName]) {
+        o[methodName](id);
       }
     });
   };

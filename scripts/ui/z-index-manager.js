@@ -1,7 +1,9 @@
 /**
  * Z-Index Management Module
- * Handles z-index operations for board items (stickies, images, connectors)
+ * Handles z-index operations for board items (plugins and connectors)
  */
+
+import { getAllPlugins } from '../board-items/plugin-registry.js';
 
 // Z-index range: 1000-9999 to allow plenty of room for reordering
 const Z_INDEX_MIN = 1000;
@@ -16,28 +18,23 @@ const Z_INDEX_STEP = 10; // Gap between items to allow insertions
 export function getAllItemsWithZIndex(store) {
   const state = store.getState();
   const items = [];
+  const plugins = getAllPlugins();
   
-  // Add stickies
-  Object.entries(state.stickies || {}).forEach(([id, item]) => {
-    items.push({
-      type: 'sticky',
-      id,
-      zIndex: item.zIndex || Z_INDEX_MIN,
-      item
+  // Add all plugin items
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const storageKey = plugin.getSelectionType();
+    Object.entries(state[storageKey] || {}).forEach(([id, item]) => {
+      items.push({
+        type,
+        id,
+        zIndex: item.zIndex || Z_INDEX_MIN,
+        item
+      });
     });
   });
   
-  // Add images
-  Object.entries(state.images || {}).forEach(([id, item]) => {
-    items.push({
-      type: 'image',
-      id,
-      zIndex: item.zIndex || Z_INDEX_MIN,
-      item
-    });
-  });
-  
-  // Add connectors
+  // Add connectors (not a plugin)
   Object.entries(state.connectors || {}).forEach(([id, item]) => {
     items.push({
       type: 'connector',
@@ -100,18 +97,12 @@ function renumberAllZIndices(store) {
 /**
  * Updates an item's z-index
  * @param {Object} store - Datastore instance
- * @param {string} type - Item type ('sticky', 'image', 'connector')
+ * @param {string} type - Item type (plugin type or 'connector')
  * @param {string} id - Item ID
  * @param {number} zIndex - New z-index value
  */
 export function updateItemZIndex(store, type, id, zIndex) {
-  if (type === 'sticky' || type === 'image') {
-    if (store.updateBoardItemZIndex) {
-      store.updateBoardItemZIndex(type, id, zIndex);
-    } else {
-      store.updateBoardItem(type, id, { zIndex });
-    }
-  } else if (type === 'connector') {
+  if (type === 'connector') {
     if (store.updateConnectorZIndex) {
       store.updateConnectorZIndex(id, zIndex);
     } else {
@@ -119,6 +110,13 @@ export function updateItemZIndex(store, type, id, zIndex) {
       const connector = store.getConnector(id);
       connector.zIndex = zIndex;
       store.notifyConnectorChange(id);
+    }
+  } else {
+    // Plugin item
+    if (store.updateBoardItemZIndex) {
+      store.updateBoardItemZIndex(type, id, zIndex);
+    } else {
+      store.updateBoardItem(type, id, { zIndex });
     }
   }
 }

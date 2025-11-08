@@ -2,6 +2,7 @@ import { changeZoomLevel } from "./zoom.js";
 import { changeColor, stickyColorPalette, connectorColorPalette } from "./color-management.js";
 import { deleteSelectedItems } from "./keyboard-handlers.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
+import { getAllPlugins } from "../board-items/plugin-registry.js";
 
 /**
  * Changes arrow head type to the next one in rotation
@@ -41,18 +42,55 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
   let layerSubMenuContainer = null;
   let clickOutsideHandler = null;
 
+  // Get menu items from plugins
+  const plugins = getAllPlugins();
+  const pluginMenuItems = [];
+  plugins.forEach(plugin => {
+    const items = plugin.getMenuItems();
+    items.forEach(item => {
+      // Wrap the handler to pass appState and renderCallback
+      const originalHandler = item.itemClickHandler;
+      item.itemClickHandler = (event) => {
+        originalHandler(appState, renderCallback, event);
+      };
+      pluginMenuItems.push(item);
+    });
+  });
+
+  // Helper function to collect selected items from all plugins
+  function collectSelectedItems(selectionMap) {
+    const itemsToMove = [];
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const selectionType = plugin.getSelectionType();
+      const selection = selectionMap[selectionType] || selectionMap[type];
+      if (selection && selection.hasItems) {
+        selection.forEach((id) => {
+          itemsToMove.push({ type, id });
+        });
+      }
+    });
+    // Add connectors (not a plugin)
+    if (selectedConnectors && selectedConnectors.hasItems) {
+      selectedConnectors.forEach((id) => {
+        itemsToMove.push({ type: 'connector', id });
+      });
+    }
+    return itemsToMove;
+  }
+  
+  // Build selection map for easy access
+  const selectionMap = {
+    'stickies': selectedStickies,
+    'images': selectedImages,
+    'connectors': selectedConnectors,
+    'sticky': selectedStickies,
+    'image': selectedImages,
+    'connector': selectedConnectors
+  };
+
   const alwaysRelevantItems = [
-    {
-      itemLabel: "New Sticky",
-      className: "new-sticky",
-      icon: "images/new-sticky-icon.svg",
-      itemClickHandler: () => {
-        appState.ui.nextClickCreatesNewSticky = true;
-        appState.ui.nextClickCreatesConnector = false;
-        appState.ui.connectorOriginId = null;
-        renderCallback();
-      },
-    },
+    ...pluginMenuItems,
     {
       itemLabel: "Connector",
       className: "new-connector",
@@ -89,43 +127,67 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       itemLabel: "Color",
       className: "change-color",
       itemClickHandler: (event) => {
-        // Determine which current color to use based on selection
-        const hasStickiesSelected = selectedStickies.hasItems();
-        const hasConnectorsSelected = selectedConnectors.hasItems();
+        // Check which plugin types have selections with colors
+        const pluginsWithColorSelections = [];
+        plugins.forEach(plugin => {
+          const type = plugin.getType();
+          const palette = plugin.getColorPalette();
+          if (palette && palette.length > 0) {
+            const selectionType = plugin.getSelectionType();
+            const selection = selectionMap[selectionType] || selectionMap[type];
+            if (selection && selection.hasItems && selection.hasItems()) {
+              pluginsWithColorSelections.push({ plugin, type, selection });
+            }
+          }
+        });
         
+        const hasConnectorsSelected = selectedConnectors && selectedConnectors.hasItems();
+        
+        // Determine which current color to use based on selection
         let currentColorToUse;
-        if (hasStickiesSelected && !hasConnectorsSelected) {
-          currentColorToUse = appState.ui.currentStickyColor;
-        } else if (hasConnectorsSelected && !hasStickiesSelected) {
+        if (pluginsWithColorSelections.length > 0 && !hasConnectorsSelected) {
+          // Use first plugin's color
+          const firstPlugin = pluginsWithColorSelections[0];
+          const colorKey = `current${firstPlugin.type.charAt(0).toUpperCase() + firstPlugin.type.slice(1)}Color`;
+          currentColorToUse = appState.ui[colorKey] || appState.ui.currentColor;
+        } else if (hasConnectorsSelected && pluginsWithColorSelections.length === 0) {
           currentColorToUse = appState.ui.currentConnectorColor;
-        } else if (hasStickiesSelected && hasConnectorsSelected) {
-          // Both selected - use sticky color as primary
-          currentColorToUse = appState.ui.currentStickyColor;
+        } else if (pluginsWithColorSelections.length > 0 && hasConnectorsSelected) {
+          // Both selected - use first plugin color as primary
+          const firstPlugin = pluginsWithColorSelections[0];
+          const colorKey = `current${firstPlugin.type.charAt(0).toUpperCase() + firstPlugin.type.slice(1)}Color`;
+          currentColorToUse = appState.ui[colorKey] || appState.ui.currentColor;
         } else {
-          // Nothing selected - use sticky color as default
-          currentColorToUse = appState.ui.currentStickyColor;
+          // Nothing selected - use first plugin color as default, or legacy currentColor
+          const firstPluginWithColor = plugins.find(p => p.getColorPalette()?.length > 0);
+          if (firstPluginWithColor) {
+            const type = firstPluginWithColor.getType();
+            const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+            currentColorToUse = appState.ui[colorKey] || appState.ui.currentColor;
+          } else {
+            currentColorToUse = appState.ui.currentColor;
+          }
         }
+        
+        // Get selected stickies for backward compatibility with changeColor function
+        const selectedStickiesForColor = pluginsWithColorSelections.find(p => p.type === 'sticky')?.selection || null;
         
         const newColor = changeColor(
           board,
-          selectedStickies,
+          selectedStickiesForColor || (selectedStickies || { hasItems: () => false }),
           selectedConnectors,
           currentColorToUse,
           event.shiftKey
         );
         
-        // Update the appropriate current color based on what's selected
-        if (hasStickiesSelected && !hasConnectorsSelected) {
-          appState.ui.currentStickyColor = newColor;
-        } else if (hasConnectorsSelected && !hasStickiesSelected) {
-          appState.ui.currentConnectorColor = newColor;
-        } else if (hasStickiesSelected && hasConnectorsSelected) {
-          // Both selected - update both colors
-          appState.ui.currentStickyColor = newColor;
-          appState.ui.currentConnectorColor = newColor;
-        } else {
-          // Nothing selected - update both colors
-          appState.ui.currentStickyColor = newColor;
+        // Update current colors for all selected plugin types
+        pluginsWithColorSelections.forEach(({ type }) => {
+          const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+          appState.ui[colorKey] = newColor;
+        });
+        
+        // Update connector color if connectors are selected
+        if (hasConnectorsSelected) {
           appState.ui.currentConnectorColor = newColor;
         }
         
@@ -135,25 +197,51 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         renderMenu();
       },
       customLabel: (dom, label) => {
-        // Determine which palette is active based on selection
-        const hasStickiesSelected = selectedStickies.hasItems();
-        const hasConnectorsSelected = selectedConnectors.hasItems();
-        const isConnectorPalette = hasConnectorsSelected && !hasStickiesSelected;
+        // Check which plugin types have selections with colors
+        const pluginsWithColorSelections = [];
+        plugins.forEach(plugin => {
+          const type = plugin.getType();
+          const palette = plugin.getColorPalette();
+          if (palette && palette.length > 0) {
+            const selectionType = plugin.getSelectionType();
+            const selection = selectionMap[selectionType] || selectionMap[type];
+            if (selection && selection.hasItems && selection.hasItems()) {
+              pluginsWithColorSelections.push({ plugin, type, selection, palette });
+            }
+          }
+        });
         
-        const palette = isConnectorPalette ? connectorColorPalette : stickyColorPalette;
+        const hasConnectorsSelected = selectedConnectors && selectedConnectors.hasItems();
+        
+        // Determine which palette is active based on selection
+        let palette = stickyColorPalette; // Default
+        if (hasConnectorsSelected && pluginsWithColorSelections.length === 0) {
+          palette = connectorColorPalette;
+        } else if (pluginsWithColorSelections.length > 0) {
+          palette = pluginsWithColorSelections[0].palette;
+        }
         
         // Show the appropriate current color based on selection
         let currentColorToShow;
-        if (hasStickiesSelected && !hasConnectorsSelected) {
-          currentColorToShow = appState.ui.currentStickyColor;
-        } else if (hasConnectorsSelected && !hasStickiesSelected) {
+        if (pluginsWithColorSelections.length > 0 && !hasConnectorsSelected) {
+          const firstPlugin = pluginsWithColorSelections[0];
+          const colorKey = `current${firstPlugin.type.charAt(0).toUpperCase() + firstPlugin.type.slice(1)}Color`;
+          currentColorToShow = appState.ui[colorKey] || appState.ui.currentColor;
+        } else if (hasConnectorsSelected && pluginsWithColorSelections.length === 0) {
           currentColorToShow = appState.ui.currentConnectorColor;
-        } else if (hasStickiesSelected && hasConnectorsSelected) {
-          // Both selected - show sticky color as primary
-          currentColorToShow = appState.ui.currentStickyColor;
+        } else if (pluginsWithColorSelections.length > 0 && hasConnectorsSelected) {
+          const firstPlugin = pluginsWithColorSelections[0];
+          const colorKey = `current${firstPlugin.type.charAt(0).toUpperCase() + firstPlugin.type.slice(1)}Color`;
+          currentColorToShow = appState.ui[colorKey] || appState.ui.currentColor;
         } else {
-          // Nothing selected - show sticky color as default
-          currentColorToShow = appState.ui.currentStickyColor;
+          const firstPluginWithColor = plugins.find(p => p.getColorPalette()?.length > 0);
+          if (firstPluginWithColor) {
+            const type = firstPluginWithColor.getType();
+            const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+            currentColorToShow = appState.ui[colorKey] || appState.ui.currentColor;
+          } else {
+            currentColorToShow = appState.ui.currentColor;
+          }
         }
         
         dom.innerHTML = `<img src="images/color-selector-icon.svg" alt="${label}" class="menu-icon"> <div class="color-preview"></div>`;
@@ -212,23 +300,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       className: "move-up",
       icon: "images/move-up-icon.svg",
       itemClickHandler: () => {
-        const itemsToMove = [];
-        
-        // Collect selected stickies
-        selectedStickies.forEach((id) => {
-          itemsToMove.push({ type: 'sticky', id });
-        });
-        
-        // Collect selected images
-        selectedImages.forEach((id) => {
-          itemsToMove.push({ type: 'image', id });
-        });
-        
-        // Collect selected connectors
-        selectedConnectors.forEach((id) => {
-          itemsToMove.push({ type: 'connector', id });
-        });
-        
+        const itemsToMove = collectSelectedItems(selectionMap);
         if (itemsToMove.length > 0) {
           board.moveSelectedItemsZIndex(itemsToMove, 'up');
           renderCallback();
@@ -240,23 +312,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       className: "move-down",
       icon: "images/move-down-icon.svg",
       itemClickHandler: () => {
-        const itemsToMove = [];
-        
-        // Collect selected stickies
-        selectedStickies.forEach((id) => {
-          itemsToMove.push({ type: 'sticky', id });
-        });
-        
-        // Collect selected images
-        selectedImages.forEach((id) => {
-          itemsToMove.push({ type: 'image', id });
-        });
-        
-        // Collect selected connectors
-        selectedConnectors.forEach((id) => {
-          itemsToMove.push({ type: 'connector', id });
-        });
-        
+        const itemsToMove = collectSelectedItems(selectionMap);
         if (itemsToMove.length > 0) {
           board.moveSelectedItemsZIndex(itemsToMove, 'down');
           renderCallback();
@@ -268,23 +324,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       className: "move-to-top",
       icon: "images/move-to-top-icon.svg",
       itemClickHandler: () => {
-        const itemsToMove = [];
-        
-        // Collect selected stickies
-        selectedStickies.forEach((id) => {
-          itemsToMove.push({ type: 'sticky', id });
-        });
-        
-        // Collect selected images
-        selectedImages.forEach((id) => {
-          itemsToMove.push({ type: 'image', id });
-        });
-        
-        // Collect selected connectors
-        selectedConnectors.forEach((id) => {
-          itemsToMove.push({ type: 'connector', id });
-        });
-        
+        const itemsToMove = collectSelectedItems(selectionMap);
         if (itemsToMove.length > 0) {
           board.moveSelectedItemsZIndex(itemsToMove, 'to-top');
           renderCallback();
@@ -296,23 +336,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       className: "move-to-back",
       icon: "images/move-to-back-icon.svg",
       itemClickHandler: () => {
-        const itemsToMove = [];
-        
-        // Collect selected stickies
-        selectedStickies.forEach((id) => {
-          itemsToMove.push({ type: 'sticky', id });
-        });
-        
-        // Collect selected images
-        selectedImages.forEach((id) => {
-          itemsToMove.push({ type: 'image', id });
-        });
-        
-        // Collect selected connectors
-        selectedConnectors.forEach((id) => {
-          itemsToMove.push({ type: 'connector', id });
-        });
-        
+        const itemsToMove = collectSelectedItems(selectionMap);
         if (itemsToMove.length > 0) {
           board.moveSelectedItemsZIndex(itemsToMove, 'to-back');
           renderCallback();

@@ -1,4 +1,4 @@
-import { getPlugin } from '../board-items/plugin-registry.js';
+import { getPlugin, getAllPlugins } from '../board-items/plugin-registry.js';
 
 export const stickyColorPalette = [
   "khaki",
@@ -32,7 +32,39 @@ export const colorPalette = stickyColorPalette;
  * @returns {string} New current color
  */
 export function changeColor(board, selectedStickies, selectedConnectors, currentColor, reverse) {
-  const hasSelectedItems = selectedStickies.hasItems() || (selectedConnectors && selectedConnectors.hasItems());
+  const plugins = getAllPlugins();
+  const appState = board.getAppState ? board.getAppState() : window.appState;
+  
+  // Collect all selections that support colors
+  const selectionsWithColors = [];
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const palette = plugin.getColorPalette();
+    if (palette && palette.length > 0) {
+      // Try to get selection - check backward compat names first
+      let selection = null;
+      if (type === 'sticky' && selectedStickies) {
+        selection = selectedStickies;
+      }
+      // Images don't have colors, so we skip them
+      // In the future, selections could be passed as a map
+      if (selection && selection.hasItems && selection.hasItems()) {
+        selectionsWithColors.push({ plugin, type, selection, palette });
+      }
+    }
+  });
+  
+  // Add connectors (not a plugin, but has colors)
+  if (selectedConnectors && selectedConnectors.hasItems && selectedConnectors.hasItems()) {
+    selectionsWithColors.push({ 
+      plugin: null, 
+      type: 'connector', 
+      selection: selectedConnectors, 
+      palette: connectorColorPalette 
+    });
+  }
+  
+  const hasSelectedItems = selectionsWithColors.length > 0;
   
   if (hasSelectedItems) {
     let newColor = currentColor;
@@ -41,34 +73,28 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
       newColor = nextColor();
     }
     
-    // Update selected stickies
-    selectedStickies.forEach((id) => {
-      const plugin = getPlugin('sticky');
-      if (plugin) {
-        plugin.updateItem(board, id, { color: newColor });
+    // Update all selected items that support colors
+    selectionsWithColors.forEach(({ plugin, type, selection }) => {
+      if (type === 'connector') {
+        selection.forEach((id) => {
+          board.updateConnectorColor(id, newColor);
+        });
+      } else if (plugin) {
+        selection.forEach((id) => {
+          plugin.updateItem(board, id, { color: newColor });
+        });
       }
     });
     
-    // Update selected connectors
-    if (selectedConnectors) {
-      selectedConnectors.forEach((id) => {
-        board.updateConnectorColor(id, newColor);
-      });
-    }
-    
-    // Update the appropriate current color based on what's selected
-    const appState = board.getAppState ? board.getAppState() : window.appState;
-    if (selectedStickies.hasItems() && (!selectedConnectors || !selectedConnectors.hasItems())) {
-      // Only stickies selected - update sticky color
-      appState.ui.currentStickyColor = newColor;
-    } else if (selectedConnectors && selectedConnectors.hasItems() && !selectedStickies.hasItems()) {
-      // Only connectors selected - update connector color
-      appState.ui.currentConnectorColor = newColor;
-    } else if (selectedStickies.hasItems() && selectedConnectors && selectedConnectors.hasItems()) {
-      // Both selected - update both colors
-      appState.ui.currentStickyColor = newColor;
-      appState.ui.currentConnectorColor = newColor;
-    }
+    // Update current colors for each plugin type
+    selectionsWithColors.forEach(({ plugin, type }) => {
+      if (type === 'connector') {
+        appState.ui.currentConnectorColor = newColor;
+      } else if (plugin) {
+        const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+        appState.ui[colorKey] = newColor;
+      }
+    });
     
     // Legacy compatibility
     appState.ui.currentColor = newColor;
@@ -76,11 +102,19 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
     return newColor;
   } else {
     // No selection - cycle through colors for future items
-    const newColor = nextColor();
+    // Use first plugin's palette as default, or sticky palette
+    const defaultPalette = plugins.find(p => p.getColorPalette()?.length > 0)?.getColorPalette() || stickyColorPalette;
+    const newColor = nextColorFromPalette(defaultPalette);
     
-    // Update both current colors
-    const appState = board.getAppState ? board.getAppState() : window.appState;
-    appState.ui.currentStickyColor = newColor;
+    // Update all plugin colors
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const palette = plugin.getColorPalette();
+      if (palette && palette.length > 0) {
+        const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+        appState.ui[colorKey] = newColor;
+      }
+    });
     appState.ui.currentConnectorColor = newColor;
     appState.ui.currentColor = newColor; // Legacy compatibility
     
@@ -88,8 +122,27 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
   }
 
   function nextColor() {
+    // Determine which palette to use based on selections
+    let palette = stickyColorPalette; // Default
+    
+    if (selectionsWithColors.length === 1) {
+      // Single selection type - use its palette
+      palette = selectionsWithColors[0].palette;
+    } else if (selectionsWithColors.length > 1) {
+      // Multiple types selected - prefer first plugin palette over connector
+      const pluginSelection = selectionsWithColors.find(s => s.plugin);
+      if (pluginSelection) {
+        palette = pluginSelection.palette;
+      } else {
+        palette = connectorColorPalette;
+      }
+    }
+    
+    return nextColorFromPalette(palette);
+  }
+  
+  function nextColorFromPalette(palette) {
     const delta = reverse ? -1 : 1;
-    const palette = getCurrentPalette();
     let currentIndex = palette.findIndex((c) => c === currentColor);
     
     // If currentColor is not found in the palette, start from the beginning
@@ -104,19 +157,6 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
     return palette[index];
   }
 
-  function getCurrentPalette() {
-    // If only connectors are selected, use connector palette
-    if (selectedConnectors && selectedConnectors.hasItems() && !selectedStickies.hasItems()) {
-      return connectorColorPalette;
-    }
-    // If only stickies are selected, use sticky palette
-    if (selectedStickies.hasItems() && (!selectedConnectors || !selectedConnectors.hasItems())) {
-      return stickyColorPalette;
-    }
-    // If both are selected or none are selected, use sticky palette as default
-    return stickyColorPalette;
-  }
-
   function multipleSelectedHaveSameColor() {
     const colors = selectedColors();
     return colors.length > 1 && colors.every((color) => color === colors[0]);
@@ -129,20 +169,29 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
 
   function selectedColors() {
     const colors = [];
-    selectedStickies.forEach((id) => {
-      try {
-        const sticky = board.getBoardItemByType('sticky', id);
-        colors.push(sticky.color);
-      } catch (e) {
-        // Item not found
+    selectionsWithColors.forEach(({ plugin, type, selection }) => {
+      if (type === 'connector') {
+        selection.forEach((id) => {
+          try {
+            const connector = board.getConnector(id);
+            colors.push(connector.color || "#000000");
+          } catch (e) {
+            // Item not found
+          }
+        });
+      } else if (plugin) {
+        selection.forEach((id) => {
+          try {
+            const item = board.getBoardItemByType(type, id);
+            if (item && item.color) {
+              colors.push(item.color);
+            }
+          } catch (e) {
+            // Item not found
+          }
+        });
       }
     });
-    if (selectedConnectors) {
-      selectedConnectors.forEach((id) => {
-        const connector = board.getConnector(id);
-        colors.push(connector.color || "#000000"); // Default connector color (black)
-      });
-    }
     return colors;
   }
 }

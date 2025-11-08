@@ -1,8 +1,10 @@
 /**
  * Movement Utilities
- * Centralized movement logic for all board items (stickies, images, connectors)
+ * Centralized movement logic for all board items (plugins and connectors)
  * Extracted from keyboard handlers to be reused by drag implementations
  */
+
+import { getAllPlugins } from '../board-items/plugin-registry.js';
 
 /**
  * Extract coordinates from touch or mouse event
@@ -84,31 +86,23 @@ export function getEventPageCoordinates(event) {
  * @param {string} type - Item type ('sticky', 'image', 'connector')
  */
 export function moveItem(id, dx, dy, board, type) {
-  switch (type) {
-    case 'sticky':
-      const stickyLocation = board.getBoardItemLocationByType('sticky', id);
-      const newStickyLocation = {
-        x: stickyLocation.x + dx,
-        y: stickyLocation.y + dy,
-      };
-      board.moveBoardItem('sticky', id, newStickyLocation);
-      break;
-      
-    case 'image':
-      const imageLocation = board.getBoardItemLocationByType('image', id);
-      const newImageLocation = {
-        x: imageLocation.x + dx,
-        y: imageLocation.y + dy,
-      };
-      board.moveBoardItem('image', id, newImageLocation);
-      break;
-      
-    case 'connector':
-      board.moveConnector(id, dx, dy);
-      break;
-      
-    default:
-      console.warn(`Unknown item type for movement: ${type}`);
+  if (type === 'connector') {
+    board.moveConnector(id, dx, dy);
+    return;
+  }
+  
+  // Plugin item - use generic board methods
+  const plugins = getAllPlugins();
+  const plugin = plugins.find(p => p.getType() === type);
+  if (plugin) {
+    const location = board.getBoardItemLocationByType(type, id);
+    const newLocation = {
+      x: location.x + dx,
+      y: location.y + dy,
+    };
+    board.moveBoardItem(type, id, newLocation);
+  } else {
+    console.warn(`Unknown item type for movement: ${type}`);
   }
 }
 
@@ -118,74 +112,73 @@ export function moveItem(id, dx, dy, board, type) {
  * @param {number} dx - Delta X movement
  * @param {number} dy - Delta Y movement
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection management object for stickies
- * @param {Object} selectedImages - Selection management object for images
+ * @param {Object} selectedStickies - Selection management object for stickies (for backward compat)
+ * @param {Object} selectedImages - Selection management object for images (for backward compat)
  * @param {Object} selectedConnectors - Selection management object for connectors
  */
 export function moveSelection(dx, dy, board, selectedStickies, selectedImages, selectedConnectors) {
-  // Collect IDs and track original locations
-  const stickyIds = [];
-  const stickyOriginalLocations = new Map();
-  selectedStickies.forEach((id) => {
-    stickyIds.push(id);
-    stickyOriginalLocations.set(id, board.getBoardItemLocationByType('sticky', id));
+  const plugins = getAllPlugins();
+  const itemIdsByType = {};
+  const originalLocationsByType = {};
+  
+  // Collect IDs and track original locations for all plugin types
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const selectionType = plugin.getSelectionType();
+    
+    // Get selection - try selectionType first, then type, then fallback to backward compat
+    let selection = null;
+    if (selectionType === 'stickies' && selectedStickies) {
+      selection = selectedStickies;
+    } else if (selectionType === 'images' && selectedImages) {
+      selection = selectedImages;
+    }
+    
+    if (selection && selection.hasItems && selection.hasItems()) {
+      itemIdsByType[type] = [];
+      originalLocationsByType[type] = new Map();
+      
+      selection.forEach((id) => {
+        itemIdsByType[type].push(id);
+        originalLocationsByType[type].set(id, board.getBoardItemLocationByType(type, id));
+      });
+    }
   });
   
-  const imageIds = [];
-  const imageOriginalLocations = new Map();
-  selectedImages.forEach((id) => {
-    imageIds.push(id);
-    imageOriginalLocations.set(id, board.getBoardItemLocationByType('image', id));
-  });
-  
-  // Move stickies
-  stickyIds.forEach((id) => {
-    moveItem(id, dx, dy, board, 'sticky');
-  });
-  
-  // Move images
-  imageIds.forEach((id) => {
-    moveItem(id, dx, dy, board, 'image');
+  // Move all plugin items
+  Object.entries(itemIdsByType).forEach(([type, ids]) => {
+    ids.forEach((id) => {
+      moveItem(id, dx, dy, board, type);
+    });
   });
   
   // Move connectors
-  selectedConnectors.forEach((id) => {
-    moveItem(id, dx, dy, board, 'connector');
-  });
+  if (selectedConnectors && selectedConnectors.hasItems && selectedConnectors.hasItems()) {
+    selectedConnectors.forEach((id) => {
+      moveItem(id, dx, dy, board, 'connector');
+    });
+  }
   
   // Calculate actual deltas after movement (accounting for snapping)
   // and move connectors for each item with its actual delta
   // Track which connectors have been moved to avoid double movement
   const movedConnectors = new Set();
   
-  stickyIds.forEach((id) => {
-    const originalLocation = stickyOriginalLocations.get(id);
-    const newLocation = board.getBoardItemLocationByType('sticky', id);
-    const actualDeltaX = newLocation.x - originalLocation.x;
-    const actualDeltaY = newLocation.y - originalLocation.y;
-    
-    // Only move connectors if movement exceeds threshold (same as sticky movement threshold)
-    const movementThreshold = 1; // pixels - only move if actual movement is significant
-    const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
-    
-    if (movementDistance > movementThreshold) {
-      board.moveConnectorsConnectedToItems({ 'sticky': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
-    }
-  });
-  
-  imageIds.forEach((id) => {
-    const originalLocation = imageOriginalLocations.get(id);
-    const newLocation = board.getBoardItemLocationByType('image', id);
-    const actualDeltaX = newLocation.x - originalLocation.x;
-    const actualDeltaY = newLocation.y - originalLocation.y;
-    
-    // Only move connectors if movement exceeds threshold
-    const movementThreshold = 1; // pixels - only move if actual movement is significant
-    const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
-    
-    if (movementDistance > movementThreshold) {
-      board.moveConnectorsConnectedToItems({ 'image': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
-    }
+  // Process each plugin type
+  Object.entries(originalLocationsByType).forEach(([type, originalLocations]) => {
+    originalLocations.forEach((originalLocation, id) => {
+      const newLocation = board.getBoardItemLocationByType(type, id);
+      const actualDeltaX = newLocation.x - originalLocation.x;
+      const actualDeltaY = newLocation.y - originalLocation.y;
+      
+      // Only move connectors if movement exceeds threshold
+      const movementThreshold = 1; // pixels - only move if actual movement is significant
+      const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
+      
+      if (movementDistance > movementThreshold) {
+        board.moveConnectorsConnectedToItems({ [type]: [id] }, actualDeltaX, actualDeltaY, movedConnectors);
+      }
+    });
   });
 }
 
@@ -266,22 +259,22 @@ export function constrainToBoardBoundaries(x, y, board) {
  * @param {string} type - Item type ('sticky', 'image', 'connector')
  */
 export function moveItemFromOriginal(id, originalLocation, dx, dy, board, type) {
+  if (type === 'connector') {
+    board.moveConnector(id, dx, dy);
+    return;
+  }
+  
+  // Plugin item - use generic board methods
   const newLocation = {
     x: originalLocation.x + dx,
     y: originalLocation.y + dy
   };
   
-  switch (type) {
-    case 'sticky':
-      board.moveBoardItem('sticky', id, newLocation);
-      break;
-    case 'image':
-      board.moveBoardItem('image', id, newLocation);
-      break;
-    case 'connector':
-      board.moveConnector(id, dx, dy);
-      break;
-    default:
-      console.warn(`Unknown item type for movement: ${type}`);
+  const plugins = getAllPlugins();
+  const plugin = plugins.find(p => p.getType() === type);
+  if (plugin) {
+    board.moveBoardItem(type, id, newLocation);
+  } else {
+    console.warn(`Unknown item type for movement: ${type}`);
   }
 }

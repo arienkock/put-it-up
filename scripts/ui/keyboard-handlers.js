@@ -3,6 +3,7 @@ import { createStateConfig } from "./state-config-pattern.js";
 import { changeZoomLevel } from "./zoom.js";
 import { changeColor } from "./color-management.js";
 import { moveSelection } from "./movement-utils.js";
+import { getAllPlugins } from "../board-items/plugin-registry.js";
 
 /**
  * Centralized Keyboard State Machine
@@ -10,12 +11,31 @@ import { moveSelection } from "./movement-utils.js";
  * Defines explicit states for keyboard interactions to provide clear context
  * and enable better debugging and state management.
  */
+// Generate creation mode states dynamically from plugins
+// Note: This runs at module load time, so plugins must be registered statically
+const plugins = getAllPlugins();
+const pluginCreationStates = {};
+plugins.forEach(plugin => {
+  const creationFlag = plugin.getCreationModeFlag();
+  if (creationFlag) {
+    const type = plugin.getType();
+    const stateName = `${type.toUpperCase()}_CREATION_MODE`;
+    pluginCreationStates[stateName] = `${type}_creation_mode`;
+  }
+});
+
 const KeyboardState = {
   IDLE: 'idle',
-  STICKY_CREATION_MODE: 'sticky_creation_mode',
+  ...pluginCreationStates,
   CONNECTOR_CREATION_MODE: 'connector_creation_mode',
   EDITING_MODE: 'editing_mode'
 };
+
+// Ensure STICKY_CREATION_MODE is always available for backward compatibility
+// even if plugins aren't loaded yet (for tests)
+if (!KeyboardState.STICKY_CREATION_MODE) {
+  KeyboardState.STICKY_CREATION_MODE = 'sticky_creation_mode';
+}
 
 /**
  * Keyboard State Machine Implementation
@@ -40,19 +60,35 @@ class KeyboardStateMachine extends StateMachine {
       }
     };
     
-    stateConfig[KeyboardState.STICKY_CREATION_MODE] = {
-      setup: (stateData, stateMachine) => {
-        if (stateMachine.board) {
-          stateMachine.setStickyCreationMode(true);
-          stateMachine.setupStickyCreationHandlers();
-          stateData.activeMode = 'sticky_creation';
-          stateData.lastAction = 'sticky creation mode activated';
-        }
-      },
-      cleanup: (stateData, stateMachine) => {
-        stateMachine.setStickyCreationMode(false);
+    // Configure plugin creation modes dynamically
+    plugins.forEach(plugin => {
+      const creationFlag = plugin.getCreationModeFlag();
+      if (creationFlag) {
+        const type = plugin.getType();
+        const stateName = `${type.toUpperCase()}_CREATION_MODE`;
+        const stateValue = `${type}_creation_mode`;
+        
+        stateConfig[stateValue] = {
+          setup: (stateData, stateMachine) => {
+            if (stateMachine.board) {
+              stateMachine.setPluginCreationMode(type, true);
+              stateMachine.setupPluginCreationHandlers(type);
+              stateData.activeMode = `${type}_creation`;
+              stateData.lastAction = `${type} creation mode activated`;
+            }
+          },
+          cleanup: (stateData, stateMachine) => {
+            stateMachine.setPluginCreationMode(type, false);
+          }
+        };
       }
-    };
+    });
+    
+    // Backward compatibility: keep STICKY_CREATION_MODE if sticky plugin exists
+    const stickyPlugin = plugins.find(p => p.getType() === 'sticky');
+    if (stickyPlugin && stickyPlugin.getCreationModeFlag()) {
+      stateConfig[KeyboardState.STICKY_CREATION_MODE] = stateConfig['sticky_creation_mode'];
+    }
     
     stateConfig[KeyboardState.CONNECTOR_CREATION_MODE] = {
       setup: (stateData, stateMachine) => {
@@ -100,18 +136,39 @@ class KeyboardStateMachine extends StateMachine {
   
   clearAllModeFlags() {
     if (this.appState && this.appState.ui) {
-      this.appState.ui.nextClickCreatesNewSticky = false;
+      // Clear all plugin creation flags
+      const plugins = getAllPlugins();
+      plugins.forEach(plugin => {
+        const creationFlag = plugin.getCreationModeFlag();
+        if (creationFlag) {
+          this.appState.ui[creationFlag] = false;
+        }
+      });
+      // Clear connector creation flag
       this.appState.ui.nextClickCreatesConnector = false;
       this.appState.ui.connectorOriginId = null;
     }
   }
   
-  setStickyCreationMode(enabled) {
+  setPluginCreationMode(pluginType, enabled) {
     if (this.appState && this.appState.ui) {
-      this.appState.ui.nextClickCreatesNewSticky = enabled;
-      this.appState.ui.nextClickCreatesConnector = false;
-      this.appState.ui.connectorOriginId = null;
+      const plugins = getAllPlugins();
+      const plugin = plugins.find(p => p.getType() === pluginType);
+      if (plugin) {
+        const creationFlag = plugin.getCreationModeFlag();
+        if (creationFlag) {
+          // Clear all other creation modes
+          this.clearAllModeFlags();
+          // Set this plugin's creation mode
+          this.appState.ui[creationFlag] = enabled;
+        }
+      }
     }
+  }
+  
+  setStickyCreationMode(enabled) {
+    // Backward compatibility wrapper
+    this.setPluginCreationMode('sticky', enabled);
   }
   
   setConnectorCreationMode(enabled) {
@@ -123,7 +180,23 @@ class KeyboardStateMachine extends StateMachine {
   }
   
   setEditingMode(enabled) {
-    this.stateData.editingElement = enabled ? document.querySelector('.sticky-container.editing') : null;
+    if (enabled) {
+      // Find any plugin element in editing mode
+      const plugins = getAllPlugins();
+      for (const plugin of plugins) {
+        const editingSelector = plugin.getEditingSelector();
+        if (editingSelector) {
+          const element = document.querySelector(editingSelector);
+          if (element && plugin.isEditingElement(element)) {
+            this.stateData.editingElement = element;
+            return;
+          }
+        }
+      }
+      this.stateData.editingElement = null;
+    } else {
+      this.stateData.editingElement = null;
+    }
   }
   
   setupIdleKeyboardHandlers() {
@@ -132,6 +205,11 @@ class KeyboardStateMachine extends StateMachine {
   
   setupStickyCreationHandlers() {
     // No specific setup needed for sticky creation state
+  }
+  
+  setupPluginCreationHandlers(pluginType) {
+    // No specific setup needed for plugin creation state
+    // Can be overridden by specific plugins if needed
   }
   
   setupConnectorCreationHandlers() {
@@ -170,12 +248,20 @@ class KeyboardStateMachine extends StateMachine {
   }
   
   /**
-   * Helper function to check if currently editing a sticky
+   * Helper function to check if currently editing any plugin item
    */
   isEditingSticky(event) {
     if (event.key === "Backspace") {
-      const isEditingSticky = document.querySelector('.sticky-container.editing');
-      return isEditingSticky !== null;
+      const plugins = getAllPlugins();
+      for (const plugin of plugins) {
+        const editingSelector = plugin.getEditingSelector();
+        if (editingSelector) {
+          const element = document.querySelector(editingSelector);
+          if (element && plugin.isEditingElement(element)) {
+            return true;
+          }
+        }
+      }
     }
     return false;
   }
@@ -208,19 +294,20 @@ class KeyboardStateMachine extends StateMachine {
         }
       },
       
-      // Handler for new sticky creation
+      // Handler for new sticky creation (backward compatibility - uses plugin system)
       stickyCreationHandler: {
         canHandle: (event, state, appState) => {
           return event.key === "n" && state === KeyboardState.IDLE;
         },
         
         onKeyDown: (event, keyboardStateData) => {
-          this.appState.ui.nextClickCreatesNewSticky = true;
-          this.appState.ui.nextClickCreatesConnector = false;
-          this.appState.ui.connectorOriginId = null;
-          this.callbacks.onNewStickyRequest();
-          
-          this.transitionTo(KeyboardState.STICKY_CREATION_MODE, 'sticky creation mode activated');
+          const stickyPlugin = plugins.find(p => p.getType() === 'sticky');
+          if (stickyPlugin && stickyPlugin.getCreationModeFlag()) {
+            this.setPluginCreationMode('sticky', true);
+            this.callbacks.onNewStickyRequest();
+            const stateValue = 'sticky_creation_mode';
+            this.transitionTo(stateValue, 'sticky creation mode activated');
+          }
         }
       },
       
@@ -243,15 +330,21 @@ class KeyboardStateMachine extends StateMachine {
       // Handler for action cancellation
       cancelHandler: {
         canHandle: (event, state, appState) => {
-          return event.key === "Escape" && 
-                 (this.appState.ui.nextClickCreatesNewSticky || this.appState.ui.nextClickCreatesConnector);
+          if (event.key !== "Escape") return false;
+          
+          // Check if any plugin creation mode is active
+          const plugins = getAllPlugins();
+          const hasPluginCreationMode = plugins.some(plugin => {
+            const creationFlag = plugin.getCreationModeFlag();
+            return creationFlag && this.appState.ui[creationFlag];
+          });
+          
+          return hasPluginCreationMode || this.appState.ui.nextClickCreatesConnector;
         },
         
         onKeyDown: (event, keyboardStateData) => {
-          // Update appState before calling callback
-          this.appState.ui.nextClickCreatesNewSticky = false;
-          this.appState.ui.nextClickCreatesConnector = false;
-          this.appState.ui.connectorOriginId = null;
+          // Clear all creation modes
+          this.clearAllModeFlags();
           
           this.callbacks.onCancelAction();
           
@@ -366,18 +459,37 @@ class KeyboardStateMachine extends StateMachine {
   }
   
   /**
-   * Deletes all selected items (stickies, connectors, and images)
+   * Deletes all selected items (plugins and connectors)
    */
   deleteSelectedItems() {
-    this.selectedStickies.forEach((id) => {
-      this.board.deleteBoardItem('sticky', id);
+    const plugins = getAllPlugins();
+    
+    // Delete plugin items
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const selectionType = plugin.getSelectionType();
+      
+      // Get selection - try backward compat names first
+      let selection = null;
+      if (type === 'sticky' && this.selectedStickies) {
+        selection = this.selectedStickies;
+      } else if (type === 'image' && this.selectedImages) {
+        selection = this.selectedImages;
+      }
+      
+      if (selection && selection.hasItems && selection.hasItems()) {
+        selection.forEach((id) => {
+          this.board.deleteBoardItem(type, id);
+        });
+      }
     });
-    this.selectedConnectors.forEach((id) => {
-      this.board.deleteConnector(id);
-    });
-    this.selectedImages.forEach((id) => {
-      this.board.deleteBoardItem('image', id);
-    });
+    
+    // Delete connectors (not a plugin)
+    if (this.selectedConnectors && this.selectedConnectors.hasItems && this.selectedConnectors.hasItems()) {
+      this.selectedConnectors.forEach((id) => {
+        this.board.deleteConnector(id);
+      });
+    }
   }
   
   setupEventListeners() {
@@ -472,15 +584,33 @@ export { KeyboardStateMachine };
  * @param {Object} selectedImages - Selection management object for images
  */
 export function deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages) {
-  selectedStickies.forEach((id) => {
-    board.deleteBoardItem('sticky', id);
+  const plugins = getAllPlugins();
+  
+  // Delete plugin items
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    
+    // Get selection - try backward compat names first
+    let selection = null;
+    if (type === 'sticky' && selectedStickies) {
+      selection = selectedStickies;
+    } else if (type === 'image' && selectedImages) {
+      selection = selectedImages;
+    }
+    
+    if (selection && selection.hasItems && selection.hasItems()) {
+      selection.forEach((id) => {
+        board.deleteBoardItem(type, id);
+      });
+    }
   });
-  selectedConnectors.forEach((id) => {
-    board.deleteConnector(id);
-  });
-  selectedImages.forEach((id) => {
-    board.deleteBoardItem('image', id);
-  });
+  
+  // Delete connectors (not a plugin)
+  if (selectedConnectors && selectedConnectors.hasItems && selectedConnectors.hasItems()) {
+    selectedConnectors.forEach((id) => {
+      board.deleteConnector(id);
+    });
+  }
 }
 
 /**

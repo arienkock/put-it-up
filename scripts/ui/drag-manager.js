@@ -1,6 +1,7 @@
 import { StateMachine, GlobalListenerManager } from "./state-machine-base.js";
 import { createStateConfig } from "./state-config-pattern.js";
 import { moveItemFromOriginal, calculateMovementDelta, getEventCoordinates } from "./movement-utils.js";
+import { getStorageKeyForType, getAllPlugins } from "../board-items/plugin-registry.js";
 
 /**
  * Drag State Machine
@@ -14,16 +15,15 @@ const DragState = {
 
 /**
  * Helper function to convert item type to selection type
- * @param {string} itemType - 'sticky', 'image', or 'connector'
- * @returns {string} - 'stickies', 'images', or 'connectors'
+ * @param {string} itemType - Plugin type or 'connector'
+ * @returns {string} - Selection type (e.g., 'stickies', 'images', 'connectors')
  */
 function itemTypeToSelectionType(itemType) {
-  const mapping = {
-    'sticky': 'stickies',
-    'image': 'images',
-    'connector': 'connectors'
-  };
-  return mapping[itemType] || itemType;
+  if (itemType === 'connector') {
+    return 'connectors';
+  }
+  // Use plugin registry to get selection type
+  return getStorageKeyForType(itemType) || itemType;
 }
 
 /**
@@ -151,29 +151,30 @@ class DragStateMachine extends StateMachine {
     
     // Validate item exists
     let item = null;
-    switch (itemType) {
-      case 'sticky':
+    const plugins = getAllPlugins();
+    
+    if (itemType === 'connector') {
+      item = this.store.getConnector(itemId);
+    } else {
+      // Check if it's a plugin type
+      const plugin = plugins.find(p => p.getType() === itemType);
+      if (plugin) {
         try {
-          item = this.store.getBoardItem('sticky', itemId);
+          item = this.store.getBoardItem(itemType, itemId);
         } catch (e) {
           // Item not found
         }
-        // Can't drag if sticky is being edited
-        const container = document.querySelector(`[data-sticky-id="${itemId}"]`);
-        if (container && container.classList.contains('editing')) {
-          return false;
+        // Check if item is being edited (using plugin's editing detection)
+        if (plugin.isEditingElement) {
+          const editingSelector = plugin.getEditingSelector();
+          if (editingSelector) {
+            const container = document.querySelector(editingSelector);
+            if (container && plugin.isEditingElement(container)) {
+              return false;
+            }
+          }
         }
-        break;
-      case 'image':
-        try {
-          item = this.store.getBoardItem('image', itemId);
-        } catch (e) {
-          // Item not found
-        }
-        break;
-      case 'connector':
-        item = this.store.getConnector(itemId);
-        break;
+      }
     }
     
     return item !== null;
@@ -202,14 +203,9 @@ class DragStateMachine extends StateMachine {
     }
     
     // Check if item is currently selected
-    let stickySelection = this.selectionManager.getSelection('stickies');
-    let imageSelection = this.selectionManager.getSelection('images');
-    let connectorSelection = this.selectionManager.getSelection('connectors');
-    
-    const isSelected = 
-      (itemType === 'sticky' && stickySelection && stickySelection.isSelected(itemId)) ||
-      (itemType === 'image' && imageSelection && imageSelection.isSelected(itemId)) ||
-      (itemType === 'connector' && connectorSelection && connectorSelection.isSelected(itemId));
+    const selectionType = itemTypeToSelectionType(itemType);
+    const selection = this.selectionManager.getSelection(selectionType);
+    const isSelected = selection && selection.isSelected(itemId);
     
     // If not selected, clear previous selection and select only this item
     // This ensures dragging an unselected item resets the selection to just that item
@@ -218,10 +214,6 @@ class DragStateMachine extends StateMachine {
       this.selectionManager.selectItem(selectionType, itemId, { addToSelection: false });
       // Trigger render to show visual feedback of selection
       this.renderCallback();
-      // Re-read selections after potential update
-      stickySelection = this.selectionManager.getSelection('stickies');
-      imageSelection = this.selectionManager.getSelection('images');
-      connectorSelection = this.selectionManager.getSelection('connectors');
     }
     
     // Store drag start information
@@ -234,44 +226,36 @@ class DragStateMachine extends StateMachine {
     this.stateData.originalLocations = {};
     
     // Track last positions for calculating incremental deltas for connectors
-    this.stateData.lastLocations = {
-      stickies: new Map(),
-      images: new Map()
-    };
+    this.stateData.lastLocations = {};
     
-    // Collect all selected items across all types and store their original locations
-    if (stickySelection && stickySelection.hasItems()) {
-      this.stateData.originalLocations.stickies = new Map();
-      stickySelection.forEach((id) => {
-        try {
-          const sticky = this.store.getBoardItem('sticky', id);
-          if (sticky) {
-            const location = { ...sticky.location };
-            this.stateData.originalLocations.stickies.set(id, location);
-            this.stateData.lastLocations.stickies.set(id, location);
+    // Collect all selected items across all plugin types and store their original locations
+    const plugins = getAllPlugins();
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const storageKey = plugin.getSelectionType();
+      const pluginSelection = this.selectionManager.getSelection(storageKey);
+      
+      if (pluginSelection && pluginSelection.hasItems()) {
+        this.stateData.originalLocations[storageKey] = new Map();
+        this.stateData.lastLocations[storageKey] = new Map();
+        
+        pluginSelection.forEach((id) => {
+          try {
+            const item = this.store.getBoardItem(type, id);
+            if (item && item.location) {
+              const location = { ...item.location };
+              this.stateData.originalLocations[storageKey].set(id, location);
+              this.stateData.lastLocations[storageKey].set(id, location);
+            }
+          } catch (e) {
+            // Item not found
           }
-        } catch (e) {
-          // Item not found
-        }
-      });
-    }
+        });
+      }
+    });
     
-    if (imageSelection && imageSelection.hasItems()) {
-      this.stateData.originalLocations.images = new Map();
-      imageSelection.forEach((id) => {
-        try {
-          const image = this.store.getBoardItem('image', id);
-          if (image) {
-            const location = { ...image.location };
-            this.stateData.originalLocations.images.set(id, location);
-            this.stateData.lastLocations.images.set(id, location);
-          }
-        } catch (e) {
-          // Item not found
-        }
-      });
-    }
-    
+    // Collect connectors (not a plugin)
+    const connectorSelection = this.selectionManager.getSelection('connectors');
     if (connectorSelection && connectorSelection.hasItems()) {
       this.stateData.originalLocations.connectors = new Map();
       connectorSelection.forEach((id) => {
@@ -309,25 +293,26 @@ class DragStateMachine extends StateMachine {
       this.stateData.boardScale
     );
     
-    // Collect IDs of items being moved
-    const stickyIds = [];
-    const imageIds = [];
+    // Collect IDs of items being moved, organized by type
+    const itemIdsByType = {};
+    const plugins = getAllPlugins();
     
-    // Move all selected stickies
-    if (this.stateData.originalLocations.stickies) {
-      this.stateData.originalLocations.stickies.forEach((originalLocation, id) => {
-        stickyIds.push(id);
-        moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, this.board, 'sticky');
-      });
-    }
-    
-    // Move all selected images
-    if (this.stateData.originalLocations.images) {
-      this.stateData.originalLocations.images.forEach((originalLocation, id) => {
-        imageIds.push(id);
-        moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, this.board, 'image');
-      });
-    }
+    // Move all selected plugin items
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const storageKey = plugin.getSelectionType();
+      
+      if (this.stateData.originalLocations[storageKey]) {
+        if (!itemIdsByType[type]) {
+          itemIdsByType[type] = [];
+        }
+        
+        this.stateData.originalLocations[storageKey].forEach((originalLocation, id) => {
+          itemIdsByType[type].push(id);
+          moveItemFromOriginal(id, originalLocation, delta.dx, delta.dy, this.board, type);
+        });
+      }
+    });
     
     // Move all selected connectors (connectors use incremental delta movement)
     if (this.stateData.originalLocations.connectors) {
@@ -350,44 +335,31 @@ class DragStateMachine extends StateMachine {
     // Track which connectors have been moved to avoid double movement
     const movedConnectors = new Set();
     
-    stickyIds.forEach((id) => {
-      const lastLocation = this.stateData.lastLocations.stickies?.get(id);
-      if (lastLocation) {
-        const newLocation = this.board.getBoardItemLocationByType('sticky', id);
-        // Calculate incremental delta from last position to current position
-        const actualDeltaX = newLocation.x - lastLocation.x;
-        const actualDeltaY = newLocation.y - lastLocation.y;
-        
-        // Only move connectors if movement exceeds threshold (same as sticky movement threshold)
-        const movementThreshold = 1; // pixels - only move if actual movement is significant
-        const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
-        
-        if (movementDistance > movementThreshold) {
-          this.board.moveConnectorsConnectedToItems({ 'sticky': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
-          // Update last position for next incremental calculation
-          this.stateData.lastLocations.stickies.set(id, { ...newLocation });
+    // Process each plugin type
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const storageKey = plugin.getSelectionType();
+      const ids = itemIdsByType[type] || [];
+      
+      ids.forEach((id) => {
+        const lastLocation = this.stateData.lastLocations[storageKey]?.get(id);
+        if (lastLocation) {
+          const newLocation = this.board.getBoardItemLocationByType(type, id);
+          // Calculate incremental delta from last position to current position
+          const actualDeltaX = newLocation.x - lastLocation.x;
+          const actualDeltaY = newLocation.y - lastLocation.y;
+          
+          // Only move connectors if movement exceeds threshold
+          const movementThreshold = 1; // pixels - only move if actual movement is significant
+          const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
+          
+          if (movementDistance > movementThreshold) {
+            this.board.moveConnectorsConnectedToItems({ [type]: [id] }, actualDeltaX, actualDeltaY, movedConnectors);
+            // Update last position for next incremental calculation
+            this.stateData.lastLocations[storageKey].set(id, { ...newLocation });
+          }
         }
-      }
-    });
-    
-    imageIds.forEach((id) => {
-      const lastLocation = this.stateData.lastLocations.images?.get(id);
-      if (lastLocation) {
-        const newLocation = this.board.getBoardItemLocationByType('image', id);
-        // Calculate incremental delta from last position to current position
-        const actualDeltaX = newLocation.x - lastLocation.x;
-        const actualDeltaY = newLocation.y - lastLocation.y;
-        
-        // Only move connectors if movement exceeds threshold
-        const movementThreshold = 1; // pixels - only move if actual movement is significant
-        const movementDistance = Math.sqrt(actualDeltaX * actualDeltaX + actualDeltaY * actualDeltaY);
-        
-        if (movementDistance > movementThreshold) {
-          this.board.moveConnectorsConnectedToItems({ 'image': [id] }, actualDeltaX, actualDeltaY, movedConnectors);
-          // Update last position for next incremental calculation
-          this.stateData.lastLocations.images.set(id, { ...newLocation });
-        }
-      }
+      });
     });
     
     // Update last position for next move (used for connectors)

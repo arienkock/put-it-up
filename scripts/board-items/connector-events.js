@@ -4,6 +4,7 @@ import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 import { isClickOnConnectorStroke, getConnectorsBelowPoint } from "./connector-hit-testing.js";
 import { getEventCoordinates } from "../ui/movement-utils.js";
+import { getAllPlugins, getPluginForElement } from "./plugin-registry.js";
 
 /**
  * Connector State Machine
@@ -16,6 +17,32 @@ const ConnectorState = {
   DRAGGING_HANDLE: 'dragging_handle',
   DRAGGING_CURVE_HANDLE: 'dragging_curve_handle'
 };
+
+/**
+ * Helper function to find plugin item from an element
+ * @param {HTMLElement} element - DOM element to check
+ * @returns {Object|null} {plugin, type, id} or null if not found
+ */
+function findPluginItemFromElement(element) {
+  if (!element) return null;
+  
+  const plugins = getAllPlugins();
+  for (const plugin of plugins) {
+    const baseClass = plugin.getContainerBaseClass();
+    const classPrefix = plugin.getContainerClassPrefix();
+    const container = element.closest(`.${baseClass}`);
+    
+    if (container) {
+      const idClass = Array.from(container.classList).find(cls => cls.startsWith(classPrefix));
+      if (idClass) {
+        const id = idClass.replace(classPrefix, '');
+        return { plugin, type: plugin.getType(), id };
+      }
+    }
+  }
+  
+  return null;
+}
 
 /**
  * Connector State Machine Implementation
@@ -423,25 +450,35 @@ class ConnectorStateMachine extends StateMachine {
             y: (event.clientY - rect.top) / boardScale - boardOrigin.y
           };
           
-          // Check if we're starting from a sticky or image
-          const stickyContainer = event.target.closest('.sticky-container');
-          const imageContainer = event.target.closest('.image-container');
-          let originStickyId = null;
-          let originImageId = null;
+          // Check if we're starting from a plugin item
+          const plugins = getAllPlugins();
+          let originItemId = null;
+          let originItemType = null;
           
-          if (stickyContainer) {
-            const stickyIdClass = Array.from(stickyContainer.classList).find(cls => cls.startsWith('sticky-'));
-            originStickyId = stickyIdClass ? stickyIdClass.replace('sticky-', '') : null;
-          } else if (imageContainer) {
-            const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
-            originImageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
+          // Find which plugin owns this element
+          for (const plugin of plugins) {
+            const baseClass = plugin.getContainerBaseClass();
+            const classPrefix = plugin.getContainerClassPrefix();
+            const container = event.target.closest(`.${baseClass}`);
+            
+            if (container) {
+              // Extract ID from class name
+              const idClass = Array.from(container.classList).find(cls => cls.startsWith(classPrefix));
+              if (idClass) {
+                originItemId = idClass.replace(classPrefix, '');
+                originItemType = plugin.getType();
+                break;
+              }
+            }
           }
           
-          // Store origin data
+          // Store origin data (backward compat format)
           stateData.originData = {
             point,
-            originStickyId,
-            originImageId
+            originStickyId: originItemType === 'sticky' ? originItemId : null,
+            originImageId: originItemType === 'image' ? originItemId : null,
+            originItemId,
+            originItemType
           };
           stateData.dragStartPoint = point;
           
@@ -452,10 +489,18 @@ class ConnectorStateMachine extends StateMachine {
             color: appState.ui.currentConnectorColor,
           };
           
-          if (originStickyId) {
-            connectorData.originId = originStickyId;
-          } else if (originImageId) {
-            connectorData.originImageId = originImageId;
+          // Set connector origin based on plugin type
+          if (originItemId && originItemType) {
+            const plugin = plugins.find(p => p.getType() === originItemType);
+            if (plugin) {
+              // Use plugin-specific connector connection method
+              if (originItemType === 'sticky') {
+                connectorData.originId = originItemId;
+              } else if (originItemType === 'image') {
+                connectorData.originImageId = originItemId;
+              }
+              // Future plugins can add their own connection properties
+            }
           } else {
             connectorData.originPoint = point;
           }
@@ -583,25 +628,19 @@ class ConnectorStateMachine extends StateMachine {
             }
           }
           
-          // Check if we're clicking on a sticky or image
+          // Check if we're clicking on a plugin item
           const isOwnHandle = connectorHandle && connectorHandle.closest('.connector-container')?.classList.contains(`connector-${stateData.connectorId}`);
-          const stickyContainer = !isOwnHandle ? event.target.closest('.sticky-container') : null;
-          const imageContainer = !isOwnHandle ? event.target.closest('.image-container') : null;
+          const pluginItem = !isOwnHandle ? findPluginItemFromElement(event.target) : null;
           
-          if (stickyContainer) {
-            const stickyIdClass = Array.from(stickyContainer.classList).find(cls => cls.startsWith('sticky-'));
-            const stickyId = stickyIdClass ? stickyIdClass.replace('sticky-', '') : null;
-            
-            if (stickyId) {
-              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { stickyId });
+          if (pluginItem) {
+            const { type, id } = pluginItem;
+            // Update connector endpoint based on plugin type
+            if (type === 'sticky') {
+              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { stickyId: id });
+            } else if (type === 'image') {
+              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { imageId: id });
             }
-          } else if (imageContainer) {
-            const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
-            const imageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
-            
-            if (imageId) {
-              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { imageId });
-            }
+            // Future plugins can add their own connection properties
           } else {
             this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { point });
           }
@@ -824,23 +863,17 @@ class ConnectorStateMachine extends StateMachine {
     
     // This was a drag - complete connector creation normally
     const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
-    const stickyContainer = elementBelow?.closest('.sticky-container');
-    const imageContainer = elementBelow?.closest('.image-container');
+    const pluginItem = findPluginItemFromElement(elementBelow);
     
-    if (stickyContainer) {
-      const stickyIdClass = Array.from(stickyContainer.classList).find(cls => cls.startsWith('sticky-'));
-      const stickyId = stickyIdClass ? stickyIdClass.replace('sticky-', '') : null;
-      
-      if (stickyId) {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { stickyId });
+    if (pluginItem) {
+      const { type, id } = pluginItem;
+      // Update connector endpoint based on plugin type
+      if (type === 'sticky') {
+        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { stickyId: id });
+      } else if (type === 'image') {
+        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { imageId: id });
       }
-    } else if (imageContainer) {
-      const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
-      const imageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
-      
-      if (imageId) {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { imageId });
-      }
+      // Future plugins can add their own connection properties
     } else {
       this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { point });
     }
@@ -949,25 +982,19 @@ class ConnectorStateMachine extends StateMachine {
       y: (coords.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
-    // Check if we're over a sticky or image
+    // Check if we're over a plugin item
     const elementBelow = document.elementFromPoint(coords.clientX, coords.clientY);
-    const stickyContainer = elementBelow?.closest('.sticky-container');
-    const imageContainer = elementBelow?.closest('.image-container');
+    const pluginItem = findPluginItemFromElement(elementBelow);
     
-    if (stickyContainer) {
-      const stickyIdClass = Array.from(stickyContainer.classList).find(cls => cls.startsWith('sticky-'));
-      const stickyId = stickyIdClass ? stickyIdClass.replace('sticky-', '') : null;
-      
-      if (stickyId) {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { stickyId });
+    if (pluginItem) {
+      const { type, id } = pluginItem;
+      // Update connector endpoint based on plugin type
+      if (type === 'sticky') {
+        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { stickyId: id });
+      } else if (type === 'image') {
+        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { imageId: id });
       }
-    } else if (imageContainer) {
-      const imageIdClass = Array.from(imageContainer.classList).find(cls => cls.startsWith('image-') && cls !== 'image-container');
-      const imageId = imageIdClass ? imageIdClass.replace('image-', '') : null;
-      
-      if (imageId) {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { imageId });
-      }
+      // Future plugins can add their own connection properties
     } else {
       this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { point });
     }

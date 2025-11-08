@@ -1,5 +1,6 @@
 import { getAppState } from "../app-state.js";
 import { firebaseConfig, initializeFirebaseApp } from "../config/firebase-config.js";
+import { getStorageKeyForType } from "../board-items/plugin-registry.js";
 
 // Debug mode - controlled by global window.DEBUG_MODE
 // Use a function to check DEBUG_MODE dynamically
@@ -1079,14 +1080,13 @@ export class FirestoreStore {
 
   // Generic board item methods
   _getStorageKeyForType(type) {
-    const typeMap = {
-      'sticky': 'stickies',
-      'image': 'images'
-    };
-    return typeMap[type] || null;
+    // Use plugin registry to get storage key
+    return getStorageKeyForType(type);
   }
 
   _getCollectionRefForType(type) {
+    // Map plugin types to Firestore collection references
+    // This is Firestore-specific, so we maintain a mapping here
     const refMap = {
       'sticky': this.stickyRef,
       'image': this.imageRef

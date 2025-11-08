@@ -1,6 +1,8 @@
 import { BoardItemPlugin } from '../../plugin-interface.js';
 import { createRenderer as createStickyRenderer } from './sticky.js';
 import { getNextZIndex } from '../../../ui/z-index-manager.js';
+import { DEFAULT_STICKY_COLOR } from './sticky-styling.js';
+import { stickyColorPalette } from '../../../ui/color-management.js';
 
 export class StickyPlugin extends BoardItemPlugin {
   getType() { return 'sticky'; }
@@ -150,6 +152,53 @@ export class StickyPlugin extends BoardItemPlugin {
       return !!connector.destinationId;
     }
     return false;
+  }
+
+  // UI Integration Methods
+
+  getDefaultColor() {
+    return DEFAULT_STICKY_COLOR;
+  }
+
+  getColorPalette() {
+    return stickyColorPalette;
+  }
+
+  getMenuItems() {
+    return [
+      {
+        itemLabel: "New Sticky",
+        className: "new-sticky",
+        icon: "images/new-sticky-icon.svg",
+        itemClickHandler: (appState, renderCallback) => {
+          appState.ui.nextClickCreatesNewSticky = true;
+          appState.ui.nextClickCreatesConnector = false;
+          appState.ui.connectorOriginId = null;
+          renderCallback();
+        }
+      }
+    ];
+  }
+
+  getEditingSelector() {
+    return '.sticky-container.editing';
+  }
+
+  isEditingElement(element) {
+    return element?.classList?.contains('sticky-container') && 
+           element?.classList?.contains('editing');
+  }
+
+  canHandlePaste(items) {
+    return false; // Stickies don't handle paste
+  }
+
+  handlePaste(items, board, location) {
+    return null;
+  }
+
+  getCreationModeFlag() {
+    return 'nextClickCreatesNewSticky';
   }
 }
 

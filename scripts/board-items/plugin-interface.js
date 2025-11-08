@@ -82,6 +82,61 @@ export class BoardItemPlugin {
    * @returns {boolean} True if the endpoint is connected to an item of this plugin type
    */
   isEndpointConnected(connector, endpoint) { throw new Error('Not implemented'); }
+
+  // UI Integration Methods
+
+  /**
+   * Get the default color for new items of this type.
+   * @returns {string} Default color (e.g., "khaki" for stickies)
+   */
+  getDefaultColor() { throw new Error('Not implemented'); }
+
+  /**
+   * Get the color palette for this plugin type.
+   * @returns {Array<string>} Array of color strings
+   */
+  getColorPalette() { throw new Error('Not implemented'); }
+
+  /**
+   * Get menu item configurations for this plugin type.
+   * @returns {Array<Object>} Array of menu item configs with {itemLabel, className, icon, itemClickHandler}
+   */
+  getMenuItems() { return []; }
+
+  /**
+   * Get the CSS selector for elements in editing mode.
+   * @returns {string} CSS selector (e.g., ".sticky-container.editing")
+   */
+  getEditingSelector() { return null; }
+
+  /**
+   * Check if an element is in editing mode for this plugin type.
+   * @param {HTMLElement} element - Element to check
+   * @returns {boolean} True if element is in editing mode
+   */
+  isEditingElement(element) { return false; }
+
+  /**
+   * Check if this plugin can handle paste data.
+   * @param {DataTransferItemList} items - Clipboard items
+   * @returns {boolean} True if this plugin can handle the paste
+   */
+  canHandlePaste(items) { return false; }
+
+  /**
+   * Handle paste data and create item(s).
+   * @param {DataTransferItemList} items - Clipboard items
+   * @param {Object} board - Board instance
+   * @param {Object} location - Board location {x, y} where to create item
+   * @returns {string|null} Created item ID or null if failed
+   */
+  handlePaste(items, board, location) { return null; }
+
+  /**
+   * Get the UI flag name for creation mode (e.g., 'nextClickCreatesNewSticky').
+   * @returns {string} Flag name in appState.ui
+   */
+  getCreationModeFlag() { return null; }
 }
 
 

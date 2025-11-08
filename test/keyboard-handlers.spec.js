@@ -127,15 +127,18 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
     // Mock selection objects
     selectedStickies = {
       hasItems: jest.fn(() => false),
-      forEach: jest.fn()
+      forEach: jest.fn(),
+      isSelected: jest.fn(() => false)
     };
     selectedConnectors = {
       hasItems: jest.fn(() => false),
-      forEach: jest.fn()
+      forEach: jest.fn(),
+      isSelected: jest.fn(() => false)
     };
     selectedImages = {
       hasItems: jest.fn(() => false),
-      forEach: jest.fn()
+      forEach: jest.fn(),
+      isSelected: jest.fn(() => false)
     };
     
     appState = {
@@ -386,6 +389,10 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     describe("deleteHandler", () => {
       it("should delete selected items with Delete key", () => {
+        selectedStickies.hasItems.mockReturnValue(true);
+        selectedConnectors.hasItems.mockReturnValue(true);
+        selectedImages.hasItems.mockReturnValue(true);
+        
         const event = new KeyboardEvent('keydown', { key: 'Delete' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
@@ -396,6 +403,10 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
       });
 
       it("should delete selected items with Backspace key", () => {
+        selectedStickies.hasItems.mockReturnValue(true);
+        selectedConnectors.hasItems.mockReturnValue(true);
+        selectedImages.hasItems.mockReturnValue(true);
+        
         const event = new KeyboardEvent('keydown', { key: 'Backspace' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
@@ -406,7 +417,12 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
       });
 
       it("should not delete when editing sticky with Backspace", () => {
-        mockDocument.querySelector.mockReturnValue({ classList: ['sticky-container', 'editing'] });
+        const mockElement = {
+          classList: {
+            contains: jest.fn((cls) => cls === 'sticky-container' || cls === 'editing')
+          }
+        };
+        mockDocument.querySelector.mockReturnValue(mockElement);
         const event = new KeyboardEvent('keydown', { key: 'Backspace' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
@@ -417,7 +433,16 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
       });
 
       it("should still delete with Delete key when editing sticky", () => {
-        mockDocument.querySelector.mockReturnValue({ classList: ['sticky-container', 'editing'] });
+        const mockElement = {
+          classList: {
+            contains: jest.fn((cls) => cls === 'sticky-container' || cls === 'editing')
+          }
+        };
+        mockDocument.querySelector.mockReturnValue(mockElement);
+        selectedStickies.hasItems.mockReturnValue(true);
+        selectedConnectors.hasItems.mockReturnValue(true);
+        selectedImages.hasItems.mockReturnValue(true);
+        
         const event = new KeyboardEvent('keydown', { key: 'Delete' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
@@ -663,17 +688,21 @@ describe("deleteSelectedItems", () => {
     };
     
     selectedStickies = {
-      forEach: jest.fn()
+      forEach: jest.fn(),
+      hasItems: jest.fn(() => true)
     };
     selectedConnectors = {
-      forEach: jest.fn()
+      forEach: jest.fn(),
+      hasItems: jest.fn(() => true)
     };
     selectedImages = {
-      forEach: jest.fn()
+      forEach: jest.fn(),
+      hasItems: jest.fn(() => true)
     };
   });
 
   it("should delete all selected stickies", () => {
+    selectedStickies.hasItems.mockReturnValue(true);
     selectedStickies.forEach.mockImplementation((callback) => {
       callback('sticky1');
       callback('sticky2');
@@ -686,6 +715,7 @@ describe("deleteSelectedItems", () => {
   });
 
   it("should delete all selected connectors", () => {
+    selectedConnectors.hasItems.mockReturnValue(true);
     selectedConnectors.forEach.mockImplementation((callback) => {
       callback('connector1');
       callback('connector2');
@@ -698,6 +728,7 @@ describe("deleteSelectedItems", () => {
   });
 
   it("should delete all selected images", () => {
+    selectedImages.hasItems.mockReturnValue(true);
     selectedImages.forEach.mockImplementation((callback) => {
       callback('image1');
       callback('image2');
@@ -710,6 +741,10 @@ describe("deleteSelectedItems", () => {
   });
 
   it("should handle empty selections", () => {
+    selectedStickies.hasItems.mockReturnValue(false);
+    selectedConnectors.hasItems.mockReturnValue(false);
+    selectedImages.hasItems.mockReturnValue(false);
+    
     deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
     
     expect(board.deleteBoardItem).not.toHaveBeenCalled();

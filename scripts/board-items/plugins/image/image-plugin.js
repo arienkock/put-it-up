@@ -199,6 +199,70 @@ export class ImagePlugin extends BoardItemPlugin {
     }
     return false;
   }
+
+  // UI Integration Methods
+
+  getDefaultColor() {
+    return "#ffffff"; // Images don't have colors, but return a default
+  }
+
+  getColorPalette() {
+    return []; // Images don't have color palettes
+  }
+
+  getMenuItems() {
+    return []; // Images don't have a creation menu item (they're created via paste)
+  }
+
+  getEditingSelector() {
+    return null; // Images don't have editing mode
+  }
+
+  isEditingElement(element) {
+    return false; // Images don't have editing mode
+  }
+
+  canHandlePaste(items) {
+    if (!items || items.length === 0) return false;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  handlePaste(items, board, location) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const imageData = {
+                dataUrl: e.target.result,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+                location: location
+              };
+              const id = board.putBoardItem('image', imageData);
+              resolve(id);
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    }
+    return null;
+  }
+
+  getCreationModeFlag() {
+    return null; // Images are created via paste, not click
+  }
 }
 
 

@@ -54,17 +54,9 @@ Future changes:
 */
 
 import {
-  createRenderer,
-  DEFAULT_STICKY_COLOR,
-} from "../board-items/plugins/sticky/sticky.js";
-import {
   createRenderer as createConnectorRenderer,
   DEFAULT_ARROW_HEAD,
 } from "../board-items/connector.js";
-import {
-  createRenderer as createImageRenderer,
-  IMAGE_TYPE,
-} from "../board-items/plugins/image/image.js";
 import { setupConnectorEvents } from "../board-items/connector-events.js";
 import { Selection } from "./selection.js";
 import { SelectionManager } from "./selection-manager.js";
@@ -73,7 +65,7 @@ import { createMenu } from "./menu.js";
 import { setupKeyboardHandlers, completeKeyboardAction } from "./keyboard-handlers.js";
 import { zoomScale, applyZoomToBoard } from "./zoom.js";
 import { colorPalette } from "./color-management.js";
-import { getPlugin } from "../board-items/plugin-registry.js";
+import { getPlugin, getAllPlugins, getStorageKeyForType } from "../board-items/plugin-registry.js";
 import { createMinimap } from "./minimap.js";
 import { getAllItemsWithZIndex, getNextZIndex, ensureUniqueZIndices } from "./z-index-manager.js";
 
@@ -90,82 +82,88 @@ export function mount(board, root, Observer, store) {
   const boardContainer = boardScrollContainer.firstElementChild;
   const domElement = boardContainer.firstElementChild;
   const appState = store.getAppState();
-  // Use globally stored UI state
-  let stickiesMovedByDragging = appState.ui.stickiesMovedByDragging;
-  let imagesMovedByDragging = appState.ui.imagesMovedByDragging || [];
   
-  // Create selections first
-  const selectedStickies = new Selection(null, "selection", "onStickyChange", store);
-  const selectedConnectors = new Selection(null, "connectorSelection", "onConnectorChange", store);
-  const selectedImages = new Selection(null, "imageSelection", "onImageChange", store);
-  
-  // Create selection manager and register all selection types
+  // Get all plugins and create selections dynamically
+  const plugins = getAllPlugins();
+  const selections = {};
   const selectionManager = new SelectionManager();
-  selectionManager.registerSelection('stickies', selectedStickies);
-  selectionManager.registerSelection('connectors', selectedConnectors);
-  selectionManager.registerSelection('images', selectedImages);
   
-  // Create renderers via plugin system
-  const stickyPlugin = getPlugin('sticky');
-  const imagePlugin = getPlugin('image');
-
-  if (!stickyPlugin || !imagePlugin) {
-    throw new Error('Required plugins not available: sticky=' + !!stickyPlugin + ', image=' + !!imagePlugin);
+  // Create selections for all plugins
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const selectionType = plugin.getSelectionType();
+    const observerMethod = `on${type.charAt(0).toUpperCase() + type.slice(1)}Change`;
+    const selection = new Selection(null, selectionType, observerMethod, store);
+    selections[type] = selection;
+    selections[selectionType] = selection; // Also key by selection type for backward compat
+    selectionManager.registerSelection(selectionType, selection);
+  });
+  
+  // Create connector selection (not a plugin)
+  const selectedConnectors = new Selection(null, "connectorSelection", "onConnectorChange", store);
+  selections['connector'] = selectedConnectors;
+  selections['connectors'] = selectedConnectors;
+  selectionManager.registerSelection('connectors', selectedConnectors);
+  
+  // Create renderers for all plugins
+  const renderMap = {};
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const selectionType = plugin.getSelectionType();
+    const itemsMovedByDragging = appState.ui[`${selectionType}MovedByDragging`] || [];
+    
+    const renderFn = plugin.createRenderer(
+      board,
+      domElement,
+      selectionManager,
+      itemsMovedByDragging,
+      store
+    );
+    renderMap[type] = renderFn;
+  });
+  
+  // Create connector renderer (not a plugin)
+  function getSelectedConnectors() {
+    return selectedConnectors;
   }
-
-  const renderSticky = stickyPlugin.createRenderer(
-    board,
-    domElement,
-    selectionManager,
-    stickiesMovedByDragging,
-    store
-  );
   const renderConnector = createConnectorRenderer(
     board,
     domElement,
     getSelectedConnectors
   );
-  const renderImage = imagePlugin.createRenderer(
-    board,
-    domElement,
-    selectionManager,
-    imagesMovedByDragging,
-    store
-  );
+  renderMap['connector'] = renderConnector;
   
-  // Now create observer with the render functions
-  const observer = new Observer(board, render, renderSticky, renderConnector, renderImage);
+  // Create observer with render function map
+  const observer = new Observer(board, render, renderMap);
   board.addObserver(observer);
   
-  // Update the selections with the observer
-  selectedStickies.observer = observer;
-  selectedConnectors.observer = observer;
-  selectedImages.observer = observer;
+  // Update all selections with the observer
+  Object.values(selections).forEach(selection => {
+    if (selection && typeof selection === 'object' && 'observer' in selection) {
+      selection.observer = observer;
+    }
+  });
   
   // Migration: Assign z-index values to existing items that don't have them
   const state = store.getState();
   let needsMigration = false;
   let currentZIndex = 1000; // Start from Z_INDEX_MIN
   
-  // Migrate stickies
-  Object.entries(state.stickies || {}).forEach(([id, sticky]) => {
-    if (sticky.zIndex === undefined) {
-      needsMigration = true;
-      store.updateBoardItem('sticky', id, { zIndex: currentZIndex });
-      currentZIndex += 10; // Z_INDEX_STEP
-    }
+  // Migrate all plugin items
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const storageKey = plugin.getSelectionType();
+    const items = state[storageKey] || {};
+    Object.entries(items).forEach(([id, item]) => {
+      if (item.zIndex === undefined) {
+        needsMigration = true;
+        store.updateBoardItem(type, id, { zIndex: currentZIndex });
+        currentZIndex += 10; // Z_INDEX_STEP
+      }
+    });
   });
   
-  // Migrate images
-  Object.entries(state.images || {}).forEach(([id, image]) => {
-    if (image.zIndex === undefined) {
-      needsMigration = true;
-      store.updateBoardItem('image', id, { zIndex: currentZIndex });
-      currentZIndex += 10; // Z_INDEX_STEP
-    }
-  });
-  
-  // Migrate connectors
+  // Migrate connectors (not a plugin)
   Object.entries(state.connectors || {}).forEach(([id, connector]) => {
     if (connector.zIndex === undefined) {
       needsMigration = true;
@@ -184,18 +182,29 @@ export function mount(board, root, Observer, store) {
     ensureUniqueZIndices(store);
   }
   
+  // Initialize UI defaults
   appState.ui.currentColor = appState.ui.currentColor || colorPalette[0]; // Legacy
-  appState.ui.currentStickyColor = appState.ui.currentStickyColor || colorPalette[0];
   appState.ui.currentConnectorColor = appState.ui.currentConnectorColor || "#000000";
   appState.ui.currentArrowHead = appState.ui.currentArrowHead || DEFAULT_ARROW_HEAD;
+  
+  // Initialize plugin-specific UI defaults
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+    if (!appState.ui[colorKey]) {
+      appState.ui[colorKey] = plugin.getDefaultColor();
+    }
+  });
+  
+  // Helper functions for backward compatibility
   function getSelectedStickies() {
-    return selectedStickies;
+    return selections['sticky'] || selections['stickies'];
   }
   function getSelectedConnectors() {
     return selectedConnectors;
   }
   function getSelectedImages() {
-    return selectedImages;
+    return selections['image'] || selections['images'];
   }
   function renderBoard() {
     if (!board.isReadyForUse()) {
@@ -206,7 +215,16 @@ export function mount(board, root, Observer, store) {
     const size = board.getBoardSize();
     applyZoomToBoard(domElement, boardContainer, root, appState.ui.boardScale, size);
     
-    if (appState.ui.nextClickCreatesNewSticky) {
+    // Check if any plugin has creation mode active
+    let hasPluginCreationMode = false;
+    plugins.forEach(plugin => {
+      const creationFlag = plugin.getCreationModeFlag();
+      if (creationFlag && appState.ui[creationFlag]) {
+        hasPluginCreationMode = true;
+      }
+    });
+    
+    if (hasPluginCreationMode) {
       domElement.classList.add("click-to-create");
     } else {
       domElement.classList.remove("click-to-create");
@@ -218,7 +236,7 @@ export function mount(board, root, Observer, store) {
       domElement.classList.remove("click-to-connect");
     }
   }
-  const menu = createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, render, store);
+  const menu = createMenu(board, getSelectedStickies(), selectedConnectors, getSelectedImages(), root, appState, render, store);
   const renderMenu = menu.render;
   
   // Declare minimap variable before render() so it's in scope
@@ -298,22 +316,30 @@ export function mount(board, root, Observer, store) {
     
     renderMenu();
     const state = board.getState();
-    Object.entries(state.connectors).forEach(([connectorId, connector]) =>
+    
+    // Render connectors (not a plugin)
+    Object.entries(state.connectors || {}).forEach(([connectorId, connector]) =>
       renderConnector(connectorId, connector)
     );
-    Object.entries(state.stickies).forEach(([stickyId, sticky]) =>
-      renderSticky(stickyId, sticky)
-    );
-    Object.entries(state.images).forEach(([imageId, image]) =>
-      renderImage(imageId, image)
-    );
+    
+    // Render all plugin items
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const storageKey = plugin.getSelectionType();
+      const renderFn = renderMap[type];
+      if (renderFn) {
+        Object.entries(state[storageKey] || {}).forEach(([itemId, item]) =>
+          renderFn(itemId, item)
+        );
+      }
+    });
   }
 
   // Custom drag is now handled by individual item state machines
   // No HTML5 drop handlers needed
 
   // Set up keyboard handlers
-  setupKeyboardHandlers(board, selectedStickies, selectedConnectors, selectedImages, appState, {
+  setupKeyboardHandlers(board, getSelectedStickies(), selectedConnectors, getSelectedImages(), appState, {
     onZoomChange: () => render(),
     onColorChange: () => renderMenu(),
     onNewStickyRequest: () => renderBoard(),
@@ -328,74 +354,107 @@ export function mount(board, root, Observer, store) {
   const dragManager = createDragManager(domElement, board, selectionManager, store, render);
   window.dragManager = dragManager;
   
-  // Set up paste event handler for images
+  // Set up paste event handler - query plugins for paste handling
   document.addEventListener('paste', (event) => {
     const items = event.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.indexOf('image') !== -1) {
-        const file = item.getAsFile();
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            // Get cursor position or center of viewport
-            const rect = domElement.getBoundingClientRect();
-            const origin = board.getOrigin();
-            const boardScale = appState.ui.boardScale || 1;
-            
-            // Calculate center of scroll container viewport in board coordinates
-            const containerRect = boardScrollContainer.getBoundingClientRect();
-            const viewportCenterX = containerRect.left + boardScrollContainer.clientWidth / 2;
-            const viewportCenterY = containerRect.top + boardScrollContainer.clientHeight / 2;
-            
-            // Convert to board coordinates
-            const location = {
-              x: (viewportCenterX - rect.left) / boardScale + origin.x,
-              y: (viewportCenterY - rect.top) / boardScale + origin.y,
-            };
-            
-            const imageData = {
-              dataUrl: e.target.result,
-              naturalWidth: img.naturalWidth,
-              naturalHeight: img.naturalHeight,
-              location: location
-            };
-            
-            const id = board.putBoardItem('image', imageData);
-            selectedImages.replaceSelection(id);
-            render();
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-        break;
+    if (!items || items.length === 0) return;
+    
+    // Get cursor position or center of viewport
+    const rect = domElement.getBoundingClientRect();
+    const origin = board.getOrigin();
+    const boardScale = appState.ui.boardScale || 1;
+    
+    // Calculate center of scroll container viewport in board coordinates
+    const containerRect = boardScrollContainer.getBoundingClientRect();
+    const viewportCenterX = containerRect.left + boardScrollContainer.clientWidth / 2;
+    const viewportCenterY = containerRect.top + boardScrollContainer.clientHeight / 2;
+    
+    // Convert to board coordinates
+    const location = {
+      x: (viewportCenterX - rect.left) / boardScale + origin.x,
+      y: (viewportCenterY - rect.top) / boardScale + origin.y,
+    };
+    
+    // Try each plugin to see if it can handle the paste
+    for (const plugin of plugins) {
+      if (plugin.canHandlePaste(items)) {
+        const result = plugin.handlePaste(items, board, location);
+        if (result && typeof result.then === 'function') {
+          // Promise-based paste handling
+          result.then(id => {
+            if (id) {
+              const selectionType = plugin.getSelectionType();
+              const selection = selections[selectionType];
+              if (selection) {
+                selection.replaceSelection(id);
+              }
+              render();
+            }
+          }).catch(err => {
+            console.error('Paste handling error:', err);
+          });
+        } else if (result) {
+          // Synchronous paste handling
+          const selectionType = plugin.getSelectionType();
+          const selection = selections[selectionType];
+          if (selection) {
+            selection.replaceSelection(result);
+          }
+          render();
+        }
+        return; // Only handle with first plugin that can handle it
       }
     }
   });
   
   domElement.onclick = (event) => {
-    if (appState.ui.nextClickCreatesNewSticky) {
-      appState.ui.nextClickCreatesNewSticky = false;
-      const rect = domElement.getBoundingClientRect();
-      const origin = board.getOrigin();
-      const location = {
-        x:
-          (event.clientX - rect.left - 50 * appState.ui.boardScale) /
-            appState.ui.boardScale +
-          origin.x,
-        y:
-          (event.clientY - rect.top - 50 * appState.ui.boardScale) /
-            appState.ui.boardScale +
-          origin.y,
-      };
-      const id = board.putBoardItem('sticky', { color: appState.ui.currentStickyColor, location });
-      selectedStickies.replaceSelection(id);
-      renderBoard();
-      renderMenu();
-      
-      // Notify keyboard handler that sticky creation is complete
-      completeKeyboardAction('sticky created', appState);
+    // Check if any plugin has creation mode active
+    let handled = false;
+    for (const plugin of plugins) {
+      const creationFlag = plugin.getCreationModeFlag();
+      if (creationFlag && appState.ui[creationFlag]) {
+        appState.ui[creationFlag] = false;
+        const rect = domElement.getBoundingClientRect();
+        const origin = board.getOrigin();
+        const type = plugin.getType();
+        const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+        const defaultColor = appState.ui[colorKey] || plugin.getDefaultColor();
+        
+        const location = {
+          x:
+            (event.clientX - rect.left - 50 * appState.ui.boardScale) /
+              appState.ui.boardScale +
+            origin.x,
+          y:
+            (event.clientY - rect.top - 50 * appState.ui.boardScale) /
+              appState.ui.boardScale +
+            origin.y,
+        };
+        
+        // Create item with plugin-specific defaults
+        const itemData = { location };
+        if (type === 'sticky') {
+          itemData.color = defaultColor;
+        }
+        
+        const id = board.putBoardItem(type, itemData);
+        const selectionType = plugin.getSelectionType();
+        const selection = selections[selectionType];
+        if (selection) {
+          selection.replaceSelection(id);
+        }
+        renderBoard();
+        renderMenu();
+        
+        // Notify keyboard handler that creation is complete
+        completeKeyboardAction(`${type} created`, appState);
+        handled = true;
+        break;
+      }
+    }
+    
+    if (handled) {
+      return;
     } else if (appState.ui.nextClickCreatesConnector) {
       // Let connector events handle this - don't interfere
       return;
@@ -429,9 +488,16 @@ export function mount(board, root, Observer, store) {
       const target = event.target;
       const isTextarea = target.tagName === 'TEXTAREA' || target.closest('textarea');
       
-      // If clicking on an image or non-textarea element with shift, prevent selection
-      if (!isTextarea && (target.tagName === 'IMG' || target.closest('.sticky-container') || target.closest('.image-container'))) {
-        event.preventDefault();
+      // If clicking on a plugin item or non-textarea element with shift, prevent selection
+      if (!isTextarea) {
+        // Check if target is a plugin container
+        const isPluginContainer = plugins.some(plugin => {
+          const baseClass = plugin.getContainerBaseClass();
+          return target.closest(`.${baseClass}`);
+        });
+        if (target.tagName === 'IMG' || isPluginContainer) {
+          event.preventDefault();
+        }
       }
     }
   }, true); // Use capture phase to catch before other handlers
@@ -445,10 +511,16 @@ export function mount(board, root, Observer, store) {
   // Function to check if board has any content
   function hasBoardContent() {
     const state = store.getState();
-    const hasStickies = Object.keys(state.stickies || {}).length > 0;
+    // Check if any plugin items exist
+    let hasPluginItems = false;
+    plugins.forEach(plugin => {
+      const storageKey = plugin.getSelectionType();
+      if (Object.keys(state[storageKey] || {}).length > 0) {
+        hasPluginItems = true;
+      }
+    });
     const hasConnectors = Object.keys(state.connectors || {}).length > 0;
-    const hasImages = Object.keys(state.images || {}).length > 0;
-    return hasStickies || hasConnectors || hasImages;
+    return hasPluginItems || hasConnectors;
   }
 
   // Function to find the top-leftmost content position
@@ -461,20 +533,15 @@ export function mount(board, root, Observer, store) {
     let minX = Infinity;
     let minY = Infinity;
     
-    // Check all stickies
-    Object.values(state.stickies || {}).forEach(sticky => {
-      if (sticky.location) {
-        minX = Math.min(minX, sticky.location.x);
-        minY = Math.min(minY, sticky.location.y);
-      }
-    });
-    
-    // Check all images
-    Object.values(state.images || {}).forEach(image => {
-      if (image.location) {
-        minX = Math.min(minX, image.location.x);
-        minY = Math.min(minY, image.location.y);
-      }
+    // Check all plugin items
+    plugins.forEach(plugin => {
+      const storageKey = plugin.getSelectionType();
+      Object.values(state[storageKey] || {}).forEach(item => {
+        if (item.location) {
+          minX = Math.min(minX, item.location.x);
+          minY = Math.min(minY, item.location.y);
+        }
+      });
     });
     
     // Check all connectors (they might have standalone points)
