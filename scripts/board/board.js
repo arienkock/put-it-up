@@ -40,30 +40,6 @@ export function Board(aStore) {
     return connector;
   };
 
-  /**
-   * Generic method to get any board item by ID (deprecated - use getBoardItemByType instead).
-   * Returns null if item doesn't exist or ID is invalid.
-   * 
-   * @param {string} id - The item ID
-   * @returns {Object|null} Item data object or null
-   * @deprecated Use getBoardItemByType(type, id) instead
-   */
-  this.getBoardItem = (id) => {
-    if (!id) return null;
-    
-    // Try to find item by checking all registered plugin types
-    const plugins = getAllPlugins();
-    for (const plugin of plugins) {
-      try {
-        const item = plugin.getItem(this, id);
-        if (item) return item;
-      } catch (e) {
-        // Item not found in this plugin type, continue
-      }
-    }
-    
-    return null;
-  };
 
   this.putConnector = (connector) => {
     // Validate that types are provided when IDs are provided

@@ -1,5 +1,5 @@
 import { calculateEdgePoint } from "./connector-dom.js";
-import { getBoardItemBounds, isStickyItem } from "./board-item-interface.js";
+import { getBoardItemBounds } from "./board-item-interface.js";
 
 export const ARROW_HEAD_TYPES = ["none", "line", "hollow", "filled"];
 
