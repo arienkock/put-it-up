@@ -121,18 +121,23 @@ export function moveSelection(dx, dy, board, selectedStickies, selectedImages, s
   const itemIdsByType = {};
   const originalLocationsByType = {};
   
+  // Helper to get selection for a plugin type (backward compatibility)
+  const getSelectionForPlugin = (plugin, selectedStickies, selectedImages) => {
+    const type = plugin.getType();
+    // Backward compatibility: map known types to selection objects
+    // In the future, this should use SelectionManager
+    if (type === 'sticky' && selectedStickies) {
+      return selectedStickies;
+    } else if (type === 'image' && selectedImages) {
+      return selectedImages;
+    }
+    return null;
+  };
+  
   // Collect IDs and track original locations for all plugin types
   plugins.forEach(plugin => {
     const type = plugin.getType();
-    const selectionType = plugin.getSelectionType();
-    
-    // Get selection - try selectionType first, then type, then fallback to backward compat
-    let selection = null;
-    if (selectionType === 'stickies' && selectedStickies) {
-      selection = selectedStickies;
-    } else if (selectionType === 'images' && selectedImages) {
-      selection = selectedImages;
-    }
+    const selection = getSelectionForPlugin(plugin, selectedStickies, selectedImages);
     
     if (selection && selection.hasItems && selection.hasItems()) {
       itemIdsByType[type] = [];

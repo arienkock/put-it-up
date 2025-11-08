@@ -45,6 +45,73 @@ function findPluginItemFromElement(element) {
 }
 
 /**
+ * Helper function to find plugin item at a point, ignoring connector elements
+ * @param {number} x - Client X coordinate
+ * @param {number} y - Client Y coordinate
+ * @returns {Object|null} {plugin, type, id} or null if not found
+ */
+function findPluginItemAtPoint(x, y) {
+  // Use elementsFromPoint if available to get all elements at the point
+  let elements = [];
+  if (document.elementsFromPoint) {
+    elements = document.elementsFromPoint(x, y);
+  } else {
+    // Fallback to elementFromPoint if elementsFromPoint is not available
+    const element = document.elementFromPoint(x, y);
+    if (element) {
+      elements = [element];
+    }
+  }
+  
+  // Filter out connector elements and find the first plugin item
+  for (const element of elements) {
+    // Skip connector elements - check classList (works for both HTML and SVG elements)
+    const classList = element.classList || (element.getAttribute && element.getAttribute('class') ? {
+      contains: (cls) => element.getAttribute('class').split(' ').includes(cls)
+    } : { contains: () => false });
+    
+    // Check if element is a connector element
+    const isConnectorHandle = classList.contains('connector-handle');
+    const isConnectorPath = classList.contains('connector-path');
+    const isConnectorContainer = classList.contains('connector-container');
+    const isConnectorSvg = classList.contains('connector-svg');
+    const isInConnectorContainer = element.closest && element.closest('.connector-container');
+    
+    if (isConnectorHandle || isConnectorPath || isConnectorContainer || isConnectorSvg || isInConnectorContainer) {
+      continue;
+    }
+    
+    // Try to find a plugin item from this element
+    const pluginItem = findPluginItemFromElement(element);
+    if (pluginItem) {
+      return pluginItem;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Helper to create connector endpoint data for a plugin type
+ * TODO: This is a temporary solution - connector system should be refactored to use generic connection properties
+ * @param {string} type - Plugin type
+ * @param {string} id - Item ID
+ * @returns {Object} Data object for updateConnectorEndpoint
+ */
+function createConnectorEndpointData(type, id) {
+  // Map plugin types to connector endpoint data format
+  // This is a leak that should be fixed by refactoring the connector system
+  if (type === 'sticky') {
+    return { stickyId: id };
+  } else if (type === 'image') {
+    return { imageId: id };
+  }
+  // Future plugins can add their own mapping here
+  // Ideally, this should be handled by the plugin itself
+  return null;
+}
+
+/**
  * Connector State Machine Implementation
  * Uses the new StateMachine base class for consistent behavior
  */
@@ -473,10 +540,12 @@ class ConnectorStateMachine extends StateMachine {
           }
           
           // Store origin data (backward compat format)
+          // TODO: This is a leak - should use generic format
+          const endpointData = originItemId && originItemType ? createConnectorEndpointData(originItemType, originItemId) : null;
           stateData.originData = {
             point,
-            originStickyId: originItemType === 'sticky' ? originItemId : null,
-            originImageId: originItemType === 'image' ? originItemId : null,
+            originStickyId: endpointData?.stickyId || null,
+            originImageId: endpointData?.imageId || null,
             originItemId,
             originItemType
           };
@@ -494,12 +563,16 @@ class ConnectorStateMachine extends StateMachine {
             const plugin = plugins.find(p => p.getType() === originItemType);
             if (plugin) {
               // Use plugin-specific connector connection method
-              if (originItemType === 'sticky') {
-                connectorData.originId = originItemId;
-              } else if (originItemType === 'image') {
-                connectorData.originImageId = originItemId;
+              // TODO: This is a leak - connector system should use generic connection properties
+              const endpointData = createConnectorEndpointData(originItemType, originItemId);
+              if (endpointData) {
+                // Map endpoint data to connector properties (temporary solution)
+                if (endpointData.stickyId) {
+                  connectorData.originId = endpointData.stickyId;
+                } else if (endpointData.imageId) {
+                  connectorData.originImageId = endpointData.imageId;
+                }
               }
-              // Future plugins can add their own connection properties
             }
           } else {
             connectorData.originPoint = point;
@@ -628,19 +701,17 @@ class ConnectorStateMachine extends StateMachine {
             }
           }
           
-          // Check if we're clicking on a plugin item
-          const isOwnHandle = connectorHandle && connectorHandle.closest('.connector-container')?.classList.contains(`connector-${stateData.connectorId}`);
-          const pluginItem = !isOwnHandle ? findPluginItemFromElement(event.target) : null;
+          // Check if we're clicking on a plugin item (ignoring connector elements)
+          // Use findPluginItemAtPoint to find items below connector elements
+          const pluginItem = findPluginItemAtPoint(event.clientX, event.clientY);
           
           if (pluginItem) {
             const { type, id } = pluginItem;
             // Update connector endpoint based on plugin type
-            if (type === 'sticky') {
-              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { stickyId: id });
-            } else if (type === 'image') {
-              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { imageId: id });
+            const endpointData = createConnectorEndpointData(type, id);
+            if (endpointData) {
+              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', endpointData);
             }
-            // Future plugins can add their own connection properties
           } else {
             this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { point });
           }
@@ -862,18 +933,16 @@ class ConnectorStateMachine extends StateMachine {
     }
     
     // This was a drag - complete connector creation normally
-    const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
-    const pluginItem = findPluginItemFromElement(elementBelow);
+    // Check if we're over a plugin item (ignoring connector elements)
+    const pluginItem = findPluginItemAtPoint(event.clientX, event.clientY);
     
     if (pluginItem) {
       const { type, id } = pluginItem;
       // Update connector endpoint based on plugin type
-      if (type === 'sticky') {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { stickyId: id });
-      } else if (type === 'image') {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { imageId: id });
+      const endpointData = createConnectorEndpointData(type, id);
+      if (endpointData) {
+        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', endpointData);
       }
-      // Future plugins can add their own connection properties
     } else {
       this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { point });
     }
@@ -982,19 +1051,16 @@ class ConnectorStateMachine extends StateMachine {
       y: (coords.clientY - rect.top) / boardScale - boardOrigin.y
     };
     
-    // Check if we're over a plugin item
-    const elementBelow = document.elementFromPoint(coords.clientX, coords.clientY);
-    const pluginItem = findPluginItemFromElement(elementBelow);
+    // Check if we're over a plugin item (ignoring connector elements)
+    const pluginItem = findPluginItemAtPoint(coords.clientX, coords.clientY);
     
     if (pluginItem) {
       const { type, id } = pluginItem;
       // Update connector endpoint based on plugin type
-      if (type === 'sticky') {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { stickyId: id });
-      } else if (type === 'image') {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { imageId: id });
+      const endpointData = createConnectorEndpointData(type, id);
+      if (endpointData) {
+        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, endpointData);
       }
-      // Future plugins can add their own connection properties
     } else {
       this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { point });
     }

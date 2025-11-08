@@ -198,13 +198,25 @@ export function mount(board, root, Observer, store) {
   
   // Helper functions for backward compatibility
   function getSelectedStickies() {
-    return selections['sticky'] || selections['stickies'];
+    // Use plugin registry to find sticky plugin and get its selection
+    const stickyPlugin = plugins.find(p => p.getType() === 'sticky');
+    if (stickyPlugin) {
+      const selectionType = stickyPlugin.getSelectionType();
+      return selections[stickyPlugin.getType()] || selections[selectionType];
+    }
+    return null;
   }
   function getSelectedConnectors() {
     return selectedConnectors;
   }
   function getSelectedImages() {
-    return selections['image'] || selections['images'];
+    // Use plugin registry to find image plugin and get its selection
+    const imagePlugin = plugins.find(p => p.getType() === 'image');
+    if (imagePlugin) {
+      const selectionType = imagePlugin.getSelectionType();
+      return selections[imagePlugin.getType()] || selections[selectionType];
+    }
+    return null;
   }
   function renderBoard() {
     if (!board.isReadyForUse()) {
@@ -433,7 +445,9 @@ export function mount(board, root, Observer, store) {
         
         // Create item with plugin-specific defaults
         const itemData = { location };
-        if (type === 'sticky') {
+        // Check if plugin supports color property (sticky does, image doesn't)
+        // Use plugin's default color if available
+        if (plugin.getColorPalette && plugin.getColorPalette().length > 0) {
           itemData.color = defaultColor;
         }
         

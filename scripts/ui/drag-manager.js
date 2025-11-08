@@ -381,6 +381,8 @@ class DragStateMachine extends StateMachine {
     const appState = this.store.getAppState();
     
     // DEBUG: Log selections at drag end
+    // TODO: This is a leak - appState.ui.selection and appState.ui.imageSelection are hardcoded
+    // Should use SelectionManager or plugin registry to get selection keys
     if (this.isDebugMode()) {
       console.log('[DRAG END] Current selections:', {
         selectedStickies: Object.keys(appState.ui.selection || {}),
@@ -398,6 +400,8 @@ class DragStateMachine extends StateMachine {
     }, 100);
     
     // Mark items as moved by dragging (for sticky resizing behavior)
+    // TODO: This is a leak - appState.ui.stickiesMovedByDragging is hardcoded
+    // Should use plugin registry to get storage keys dynamically
     if (this.stateData.originalLocations.stickies) {
       this.stateData.originalLocations.stickies.forEach((_, id) => {
         appState.ui.stickiesMovedByDragging.push(id);
@@ -405,6 +409,7 @@ class DragStateMachine extends StateMachine {
     }
     
     // Mark items as moved by dragging (for images)
+    // TODO: This is a leak - should use plugin registry to get storage keys dynamically
     if (this.stateData.originalLocations.images) {
       this.stateData.originalLocations.images.forEach((_, id) => {
         // Could add similar tracking here if needed

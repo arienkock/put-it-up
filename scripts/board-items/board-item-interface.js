@@ -23,16 +23,24 @@ export function isConnectorElement(element) {
 
 /**
  * Determines if a DOM element is an image container
+ * @deprecated Use getPluginForElement() instead
  */
 export function isImageElement(element) {
-  return element.classList.contains("image-container");
+  if (!element) return false;
+  const plugins = getAllPlugins();
+  const imagePlugin = plugins.find(p => p.getType() === 'image');
+  return imagePlugin ? imagePlugin.isElement(element) : false;
 }
 
 /**
  * Determines if a DOM element is a sticky
+ * @deprecated Use getPluginForElement() instead
  */
 export function isStickyElement(element) {
-  return element.classList.contains("sticky-container");
+  if (!element) return false;
+  const plugins = getAllPlugins();
+  const stickyPlugin = plugins.find(p => p.getType() === 'sticky');
+  return stickyPlugin ? stickyPlugin.isElement(element) : false;
 }
 
 /**

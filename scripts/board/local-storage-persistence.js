@@ -1,4 +1,5 @@
 import { getAppState } from "../app-state.js";
+import { getAllPlugins } from "../board-items/plugin-registry.js";
 
 export class LocalStoragePersistence {
   constructor(boardName = 'default-board', localStorageKey = 'put-it-up-boards') {
@@ -100,23 +101,33 @@ export class LocalStoragePersistence {
               if (boardData.board !== undefined) {
                 appState.board = boardData.board;
               }
-              if (boardData.stickies) {
-                appState.stickies = boardData.stickies;
-              }
+              
+              // Restore connector state (not a plugin)
               if (boardData.connectors) {
                 appState.connectors = boardData.connectors;
-              }
-              if (boardData.images) {
-                appState.images = boardData.images;
-              }
-              if (boardData.idGen !== undefined) {
-                appState.idGen = boardData.idGen;
               }
               if (boardData.connectorIdGen !== undefined) {
                 appState.connectorIdGen = boardData.connectorIdGen;
               }
-              if (boardData.imageIdGen !== undefined) {
-                appState.imageIdGen = boardData.imageIdGen;
+              
+              // Restore plugin-specific state dynamically
+              const plugins = getAllPlugins();
+              plugins.forEach(plugin => {
+                const type = plugin.getType();
+                const storageKey = plugin.getSelectionType();
+                const idGenKey = type === 'sticky' ? 'idGen' : `${type}IdGen`;
+                
+                if (boardData[storageKey]) {
+                  appState[storageKey] = boardData[storageKey];
+                }
+                if (boardData[idGenKey] !== undefined) {
+                  appState[idGenKey] = boardData[idGenKey];
+                }
+              });
+              
+              // Backward compatibility: ensure 'idGen' is set if present
+              if (boardData.idGen !== undefined) {
+                appState.idGen = boardData.idGen;
               }
               
               return true;

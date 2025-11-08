@@ -417,6 +417,160 @@ describe("Connector Events Logic Tests", () => {
     });
   });
 
+  describe("Connector Endpoint Attachment", () => {
+    it("should attach connector endpoint to sticky when released inside sticky bounds", async () => {
+      // Create a sticky on the board
+      const stickyId = board.putBoardItem('sticky', { 
+        text: "Test Sticky", 
+        location: { x: 200, y: 200 } 
+      });
+      
+      // Create a connector with a free endpoint
+      const connectorId = board.putConnector({
+        originPoint: { x: 100, y: 100 },
+        destinationPoint: { x: 250, y: 250 }, // Over the sticky
+        color: "#000000"
+      });
+      
+      // Set up DOM elements
+      const stickyContainer = document.createElement('div');
+      stickyContainer.className = 'sticky-container sticky-' + stickyId;
+      boardElement.appendChild(stickyContainer);
+      
+      const connectorContainer = document.createElement('div');
+      connectorContainer.className = 'connector-container connector-' + connectorId;
+      const connectorHandle = document.createElement('div');
+      connectorHandle.className = 'connector-handle destination-handle';
+      connectorContainer.appendChild(connectorHandle);
+      boardElement.appendChild(connectorContainer);
+      
+      // Set up board element positioning
+      boardElement.style.position = 'relative';
+      boardElement.getBoundingClientRect = jest.fn(() => ({
+        left: 0,
+        top: 0,
+        width: 1000,
+        height: 1000
+      }));
+      
+      // Mock elementsFromPoint to return both connector handle and sticky (for fix)
+      // This simulates the bug scenario where elementFromPoint would return the handle,
+      // but elementsFromPoint returns both, allowing us to find the sticky below
+      const originalElementsFromPoint = document.elementsFromPoint;
+      document.elementsFromPoint = jest.fn(() => [connectorHandle, stickyContainer]);
+      
+      // Simulate dragging the connector handle - trigger mousedown to enter DRAGGING_HANDLE state
+      const mousedownEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 250,
+        clientY: 250,
+        target: connectorHandle
+      });
+      boardElement.dispatchEvent(mousedownEvent);
+      
+      // Wait for state transition (mousedown handler uses requestAnimationFrame)
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Simulate mouseup to release over the sticky
+      const mouseupEvent = new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 250,
+        clientY: 250
+      });
+      document.dispatchEvent(mouseupEvent);
+      
+      // Wait for the event to be processed
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Verify the endpoint attached to the sticky
+      const connector = board.getConnector(connectorId);
+      expect(connector.destinationId).toBe(stickyId);
+      expect(connector.destinationPoint).toBeUndefined();
+      
+      // Restore mocks
+      document.elementsFromPoint = originalElementsFromPoint;
+    });
+
+    it("should attach connector endpoint to image when released inside image bounds", async () => {
+      // Create an image on the board
+      const imageId = board.putBoardItem('image', {
+        location: { x: 300, y: 300 },
+        width: 150,
+        height: 100,
+        src: "test.jpg",
+        dataUrl: "data:image/jpeg;base64,test",
+        naturalWidth: 300,
+        naturalHeight: 200
+      });
+      
+      // Create a connector with a free endpoint
+      const connectorId = board.putConnector({
+        originPoint: { x: 100, y: 100 },
+        destinationPoint: { x: 375, y: 350 }, // Over the image center
+        color: "#000000"
+      });
+      
+      // Set up DOM elements
+      const imageContainer = document.createElement('div');
+      imageContainer.className = 'image-container image-' + imageId;
+      boardElement.appendChild(imageContainer);
+      
+      const connectorContainer = document.createElement('div');
+      connectorContainer.className = 'connector-container connector-' + connectorId;
+      const connectorHandle = document.createElement('div');
+      connectorHandle.className = 'connector-handle destination-handle';
+      connectorContainer.appendChild(connectorHandle);
+      boardElement.appendChild(connectorContainer);
+      
+      // Set up board element positioning
+      boardElement.getBoundingClientRect = jest.fn(() => ({
+        left: 0,
+        top: 0,
+        width: 1000,
+        height: 1000
+      }));
+      
+      // Mock elementsFromPoint to return both connector handle and image (for fix)
+      const originalElementsFromPoint = document.elementsFromPoint;
+      document.elementsFromPoint = jest.fn(() => [connectorHandle, imageContainer]);
+      
+      // Simulate dragging the connector handle
+      const mousedownEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 375,
+        clientY: 350,
+        target: connectorHandle
+      });
+      boardElement.dispatchEvent(mousedownEvent);
+      
+      // Wait for state transition
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Simulate mouseup to release over the image
+      const mouseupEvent = new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 375,
+        clientY: 350
+      });
+      document.dispatchEvent(mouseupEvent);
+      
+      // Wait for the event to be processed
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Verify the endpoint attached to the image
+      const connector = board.getConnector(connectorId);
+      expect(connector.destinationImageId).toBe(imageId);
+      expect(connector.destinationPoint).toBeUndefined();
+      
+      // Restore mocks
+      document.elementsFromPoint = originalElementsFromPoint;
+    });
+  });
+
   describe("Error Handling and Edge Cases", () => {
     it("should handle invalid connector operations gracefully", () => {
       // Test getting non-existent connector

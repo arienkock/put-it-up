@@ -459,6 +459,27 @@ class KeyboardStateMachine extends StateMachine {
   }
   
   /**
+   * Helper to get selection object for a plugin type (backward compatibility)
+   * @param {string} type - Plugin type
+   * @returns {Object|null} Selection object or null
+   */
+  _getSelectionForType(type) {
+    // Backward compatibility: map known types to selection objects
+    // In the future, this should use SelectionManager
+    const plugins = getAllPlugins();
+    const plugin = plugins.find(p => p.getType() === type);
+    if (!plugin) return null;
+    
+    // Map plugin types to selection objects (backward compat)
+    if (type === 'sticky' && this.selectedStickies) {
+      return this.selectedStickies;
+    } else if (type === 'image' && this.selectedImages) {
+      return this.selectedImages;
+    }
+    return null;
+  }
+
+  /**
    * Deletes all selected items (plugins and connectors)
    */
   deleteSelectedItems() {
@@ -467,15 +488,7 @@ class KeyboardStateMachine extends StateMachine {
     // Delete plugin items
     plugins.forEach(plugin => {
       const type = plugin.getType();
-      const selectionType = plugin.getSelectionType();
-      
-      // Get selection - try backward compat names first
-      let selection = null;
-      if (type === 'sticky' && this.selectedStickies) {
-        selection = this.selectedStickies;
-      } else if (type === 'image' && this.selectedImages) {
-        selection = this.selectedImages;
-      }
+      const selection = this._getSelectionForType(type);
       
       if (selection && selection.hasItems && selection.hasItems()) {
         selection.forEach((id) => {
@@ -576,6 +589,29 @@ export function setupKeyboardHandlers(
 export { KeyboardStateMachine };
 
 /**
+ * Helper to get selection object for a plugin type (backward compatibility)
+ * @param {string} type - Plugin type
+ * @param {Object} selectedStickies - Selection for stickies (backward compat)
+ * @param {Object} selectedImages - Selection for images (backward compat)
+ * @returns {Object|null} Selection object or null
+ */
+function getSelectionForType(type, selectedStickies, selectedImages) {
+  // Backward compatibility: map known types to selection objects
+  // In the future, this should use SelectionManager
+  const plugins = getAllPlugins();
+  const plugin = plugins.find(p => p.getType() === type);
+  if (!plugin) return null;
+  
+  // Map plugin types to selection objects (backward compat)
+  if (type === 'sticky' && selectedStickies) {
+    return selectedStickies;
+  } else if (type === 'image' && selectedImages) {
+    return selectedImages;
+  }
+  return null;
+}
+
+/**
  * Deletes all selected items (stickies, connectors, and images)
  * 
  * @param {Object} board - Board instance
@@ -589,14 +625,7 @@ export function deleteSelectedItems(board, selectedStickies, selectedConnectors,
   // Delete plugin items
   plugins.forEach(plugin => {
     const type = plugin.getType();
-    
-    // Get selection - try backward compat names first
-    let selection = null;
-    if (type === 'sticky' && selectedStickies) {
-      selection = selectedStickies;
-    } else if (type === 'image' && selectedImages) {
-      selection = selectedImages;
-    }
+    const selection = getSelectionForType(type, selectedStickies, selectedImages);
     
     if (selection && selection.hasItems && selection.hasItems()) {
       selection.forEach((id) => {

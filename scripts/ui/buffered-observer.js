@@ -13,6 +13,7 @@ export function BufferedObserver(board, render, renderFunctions, renderConnector
   let isRunScheduled = false;
   const tasks = [];
   let tasksScheduledCount = 0;
+  const plugins = getAllPlugins();
   
   // Determine if we're using new map-based API or old individual function API
   const isMapBased = renderFunctions && typeof renderFunctions === 'object' && !(renderFunctions instanceof Function);
@@ -21,8 +22,17 @@ export function BufferedObserver(board, render, renderFunctions, renderConnector
   // For backward compatibility, extract individual functions if provided
   if (!isMapBased && renderFunctions) {
     // Old API: renderFunctions is actually renderSticky
-    renderMap['sticky'] = renderFunctions;
-    if (renderImage) renderMap['image'] = renderImage;
+    // Use plugin registry to find sticky plugin type
+    const stickyPlugin = plugins.find(p => p.getType() === 'sticky');
+    if (stickyPlugin) {
+      renderMap[stickyPlugin.getType()] = renderFunctions;
+    }
+    if (renderImage) {
+      const imagePlugin = plugins.find(p => p.getType() === 'image');
+      if (imagePlugin) {
+        renderMap[imagePlugin.getType()] = renderImage;
+      }
+    }
   }
   if (renderConnector) renderMap['connector'] = renderConnector;
   
@@ -82,8 +92,12 @@ export function BufferedObserver(board, render, renderFunctions, renderConnector
   };
 
   // Backward compatibility: individual type handlers
-  this.onStickyChange = (id) => handlePluginItemChange('sticky', id);
-  this.onImageChange = (id) => handlePluginItemChange('image', id);
+  // Generate these dynamically from plugins for backward compatibility
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const methodName = `on${type.charAt(0).toUpperCase() + type.slice(1)}Change`;
+    this[methodName] = (id) => handlePluginItemChange(type, id);
+  });
   
   this.onConnectorChange = (id) => {
     const renderFn = renderMap['connector'];

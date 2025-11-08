@@ -1,6 +1,7 @@
 import { createConnectorDOM } from "./connector-dom.js";
 import { setConnectorStyles } from "./connector-styling.js";
 import { reorderBoardElements } from "./z-order-manager.js";
+import { getAllPlugins } from "./plugin-registry.js";
 
 export const CONNECTOR_TYPE = "application/connector";
 export const DEFAULT_ARROW_HEAD = "filled";
@@ -26,33 +27,51 @@ export const createRenderer = (
       board.ensureConnectorHasColor(connectorId);
       
       // Resolve endpoints respecting type to avoid ID collisions
+      // TODO: This is a leak - connector system should use generic connection properties
+      const plugins = getAllPlugins();
       let originItem = null;
       if (connector.originId) {
-        try {
-          originItem = board.getBoardItemByType('sticky', connector.originId);
-        } catch (e) {
-          // Item not found
+        // Try to find which plugin type this ID belongs to
+        for (const plugin of plugins) {
+          const type = plugin.getType();
+          try {
+            originItem = board.getBoardItemByType(type, connector.originId);
+            if (originItem) break;
+          } catch (e) {
+            // Item not found for this type, try next
+          }
         }
       } else if (connector.originImageId) {
-        try {
-          originItem = board.getBoardItemByType('image', connector.originImageId);
-        } catch (e) {
-          // Item not found
+        const imagePlugin = plugins.find(p => p.getType() === 'image');
+        if (imagePlugin) {
+          try {
+            originItem = board.getBoardItemByType('image', connector.originImageId);
+          } catch (e) {
+            // Item not found
+          }
         }
       }
       
       let destItem = null;
       if (connector.destinationId) {
-        try {
-          destItem = board.getBoardItemByType('sticky', connector.destinationId);
-        } catch (e) {
-          // Item not found
+        // Try to find which plugin type this ID belongs to
+        for (const plugin of plugins) {
+          const type = plugin.getType();
+          try {
+            destItem = board.getBoardItemByType(type, connector.destinationId);
+            if (destItem) break;
+          } catch (e) {
+            // Item not found for this type, try next
+          }
         }
       } else if (connector.destinationImageId) {
-        try {
-          destItem = board.getBoardItemByType('image', connector.destinationImageId);
-        } catch (e) {
-          // Item not found
+        const imagePlugin = plugins.find(p => p.getType() === 'image');
+        if (imagePlugin) {
+          try {
+            destItem = board.getBoardItemByType('image', connector.destinationImageId);
+          } catch (e) {
+            // Item not found
+          }
         }
       }
       

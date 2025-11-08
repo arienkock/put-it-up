@@ -35,19 +35,26 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
   const plugins = getAllPlugins();
   const appState = board.getAppState ? board.getAppState() : window.appState;
   
+  // Helper to get selection for a plugin type (backward compatibility)
+  const getSelectionForPlugin = (plugin, selectedStickies) => {
+    const type = plugin.getType();
+    // Backward compatibility: map known types to selection objects
+    // In the future, this should use SelectionManager
+    if (type === 'sticky' && selectedStickies) {
+      return selectedStickies;
+    }
+    // Images don't have colors, so we skip them
+    // In the future, selections could be passed as a map
+    return null;
+  };
+  
   // Collect all selections that support colors
   const selectionsWithColors = [];
   plugins.forEach(plugin => {
     const type = plugin.getType();
     const palette = plugin.getColorPalette();
     if (palette && palette.length > 0) {
-      // Try to get selection - check backward compat names first
-      let selection = null;
-      if (type === 'sticky' && selectedStickies) {
-        selection = selectedStickies;
-      }
-      // Images don't have colors, so we skip them
-      // In the future, selections could be passed as a map
+      const selection = getSelectionForPlugin(plugin, selectedStickies);
       if (selection && selection.hasItems && selection.hasItems()) {
         selectionsWithColors.push({ plugin, type, selection, palette });
       }

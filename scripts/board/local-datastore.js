@@ -1,5 +1,5 @@
 import { getAppState } from "../app-state.js";
-import { getStorageKeyForType } from "../board-items/plugin-registry.js";
+import { getStorageKeyForType, getAllPlugins } from "../board-items/plugin-registry.js";
 
 export class LocalDatastore {
   observers = [];
@@ -196,18 +196,49 @@ export class LocalDatastore {
   };
 
   getState = () => {
-    const { stickies, connectors, images, idGen, connectorIdGen, imageIdGen } = getAppState();
-    return clone({ stickies, connectors, images, idGen, connectorIdGen, imageIdGen });
+    const appState = getAppState();
+    const plugins = getAllPlugins();
+    const state = { connectors: appState.connectors || {}, connectorIdGen: appState.connectorIdGen || 0 };
+    
+    // Add plugin-specific state dynamically
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const storageKey = plugin.getSelectionType();
+      const idGenKey = this._getIdGenKeyForType(type);
+      state[storageKey] = appState[storageKey] || {};
+      state[idGenKey] = appState[idGenKey] || 0;
+    });
+    
+    // Backward compatibility: ensure 'idGen' is included (for sticky)
+    if (!state.idGen && appState.idGen !== undefined) {
+      state.idGen = appState.idGen;
+    }
+    
+    return clone(state);
   };
 
   setState = (state) => {
     const appState = getAppState();
-    appState.stickies = state.stickies || {};
+    const plugins = getAllPlugins();
+    
+    // Set connector state (not a plugin)
     appState.connectors = state.connectors || {};
-    appState.images = state.images || {};
-    appState.idGen = state.idGen || 0;
     appState.connectorIdGen = state.connectorIdGen || 0;
-    appState.imageIdGen = state.imageIdGen || 0;
+    
+    // Set plugin-specific state dynamically
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const storageKey = plugin.getSelectionType();
+      const idGenKey = this._getIdGenKeyForType(type);
+      appState[storageKey] = state[storageKey] || {};
+      appState[idGenKey] = state[idGenKey] || 0;
+    });
+    
+    // Backward compatibility: handle 'idGen' for sticky
+    if (state.idGen !== undefined) {
+      appState.idGen = state.idGen;
+    }
+    
     this.notifyBoardChange();
   };
 

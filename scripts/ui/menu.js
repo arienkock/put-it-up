@@ -80,14 +80,34 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
   }
   
   // Build selection map for easy access
+  // Helper to get selection for a plugin type (backward compatibility)
+  const getSelectionForPlugin = (plugin) => {
+    const type = plugin.getType();
+    // Backward compatibility: map known types to selection objects
+    // In the future, this should use SelectionManager
+    if (type === 'sticky' && selectedStickies) {
+      return selectedStickies;
+    } else if (type === 'image' && selectedImages) {
+      return selectedImages;
+    }
+    return null;
+  };
+  
   const selectionMap = {
-    'stickies': selectedStickies,
-    'images': selectedImages,
     'connectors': selectedConnectors,
-    'sticky': selectedStickies,
-    'image': selectedImages,
     'connector': selectedConnectors
   };
+  
+  // Add plugin selections dynamically
+  plugins.forEach(plugin => {
+    const type = plugin.getType();
+    const selectionType = plugin.getSelectionType();
+    const selection = getSelectionForPlugin(plugin);
+    if (selection) {
+      selectionMap[type] = selection;
+      selectionMap[selectionType] = selection;
+    }
+  });
 
   const alwaysRelevantItems = [
     ...pluginMenuItems,
@@ -170,7 +190,10 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
         }
         
         // Get selected stickies for backward compatibility with changeColor function
-        const selectedStickiesForColor = pluginsWithColorSelections.find(p => p.type === 'sticky')?.selection || null;
+        // Find first plugin with color support that has a selection
+        const selectedStickiesForColor = pluginsWithColorSelections.length > 0 
+          ? pluginsWithColorSelections[0].selection 
+          : null;
         
         const newColor = changeColor(
           board,
@@ -470,21 +493,32 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
    * Syncs the current color and arrow head with selected items
    */
   function syncSelectorsWithSelection() {
-    // Sync sticky color with selected sticky
-    if (selectedStickies.hasItems() && selectedStickies.size() === 1) {
-      let selectedStickyId;
-      selectedStickies.forEach((id) => (selectedStickyId = id));
-      let sticky;
-      try {
-        sticky = board.getBoardItemByType('sticky', selectedStickyId);
-      } catch (e) {
-        sticky = null;
+    // Sync plugin item colors with selected items
+    plugins.forEach(plugin => {
+      const type = plugin.getType();
+      const palette = plugin.getColorPalette();
+      if (!palette || palette.length === 0) return;
+      
+      const selection = getSelectionForPlugin(plugin);
+      if (selection && selection.hasItems() && selection.size() === 1) {
+        let selectedId;
+        selection.forEach((id) => (selectedId = id));
+        let item;
+        try {
+          item = board.getBoardItemByType(type, selectedId);
+        } catch (e) {
+          item = null;
+        }
+        if (item && item.color) {
+          const colorKey = `current${type.charAt(0).toUpperCase() + type.slice(1)}Color`;
+          appState.ui[colorKey] = item.color;
+          // Legacy compatibility for sticky
+          if (type === 'sticky') {
+            appState.ui.currentColor = item.color;
+          }
+        }
       }
-      if (sticky && sticky.color) {
-        appState.ui.currentStickyColor = sticky.color;
-        appState.ui.currentColor = sticky.color; // Legacy compatibility
-      }
-    }
+    });
     
     // Sync connector color with selected connector
     if (selectedConnectors.hasItems() && selectedConnectors.size() === 1) {
