@@ -12,6 +12,17 @@ export function installSettlingDetector(observer) {
   let errors = [];
   let transitionsInProgress = [];
   
+  // Store handler references so they can be removed during cleanup
+  const errorHandler = (event) => {
+    errors.push(event.error);
+  };
+  const transitionRunHandler = (event) =>
+    addTransitionsInProgress(event.target, event.propertyName);
+  const transitionEndHandler = (event) =>
+    removeTransitionsInProgress(event.target, event.propertyName);
+  const transitionCancelHandler = (event) =>
+    removeTransitionsInProgress(event.target, event.propertyName);
+  
   window.printTransitionsInProgress = () => {
     return JSON.stringify(transitionsInProgress);
   };
@@ -42,18 +53,10 @@ export function installSettlingDetector(observer) {
       }
     });
   
-  window.addEventListener("error", (event) => {
-    errors.push(event.error);
-  });
-  window.addEventListener("transitionrun", (event) =>
-    addTransitionsInProgress(event.target, event.propertyName)
-  );
-  window.addEventListener("transitionend", (event) =>
-    removeTransitionsInProgress(event.target, event.propertyName)
-  );
-  window.addEventListener("transitioncancel", (event) =>
-    removeTransitionsInProgress(event.target, event.propertyName)
-  );
+  window.addEventListener("error", errorHandler);
+  window.addEventListener("transitionrun", transitionRunHandler);
+  window.addEventListener("transitionend", transitionEndHandler);
+  window.addEventListener("transitioncancel", transitionCancelHandler);
 
   function addTransitionsInProgress(element, property) {
     transitionsInProgress.push([element, property]);
@@ -63,4 +66,26 @@ export function installSettlingDetector(observer) {
       (entry) => !(element === entry[0] && property === entry[1])
     );
   }
+  
+  // Store cleanup function on window so tests can call it
+  const cleanupFunction = function cleanupSettlingDetector() {
+    window.removeEventListener("error", errorHandler);
+    window.removeEventListener("transitionrun", transitionRunHandler);
+    window.removeEventListener("transitionend", transitionEndHandler);
+    window.removeEventListener("transitioncancel", transitionCancelHandler);
+    
+    // Clear global functions
+    delete window.printTransitionsInProgress;
+    delete window.waitForThingsToSettleDown;
+    delete window.cleanupSettlingDetector;
+    
+    // Clear state
+    errors = [];
+    transitionsInProgress = [];
+  };
+  
+  window.cleanupSettlingDetector = cleanupFunction;
+  
+  // Return cleanup function for programmatic use
+  return cleanupFunction;
 }

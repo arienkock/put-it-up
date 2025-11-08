@@ -51,12 +51,31 @@ class PlaywrightJestEnvironment extends TestEnvironment {
   }
 
   async teardown() {
+    // Close context before browser (proper order)
+    if (this.global.context) {
+      await this.global.context.close().catch(() => {
+        // Ignore errors during context cleanup
+      });
+    }
+    
+    // Close browser after context
     if (this.global.browser) {
-      await this.global.browser.close();
+      await this.global.browser.close().catch(() => {
+        // Ignore errors during browser cleanup
+      });
     }
+    
+    // Close HTTP server with proper callback handling
     if (this.global.httpServer) {
-      this.global.httpServer.close();
+      await new Promise((resolve) => {
+        const timeout = setTimeout(() => resolve(), 100);
+        this.global.httpServer.close(() => {
+          clearTimeout(timeout);
+          resolve();
+        });
+      });
     }
+    
     await super.teardown();
   }
 }
