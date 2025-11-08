@@ -5,6 +5,9 @@
   "main": "main.js",
   "scripts": {
     "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:watch:coverage": "jest --watch --coverage",
     "serve": "static -a 0.0.0.0 -p 9000 -H '{\"Cache-Control\": \"no-cache, must-revalidate\"}'"
   },
   "author": "",
