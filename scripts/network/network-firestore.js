@@ -1,6 +1,7 @@
 import { getAppState } from "../app-state.js";
 import { firebaseConfig, initializeFirebaseApp } from "../config/firebase-config.js";
 import { getStorageKeyForType, getAllPlugins } from "../board-items/plugin-registry.js";
+import { convertOldFormatToNewFormat } from "../board/data-format-converter.js";
 
 // Debug mode - controlled by global window.DEBUG_MODE
 // Use a function to check DEBUG_MODE dynamically
@@ -755,21 +756,19 @@ export class FirestoreStore {
       state[idGenKey] = appState[idGenKey] || 0;
     });
     
-    // Backward compatibility: ensure 'idGen' is included (for sticky)
-    if (!state.idGen && appState.idGen !== undefined) {
-      state.idGen = appState.idGen;
-    }
-    
     return clone(state);
   };
 
   setState = (state) => {
+    // Convert old format to new format if needed
+    const convertedState = convertOldFormatToNewFormat(state);
+    
     const appState = getAppState();
     const plugins = getAllPlugins();
     
     // Set connector state (not a plugin)
-    appState.connectors = state.connectors || {};
-    appState.connectorIdGen = state.connectorIdGen || 0;
+    appState.connectors = convertedState.connectors || {};
+    appState.connectorIdGen = convertedState.connectorIdGen || 0;
     
     // Set plugin-specific state dynamically
     plugins.forEach(plugin => {
@@ -777,14 +776,9 @@ export class FirestoreStore {
       const storageKey = plugin.getSelectionType();
       // Generate idGen key (sticky uses 'idGen', others use 'typeIdGen')
       const idGenKey = type === 'sticky' ? 'idGen' : `${type}IdGen`;
-      appState[storageKey] = state[storageKey] || {};
-      appState[idGenKey] = state[idGenKey] || 0;
+      appState[storageKey] = convertedState[storageKey] || {};
+      appState[idGenKey] = convertedState[idGenKey] || 0;
     });
-    
-    // Backward compatibility: handle 'idGen' for sticky
-    if (state.idGen !== undefined) {
-      appState.idGen = state.idGen;
-    }
     
     this.notifyBoardChange();
   };

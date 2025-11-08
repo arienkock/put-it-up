@@ -1,5 +1,6 @@
 import { getAppState } from "../app-state.js";
 import { getAllPlugins } from "../board-items/plugin-registry.js";
+import { convertOldFormatToNewFormat } from "./data-format-converter.js";
 
 export class LocalStoragePersistence {
   constructor(boardName = 'default-board', localStorageKey = 'put-it-up-boards') {
@@ -28,15 +29,21 @@ export class LocalStoragePersistence {
   saveToLocalStorage = () => {
     try {
       const state = getAppState();
+      const plugins = getAllPlugins();
       const persistableState = {
         board: state.board,
-        stickies: state.stickies,
-        connectors: state.connectors,
-        images: state.images,
-        idGen: state.idGen,
-        connectorIdGen: state.connectorIdGen,
-        imageIdGen: state.imageIdGen
+        connectors: state.connectors || {},
+        connectorIdGen: state.connectorIdGen || 0
       };
+      
+      // Add plugin-specific state dynamically
+      plugins.forEach(plugin => {
+        const type = plugin.getType();
+        const storageKey = plugin.getSelectionType();
+        const idGenKey = type === 'sticky' ? 'idGen' : `${type}IdGen`;
+        persistableState[storageKey] = state[storageKey] || {};
+        persistableState[idGenKey] = state[idGenKey] || 0;
+      });
       
       // Load existing boards structure or create new one
       let allBoards = {};
@@ -95,19 +102,21 @@ export class LocalStoragePersistence {
           if (typeof allBoards === 'object' && !Array.isArray(allBoards) && allBoards[this.boardName]) {
             const boardData = allBoards[this.boardName].data;
             if (boardData) {
+              // Convert old format to new format if needed
+              const convertedData = convertOldFormatToNewFormat(boardData);
               const appState = getAppState();
               
               // Restore the persistable parts of the state
-              if (boardData.board !== undefined) {
-                appState.board = boardData.board;
+              if (convertedData.board !== undefined) {
+                appState.board = convertedData.board;
               }
               
               // Restore connector state (not a plugin)
-              if (boardData.connectors) {
-                appState.connectors = boardData.connectors;
+              if (convertedData.connectors) {
+                appState.connectors = convertedData.connectors;
               }
-              if (boardData.connectorIdGen !== undefined) {
-                appState.connectorIdGen = boardData.connectorIdGen;
+              if (convertedData.connectorIdGen !== undefined) {
+                appState.connectorIdGen = convertedData.connectorIdGen;
               }
               
               // Restore plugin-specific state dynamically
@@ -117,18 +126,13 @@ export class LocalStoragePersistence {
                 const storageKey = plugin.getSelectionType();
                 const idGenKey = type === 'sticky' ? 'idGen' : `${type}IdGen`;
                 
-                if (boardData[storageKey]) {
-                  appState[storageKey] = boardData[storageKey];
+                if (convertedData[storageKey]) {
+                  appState[storageKey] = convertedData[storageKey];
                 }
-                if (boardData[idGenKey] !== undefined) {
-                  appState[idGenKey] = boardData[idGenKey];
+                if (convertedData[idGenKey] !== undefined) {
+                  appState[idGenKey] = convertedData[idGenKey];
                 }
               });
-              
-              // Backward compatibility: ensure 'idGen' is set if present
-              if (boardData.idGen !== undefined) {
-                appState.idGen = boardData.idGen;
-              }
               
               return true;
             }
@@ -144,30 +148,38 @@ export class LocalStoragePersistence {
       if (oldState) {
         try {
           const parsedState = JSON.parse(oldState);
+          
+          // Convert old format to new format
+          const convertedState = convertOldFormatToNewFormat(parsedState);
           const appState = getAppState();
           
-          // Restore from old structure
-          if (parsedState.board !== undefined) {
-            appState.board = parsedState.board;
+          // Restore board
+          if (convertedState.board !== undefined) {
+            appState.board = convertedState.board;
           }
-          if (parsedState.stickies) {
-            appState.stickies = parsedState.stickies;
+          
+          // Restore connector state (not a plugin)
+          if (convertedState.connectors) {
+            appState.connectors = convertedState.connectors;
           }
-          if (parsedState.connectors) {
-            appState.connectors = parsedState.connectors;
+          if (convertedState.connectorIdGen !== undefined) {
+            appState.connectorIdGen = convertedState.connectorIdGen;
           }
-          if (parsedState.images) {
-            appState.images = parsedState.images;
-          }
-          if (parsedState.idGen !== undefined) {
-            appState.idGen = parsedState.idGen;
-          }
-          if (parsedState.connectorIdGen !== undefined) {
-            appState.connectorIdGen = parsedState.connectorIdGen;
-          }
-          if (parsedState.imageIdGen !== undefined) {
-            appState.imageIdGen = parsedState.imageIdGen;
-          }
+          
+          // Restore plugin-specific state dynamically
+          const plugins = getAllPlugins();
+          plugins.forEach(plugin => {
+            const type = plugin.getType();
+            const storageKey = plugin.getSelectionType();
+            const idGenKey = type === 'sticky' ? 'idGen' : `${type}IdGen`;
+            
+            if (convertedState[storageKey]) {
+              appState[storageKey] = convertedState[storageKey];
+            }
+            if (convertedState[idGenKey] !== undefined) {
+              appState[idGenKey] = convertedState[idGenKey];
+            }
+          });
           
           // Migrate to new structure
           this.saveToLocalStorage();

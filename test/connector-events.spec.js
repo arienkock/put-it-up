@@ -6,6 +6,8 @@ import { LocalDatastore } from "../scripts/board/local-datastore.js";
 import { setupConnectorEvents } from "../scripts/board-items/connector-events.js";
 import { StateMachineValidator } from "../scripts/ui/state-machine-validator.js";
 import { StateMachineTester } from "../scripts/ui/state-machine-testing.js";
+import { getAllPlugins } from "../scripts/board-items/plugin-registry.js";
+import { getBoardItemBounds } from "../scripts/board-items/board-item-interface.js";
 
 // Mock window global for unit tests
 if (typeof window === 'undefined') {
@@ -457,20 +459,26 @@ describe("Connector Events Logic Tests", () => {
       // This simulates the bug scenario where elementFromPoint would return the handle,
       // but elementsFromPoint returns both, allowing us to find the sticky below
       const originalElementsFromPoint = document.elementsFromPoint;
-      document.elementsFromPoint = jest.fn(() => [connectorHandle, stickyContainer]);
+      document.elementsFromPoint = jest.fn((x, y) => {
+        // Return elements in order: connector handle first, then sticky container
+        return [connectorHandle, stickyContainer];
+      });
       
       // Simulate dragging the connector handle - trigger mousedown to enter DRAGGING_HANDLE state
       const mousedownEvent = new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
         clientX: 250,
-        clientY: 250,
-        target: connectorHandle
+        clientY: 250
       });
-      boardElement.dispatchEvent(mousedownEvent);
+      connectorHandle.dispatchEvent(mousedownEvent);
       
       // Wait for state transition (mousedown handler uses requestAnimationFrame)
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify we're in the correct state
+      expect(connectorEvents.getCurrentState()).toBe('dragging_handle');
       
       // Simulate mouseup to release over the sticky
       const mouseupEvent = new MouseEvent('mouseup', {
@@ -482,6 +490,7 @@ describe("Connector Events Logic Tests", () => {
       document.dispatchEvent(mouseupEvent);
       
       // Wait for the event to be processed
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Verify the endpoint attached to the sticky
@@ -534,20 +543,26 @@ describe("Connector Events Logic Tests", () => {
       
       // Mock elementsFromPoint to return both connector handle and image (for fix)
       const originalElementsFromPoint = document.elementsFromPoint;
-      document.elementsFromPoint = jest.fn(() => [connectorHandle, imageContainer]);
+      document.elementsFromPoint = jest.fn((x, y) => {
+        // Return elements in order: connector handle first, then image container
+        return [connectorHandle, imageContainer];
+      });
       
       // Simulate dragging the connector handle
       const mousedownEvent = new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
         clientX: 375,
-        clientY: 350,
-        target: connectorHandle
+        clientY: 350
       });
-      boardElement.dispatchEvent(mousedownEvent);
+      connectorHandle.dispatchEvent(mousedownEvent);
       
       // Wait for state transition
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify we're in the correct state
+      expect(connectorEvents.getCurrentState()).toBe('dragging_handle');
       
       // Simulate mouseup to release over the image
       const mouseupEvent = new MouseEvent('mouseup', {
@@ -559,6 +574,7 @@ describe("Connector Events Logic Tests", () => {
       document.dispatchEvent(mouseupEvent);
       
       // Wait for the event to be processed
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Verify the endpoint attached to the image
@@ -568,6 +584,138 @@ describe("Connector Events Logic Tests", () => {
       
       // Restore mocks
       document.elementsFromPoint = originalElementsFromPoint;
+    });
+  });
+
+  describe("Connector Creation from Image", () => {
+    it("should create connector from image with correct origin position", async () => {
+      // Create an image at a known location
+      const imageId = board.putBoardItem('image', {
+        location: { x: 200, y: 200 },
+        width: 150,
+        height: 100,
+        src: "test-image.jpg",
+        dataUrl: "data:image/jpeg;base64,test",
+        naturalWidth: 300,
+        naturalHeight: 200
+      });
+
+      // Verify image exists
+      const image = board.getBoardItemByType('image', imageId);
+      expect(image).toBeDefined();
+      expect(image.location).toEqual({ x: 200, y: 200 });
+
+      // Set up DOM elements
+      const imageContainer = document.createElement('div');
+      imageContainer.className = 'image-container image-' + imageId;
+      boardElement.appendChild(imageContainer);
+
+      // Set up board element positioning
+      boardElement.style.position = 'relative';
+      boardElement.getBoundingClientRect = jest.fn(() => ({
+        left: 0,
+        top: 0,
+        width: 1000,
+        height: 1000
+      }));
+
+      // Enable connector creation mode
+      mockAppState.ui.nextClickCreatesConnector = true;
+
+      // Calculate the image center position in client coordinates
+      // Image is at (200, 200) with size 150x100, so center is at (275, 250) in board coordinates
+      // With boardOrigin at (0, 0) and boardScale at 1, client coords would be (275, 250)
+      const imageCenterX = image.location.x + image.width / 2; // 200 + 75 = 275
+      const imageCenterY = image.location.y + image.height / 2; // 200 + 50 = 250
+      const boardOrigin = board.getOrigin();
+      const boardScale = mockAppState.ui.boardScale || 1;
+      
+      // Convert to client coordinates
+      const clientX = (imageCenterX + boardOrigin.x) * boardScale;
+      const clientY = (imageCenterY + boardOrigin.y) * boardScale;
+
+      // Simulate mousedown on the image container to create connector
+      const mousedownEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: clientX,
+        clientY: clientY
+      });
+      imageContainer.dispatchEvent(mousedownEvent);
+
+      // Wait for state transition
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify connector was created
+      const connectors = Object.keys(mockAppState.connectors);
+      expect(connectors.length).toBeGreaterThan(0);
+      
+      // Find the newly created connector (should be the last one)
+      const connectorId = connectors[connectors.length - 1];
+      const connector = board.getConnector(connectorId);
+      
+      // Verify connector has originImageId set
+      expect(connector.originImageId).toBeDefined();
+      expect(connector.originPoint).toBeUndefined(); // Should not have originPoint when connected to image
+
+      // Simulate the connector rendering logic to determine the actual start point
+      // This is what happens in connector.js renderConnector and connector-styling.js setConnectorStyles
+      const plugins = getAllPlugins();
+      let originItem = null;
+      
+      // Try to resolve the origin item (same logic as connector renderer)
+      if (connector.originImageId) {
+        const imagePlugin = plugins.find(p => p.getType() === 'image');
+        if (imagePlugin) {
+          try {
+            originItem = board.getBoardItemByType('image', connector.originImageId);
+          } catch (e) {
+            // Item not found - this is the bug!
+          }
+        }
+      }
+      
+      // Calculate what the start point would be during rendering
+      // This simulates the logic in connector-styling.js setConnectorStyles
+      const boardOriginForBounds = board.getOrigin();
+      const stickySize = board.getStickyBaseSize();
+      let actualStartPoint;
+      
+      if (originItem) {
+        // Origin is connected to an item - calculate edge point
+        const originBounds = getBoardItemBounds(originItem, boardOriginForBounds, stickySize);
+        if (originBounds) {
+          // When origin is connected, use the bounds center (simplified - actual logic uses calculateEdgePoint)
+          actualStartPoint = {
+            x: originBounds.centerX,
+            y: originBounds.centerY
+          };
+        } else {
+          // Fallback if bounds calculation fails
+          actualStartPoint = { x: 0, y: 0 };
+        }
+      } else {
+        // Origin unconnected - fall back to originPoint || { x: 0, y: 0 }
+        // This is where the bug manifests: originItem is null, so it uses (0,0)
+        actualStartPoint = connector.originPoint || { x: 0, y: 0 };
+      }
+      
+      // Calculate what the start point SHOULD be (image center)
+      const expectedStartPoint = {
+        x: image.location.x + image.width / 2 - boardOriginForBounds.x,
+        y: image.location.y + image.height / 2 - boardOriginForBounds.y
+      };
+      
+      // BUG REPRODUCTION: This assertion will FAIL because:
+      // 1. originImageId is incorrectly set to "container" instead of the actual image ID
+      // 2. Image lookup fails, so originItem is null
+      // 3. Renderer falls back to originPoint || { x: 0, y: 0 }
+      // 4. actualStartPoint is (0, 0) instead of the image's center position
+      expect(actualStartPoint.x).not.toBe(0);
+      expect(actualStartPoint.y).not.toBe(0);
+      expect(actualStartPoint.x).toBeCloseTo(expectedStartPoint.x, 1);
+      expect(actualStartPoint.y).toBeCloseTo(expectedStartPoint.y, 1);
     });
   });
 

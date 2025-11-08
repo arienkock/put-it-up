@@ -1,5 +1,6 @@
 import { getAppState } from "../app-state.js";
 import { getStorageKeyForType, getAllPlugins } from "../board-items/plugin-registry.js";
+import { convertOldFormatToNewFormat } from "./data-format-converter.js";
 
 export class LocalDatastore {
   observers = [];
@@ -209,35 +210,28 @@ export class LocalDatastore {
       state[idGenKey] = appState[idGenKey] || 0;
     });
     
-    // Backward compatibility: ensure 'idGen' is included (for sticky)
-    if (!state.idGen && appState.idGen !== undefined) {
-      state.idGen = appState.idGen;
-    }
-    
     return clone(state);
   };
 
   setState = (state) => {
+    // Convert old format to new format if needed
+    const convertedState = convertOldFormatToNewFormat(state);
+    
     const appState = getAppState();
     const plugins = getAllPlugins();
     
     // Set connector state (not a plugin)
-    appState.connectors = state.connectors || {};
-    appState.connectorIdGen = state.connectorIdGen || 0;
+    appState.connectors = convertedState.connectors || {};
+    appState.connectorIdGen = convertedState.connectorIdGen || 0;
     
     // Set plugin-specific state dynamically
     plugins.forEach(plugin => {
       const type = plugin.getType();
       const storageKey = plugin.getSelectionType();
       const idGenKey = this._getIdGenKeyForType(type);
-      appState[storageKey] = state[storageKey] || {};
-      appState[idGenKey] = state[idGenKey] || 0;
+      appState[storageKey] = convertedState[storageKey] || {};
+      appState[idGenKey] = convertedState[idGenKey] || 0;
     });
-    
-    // Backward compatibility: handle 'idGen' for sticky
-    if (state.idGen !== undefined) {
-      appState.idGen = state.idGen;
-    }
     
     this.notifyBoardChange();
   };
@@ -356,8 +350,7 @@ export class LocalDatastore {
   }
 
   _getIdGenKeyForType(type) {
-    // Generate idGen key from type (e.g., 'sticky' -> 'stickyIdGen', 'image' -> 'imageIdGen')
-    // For backward compatibility, 'sticky' uses 'idGen'
+    // Generate idGen key from type (e.g., 'sticky' -> 'idGen', 'image' -> 'imageIdGen')
     if (type === 'sticky') {
       return 'idGen';
     }

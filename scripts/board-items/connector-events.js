@@ -33,7 +33,7 @@ function findPluginItemFromElement(element) {
     const container = element.closest(`.${baseClass}`);
     
     if (container) {
-      const idClass = Array.from(container.classList).find(cls => cls.startsWith(classPrefix));
+      const idClass = Array.from(container.classList).find(cls => cls.startsWith(classPrefix) && cls !== baseClass);
       if (idClass) {
         const id = idClass.replace(classPrefix, '');
         return { plugin, type: plugin.getType(), id };
@@ -530,7 +530,8 @@ class ConnectorStateMachine extends StateMachine {
             
             if (container) {
               // Extract ID from class name
-              const idClass = Array.from(container.classList).find(cls => cls.startsWith(classPrefix));
+              // Exclude baseClass to avoid matching "image-container" instead of "image-{id}"
+              const idClass = Array.from(container.classList).find(cls => cls.startsWith(classPrefix) && cls !== baseClass);
               if (idClass) {
                 originItemId = idClass.replace(classPrefix, '');
                 originItemType = plugin.getType();
@@ -605,7 +606,7 @@ class ConnectorStateMachine extends StateMachine {
         onMouseDown: (event, stateData) => {
           const handle = event.target.closest('.curve-control-handle');
           const container = handle.closest('.connector-container');
-          const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-'));
+          const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
           const handleConnectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
           
           event.preventDefault();
@@ -635,7 +636,7 @@ class ConnectorStateMachine extends StateMachine {
         onMouseDown: (event, stateData) => {
           const handle = event.target.closest('.connector-handle');
           const container = handle.closest('.connector-container');
-          const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-'));
+          const connectorIdClass = Array.from(container.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
           const handleConnectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
           
           event.preventDefault();
@@ -693,7 +694,7 @@ class ConnectorStateMachine extends StateMachine {
           if (connectorHandle) {
             const connectorContainer = connectorHandle.closest('.connector-container');
             if (connectorContainer) {
-              const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
+              const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
               const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
               if (connectorId === stateData.connectorId) {
                 // Continue with point-based connection (empty space)
@@ -742,7 +743,7 @@ class ConnectorStateMachine extends StateMachine {
           
           if (!isPathClick || isHandleClick) return false;
           
-          const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
+          const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
           const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
           
           if (!connectorId) return false;
@@ -760,7 +761,7 @@ class ConnectorStateMachine extends StateMachine {
         
         onMouseDown: (event, stateData) => {
           const connectorContainer = event.target.closest('.connector-container');
-          const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
+          const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
           const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
           
           event.stopPropagation();
@@ -1188,7 +1189,7 @@ class ConnectorStateMachine extends StateMachine {
       }
       
       // Extract connector ID from class name
-      const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-'));
+      const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
       const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
       
       if (!connectorId) return;
@@ -1254,7 +1255,7 @@ class ConnectorStateMachine extends StateMachine {
             // Click hit a lower connector's stroke - select that connector instead
             event.stopPropagation();
             
-            const lowerConnectorIdClass = Array.from(lowerContainer.classList).find(cls => cls.startsWith('connector-'));
+            const lowerConnectorIdClass = Array.from(lowerContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
             const lowerConnectorId = lowerConnectorIdClass ? lowerConnectorIdClass.replace('connector-', '') : null;
             
             if (lowerConnectorId) {
