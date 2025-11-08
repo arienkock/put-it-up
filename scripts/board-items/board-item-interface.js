@@ -40,7 +40,7 @@ export function getElementLayer(element) {
  * @param {number} stickyBaseSize - Base size for stickies in pixels
  * @returns {Object|null} Bounds object with {centerX, centerY, width, height} or null if item is null
  */
-export function getBoardItemBounds(item, boardOrigin, stickyBaseSize = 70) {
+export function getBoardItemBounds(item, boardOrigin) {
   if (!item) {
     return null;
   }
@@ -49,7 +49,7 @@ export function getBoardItemBounds(item, boardOrigin, stickyBaseSize = 70) {
   try {
     for (const plugin of getAllPlugins()) {
       if (plugin.isItem(item)) {
-        return plugin.getBounds(item, boardOrigin, { stickyBaseSize });
+        return plugin.getBounds(item, boardOrigin);
       }
     }
   } catch (e) {

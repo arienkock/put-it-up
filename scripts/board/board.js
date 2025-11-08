@@ -254,7 +254,6 @@ export function Board(aStore) {
     store.setState(state);
   };
 
-  this.getStickyBaseSize = () => 70;
   this.getGridUnit = () => gridSize;
   this.getBoardSize = () => {
     const { origin, limit } = getBoardInternal();

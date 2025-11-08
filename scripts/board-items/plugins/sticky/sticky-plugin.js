@@ -129,7 +129,7 @@ export class StickyPlugin extends BoardItemPlugin {
 
   isItem(itemData) { return !!(itemData && typeof itemData.text === 'string'); }
   isElement(element) { return element?.classList?.contains('sticky-container'); }
-  getBounds(item, boardOrigin, options) {
+  getBounds(item, boardOrigin) {
     if (!item) return null;
     const size = item.size || { x: 1, y: 1 };
     const width = 70 * size.x;

@@ -10,7 +10,6 @@ describe("connector self-loop rendering", () => {
     const board = {
       ensureConnectorHasColor: () => {},
       getOrigin: () => ({ x: 0, y: 0 }),
-      getStickyBaseSize: () => 70,
       getStickySafe: (id) => stickyItem,
       getImageSafe: () => null,
       getBoardItem: (id) => stickyItem,

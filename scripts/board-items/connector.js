@@ -57,7 +57,6 @@ export const createRenderer = (
         destItem,
         connectorIsSelected,
         board.getOrigin(),
-        board.getStickyBaseSize(),
         connectorId
       );
     }

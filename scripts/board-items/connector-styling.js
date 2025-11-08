@@ -12,7 +12,6 @@ export const ARROW_HEAD_TYPES = ["none", "line", "hollow", "filled"];
  * @param {Object|null} destItem - Destination item data (sticky or image) - null if unconnected
  * @param {boolean} isSelected - Whether connector is selected
  * @param {Object} boardOrigin - Board origin {x, y}
- * @param {number} stickySize - Base size of stickies
  * @param {string} connectorId - Connector ID
  */
 export function setConnectorStyles(
@@ -22,7 +21,6 @@ export function setConnectorStyles(
   destItem,
   isSelected,
   boardOrigin,
-  stickySize,
   connectorId
 ) {
   const arrowHeadType = connector.arrowHead || "filled";
@@ -34,16 +32,11 @@ export function setConnectorStyles(
     return; // Skip rendering if board origin is invalid
   }
   
-  if (typeof stickySize !== 'number' || isNaN(stickySize) || stickySize <= 0) {
-    console.warn('Invalid stickySize:', stickySize);
-    return; // Skip rendering if sticky size is invalid
-  }
-  
   // Calculate start and end points using generic bounds
   let startPoint, endPoint;
   
-  const originBounds = getBoardItemBounds(originItem, boardOrigin, stickySize);
-  const destBounds = getBoardItemBounds(destItem, boardOrigin, stickySize);
+  const originBounds = getBoardItemBounds(originItem, boardOrigin);
+  const destBounds = getBoardItemBounds(destItem, boardOrigin);
   
   if (originBounds) {
     // Origin is connected to an item (sticky or image)
@@ -252,7 +245,7 @@ export function setConnectorStyles(
   // Helper to build a very simple self-loop (two smooth cubic segments via one apex)
   function buildSelfLoopPath() {
     // Use generic bounds to determine object center and size
-    const bounds = getBoardItemBounds(originItem || destItem, boardOrigin, stickySize);
+    const bounds = getBoardItemBounds(originItem || destItem, boardOrigin);
     if (!bounds) {
       return null;
     }
@@ -306,7 +299,7 @@ export function setConnectorStyles(
       pathData = loopPath;
       usedSelfLoopPath = true;
       // Derive center for arrow orientation using generic bounds
-      const bounds = getBoardItemBounds(originItem || destItem, boardOrigin, stickySize);
+      const bounds = getBoardItemBounds(originItem || destItem, boardOrigin);
       if (bounds) {
         selfLoopCenterBoard = {
           x: bounds.centerX,

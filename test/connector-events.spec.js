@@ -695,12 +695,11 @@ describe("Connector Events Logic Tests", () => {
       // Calculate what the start point would be during rendering
       // This simulates the logic in connector-styling.js setConnectorStyles
       const boardOriginForBounds = board.getOrigin();
-      const stickySize = board.getStickyBaseSize();
       let actualStartPoint;
       
       if (originItem) {
         // Origin is connected to an item - calculate edge point
-        const originBounds = getBoardItemBounds(originItem, boardOriginForBounds, stickySize);
+        const originBounds = getBoardItemBounds(originItem, boardOriginForBounds);
         if (originBounds) {
           // When origin is connected, use the bounds center (simplified - actual logic uses calculateEdgePoint)
           actualStartPoint = {
