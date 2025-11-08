@@ -723,13 +723,50 @@ class ConnectorStateMachine extends StateMachine {
         
         onMouseDown: (event, stateData) => {
           const connectorContainer = event.target.closest('.connector-container');
-          const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
-          const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+          if (!connectorContainer) return;
+          
+          // For disconnected connectors, check ALL connectors at the click point to find which stroke was actually hit
+          // This ensures the same behavior as connected connectors - select based on stroke hit, not just event.target
+          const allConnectorsAtPoint = Array.from(this.boardElement.querySelectorAll('.connector-container'));
+          const connectorsWithHits = [];
+          
+          // Check all connectors to see which strokes are hit
+          for (const container of allConnectorsAtPoint) {
+            const idClass = Array.from(container.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
+            const id = idClass ? idClass.replace('connector-', '') : null;
+            if (!id) continue;
+            
+            const path = container.querySelector('.connector-path');
+            if (!path) continue;
+            
+            const hit = isClickOnConnectorStroke(event, path);
+            if (hit) {
+              // Get connector's zIndex for sorting
+              const connector = this.board.getConnectorSafe(id);
+              const zIndex = connector?.zIndex ?? 0;
+              connectorsWithHits.push({ id, zIndex });
+            }
+          }
+          
+          // Sort by zIndex descending (top-most first)
+          connectorsWithHits.sort((a, b) => b.zIndex - a.zIndex);
+          
+          // Select the top-most connector whose stroke was hit, or fall back to event.target's connector
+          let selectedConnectorId = null;
+          if (connectorsWithHits.length > 0) {
+            selectedConnectorId = connectorsWithHits[0].id;
+          } else {
+            // Fallback to event.target's connector if no stroke was hit (shouldn't happen, but safety)
+            const connectorIdClass = Array.from(connectorContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
+            selectedConnectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+          }
+          
+          if (!selectedConnectorId) return;
           
           event.stopPropagation();
           
           // Handle selection
-          this.selectionManager.selectItem('connectors', connectorId, {
+          this.selectionManager.selectItem('connectors', selectedConnectorId, {
             addToSelection: event.shiftKey
           });
           
@@ -737,7 +774,7 @@ class ConnectorStateMachine extends StateMachine {
           this.renderCallback();
           
           // Delegate to global drag manager
-          if (window.dragManager && window.dragManager.startDrag(connectorId, 'connector', event)) {
+          if (window.dragManager && window.dragManager.startDrag(selectedConnectorId, 'connector', event)) {
             event.preventDefault();
           }
         }
@@ -1150,17 +1187,6 @@ class ConnectorStateMachine extends StateMachine {
       
       if (!connectorId) return;
       
-      // Check if this connector is disconnected - if so, it was handled in mousedown
-      const connector = this.board.getConnectorSafe(connectorId);
-      if (connector) {
-        const hasDisconnectedOrigin = connector.originPoint && (!connector.originItemId || !connector.originItemType);
-        const hasDisconnectedDestination = connector.destinationPoint && (!connector.destinationItemId || !connector.destinationItemType);
-        
-        if (hasDisconnectedOrigin || hasDisconnectedDestination) {
-          return; // Disconnected connectors are handled in mousedown
-        }
-      }
-      
       // Markers and handles are part of the connector, so treat their clicks as direct hits
       // (no pass-through needed)
       if (isMarkerClick || isHandleClick) {
@@ -1176,58 +1202,47 @@ class ConnectorStateMachine extends StateMachine {
         return;
       }
       
-      // For path clicks, check if click actually hit the stroke
-      // Get the path element for hit testing
-      const pathElement = connectorContainer.querySelector('.connector-path');
+      // For path clicks, check ALL connectors at the click point to find which stroke was actually hit
+      // This works the same for both connected and disconnected connectors
+      // We need to check all connectors because event.target might point to the top connector's path
+      // (due to visual stacking), but the click might actually hit a lower connector's stroke
+      const allConnectorsAtPoint = Array.from(this.boardElement.querySelectorAll('.connector-container'));
+      const connectorsWithHits = [];
       
-      // Check if click actually hit this connector's stroke
-      const hitThisConnector = pathElement && isClickOnConnectorStroke(event, pathElement);
+      // Check all connectors to see which strokes are hit
+      for (const container of allConnectorsAtPoint) {
+        const idClass = Array.from(container.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
+        const id = idClass ? idClass.replace('connector-', '') : null;
+        if (!id) continue;
+        
+        const path = container.querySelector('.connector-path');
+        if (!path) continue;
+        
+        const hit = isClickOnConnectorStroke(event, path);
+        if (hit) {
+          // Get connector's zIndex for sorting
+          const connector = this.board.getConnectorSafe(id);
+          const zIndex = connector?.zIndex ?? 0;
+          connectorsWithHits.push({ id, zIndex });
+        }
+      }
       
-      if (hitThisConnector) {
-        // Click hit this connector's stroke - handle normally
+      // Sort by zIndex descending (top-most first)
+      connectorsWithHits.sort((a, b) => b.zIndex - a.zIndex);
+      
+      // Select the top-most connector whose stroke was hit
+      if (connectorsWithHits.length > 0) {
+        const topHit = connectorsWithHits[0];
         event.stopPropagation();
         
         // Use selection manager to handle cross-type selection clearing
-        this.selectionManager.selectItem('connectors', connectorId, {
+        this.selectionManager.selectItem('connectors', topHit.id, {
           addToSelection: event.shiftKey
         });
         
         // Trigger full render to update menu
         this.renderCallback();
       } else {
-        // Click did not hit this connector's stroke - try connectors below
-        const connectorsBelow = getConnectorsBelowPoint(connectorContainer, this.boardElement);
-        if (this.isDebugMode()) {
-          console.log('connectorsBelow', connectorsBelow);
-        }
-        // Try each connector below to see if the click hits its stroke
-        for (const lowerContainer of connectorsBelow) {
-          const lowerPathElement = lowerContainer.querySelector('.connector-path');
-          if (!lowerPathElement) continue;
-          
-          const hitLowerConnector = isClickOnConnectorStroke(event, lowerPathElement);
-          
-          if (hitLowerConnector) {
-            // Click hit a lower connector's stroke - select that connector instead
-            event.stopPropagation();
-            
-            const lowerConnectorIdClass = Array.from(lowerContainer.classList).find(cls => cls.startsWith('connector-') && cls !== 'connector-container');
-            const lowerConnectorId = lowerConnectorIdClass ? lowerConnectorIdClass.replace('connector-', '') : null;
-            
-            if (lowerConnectorId) {
-              // Use selection manager to handle cross-type selection clearing
-              this.selectionManager.selectItem('connectors', lowerConnectorId, {
-                addToSelection: event.shiftKey
-              });
-              
-              // Trigger full render to update menu
-              this.renderCallback();
-            }
-            
-            return; // Found matching connector, stop searching
-          }
-        }
-        
         // No connector stroke was hit - let event propagate normally
         // (Don't call stopPropagation, let it bubble up)
       }

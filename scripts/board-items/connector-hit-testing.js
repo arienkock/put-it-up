@@ -47,40 +47,113 @@ export function isClickOnConnectorStroke(event, pathElement) {
 
 /**
  * Gets all connector containers that appear visually below the clicked connector
- * Since all connectors have z-index: -1, DOM order determines visual stacking.
- * Elements that appear BEFORE the clicked connector in the DOM are visually BELOW it.
+ * Visual stacking is determined by zIndex values, not DOM order.
  * @param {HTMLElement} clickedConnectorContainer - The connector container that was clicked
  * @param {HTMLElement} boardElement - The board container element
- * @returns {HTMLElement[]} Array of connector containers below the clicked one (visually)
+ * @param {Object} board - Board instance to access connector data
+ * @returns {HTMLElement[]} Array of connector containers below the clicked one (visually), sorted by zIndex descending
  */
-export function getConnectorsBelowPoint(clickedConnectorContainer, boardElement) {
+export function getConnectorsBelowPoint(clickedConnectorContainer, boardElement, board) {
   if (!clickedConnectorContainer || !boardElement) {
     console.warn('[ConnectorHitTesting] Missing parameters', { clickedConnectorContainer, boardElement });
     return [];
   }
   
-  const allConnectors = Array.from(boardElement.querySelectorAll('.connector-container'));
-  if (window.DEBUG_MODE) {
-    console.log('[ConnectorHitTesting] All connectors found:', allConnectors.length);
+  if (!board) {
+    console.warn('[ConnectorHitTesting] Board parameter missing, falling back to DOM order');
+    // Fallback to old behavior if board is not provided
+    const allConnectors = Array.from(boardElement.querySelectorAll('.connector-container'));
+    const clickedIndex = allConnectors.indexOf(clickedConnectorContainer);
+    if (clickedIndex === -1) {
+      return [];
+    }
+    return allConnectors.slice(0, clickedIndex).reverse();
   }
   
-  const clickedIndex = allConnectors.indexOf(clickedConnectorContainer);
-  if (window.DEBUG_MODE) {
-    console.log('[ConnectorHitTesting] Clicked connector index:', clickedIndex, 'out of', allConnectors.length);
-  }
+  // Extract clicked connector's ID from class name
+  const clickedConnectorIdClass = Array.from(clickedConnectorContainer.classList).find(cls => 
+    cls.startsWith('connector-') && cls !== 'connector-container'
+  );
+  const clickedConnectorId = clickedConnectorIdClass ? clickedConnectorIdClass.replace('connector-', '') : null;
   
-  if (clickedIndex === -1) {
-    console.warn('[ConnectorHitTesting] Clicked connector not found in all connectors list');
+  if (!clickedConnectorId) {
+    console.warn('[ConnectorHitTesting] Could not extract connector ID from clicked container');
     return [];
   }
   
-  // Return all connectors that appear BEFORE this one in the DOM
-  // (In DOM order, earlier = visually below since all have z-index: -1)
-  // Reverse the order so we test from visually top-most to bottom-most
-  const connectorsBelow = allConnectors.slice(0, clickedIndex).reverse();
-  if (window.DEBUG_MODE) {
-    console.log('[ConnectorHitTesting] Connectors below:', connectorsBelow.length);
+  // Get clicked connector's zIndex
+  let clickedZIndex;
+  try {
+    const clickedConnector = board.getConnectorSafe(clickedConnectorId);
+    clickedZIndex = clickedConnector?.zIndex;
+  } catch (error) {
+    console.warn('[ConnectorHitTesting] Error getting clicked connector:', error);
+    return [];
   }
-  return connectorsBelow;
+  
+  // If clicked connector has no zIndex, default to 0
+  if (clickedZIndex === undefined || clickedZIndex === null) {
+    clickedZIndex = 0;
+  }
+  
+  // Get all connector containers
+  const allConnectors = Array.from(boardElement.querySelectorAll('.connector-container'));
+  if (window.DEBUG_MODE) {
+    console.log('[ConnectorHitTesting] All connectors found:', allConnectors.length);
+    console.log('[ConnectorHitTesting] Clicked connector zIndex:', clickedZIndex);
+  }
+  
+  // Filter to connectors with lower zIndex values (visually below)
+  const connectorsBelow = [];
+  for (const container of allConnectors) {
+    // Skip the clicked connector itself
+    if (container === clickedConnectorContainer) {
+      continue;
+    }
+    
+    // Extract connector ID from class name
+    const connectorIdClass = Array.from(container.classList).find(cls => 
+      cls.startsWith('connector-') && cls !== 'connector-container'
+    );
+    const connectorId = connectorIdClass ? connectorIdClass.replace('connector-', '') : null;
+    
+    if (!connectorId) {
+      continue;
+    }
+    
+    // Get connector's zIndex
+    let connectorZIndex;
+    try {
+      const connector = board.getConnectorSafe(connectorId);
+      connectorZIndex = connector?.zIndex;
+    } catch (error) {
+      // Skip connectors that can't be accessed
+      continue;
+    }
+    
+    // If connector has no zIndex, default to 0
+    if (connectorZIndex === undefined || connectorZIndex === null) {
+      connectorZIndex = 0;
+    }
+    
+    // Only include connectors with lower zIndex (visually below)
+    if (connectorZIndex < clickedZIndex) {
+      connectorsBelow.push({ container, zIndex: connectorZIndex, id: connectorId });
+    }
+  }
+  
+  // Sort by zIndex descending (top-most lower connectors first)
+  connectorsBelow.sort((a, b) => b.zIndex - a.zIndex);
+  
+  if (window.DEBUG_MODE) {
+    console.log('[ConnectorHitTesting] Clicked connector ID:', clickedConnectorId, 'zIndex:', clickedZIndex);
+    console.log('[ConnectorHitTesting] Connectors below:', connectorsBelow.length);
+    connectorsBelow.forEach(c => {
+      console.log('[ConnectorHitTesting]   - Connector', c.id, 'zIndex:', c.zIndex);
+    });
+  }
+  
+  // Return just the containers, sorted by zIndex descending
+  return connectorsBelow.map(item => item.container);
 }
 
