@@ -732,6 +732,173 @@ describe("Connector Events Logic Tests", () => {
       expect(actualStartPoint.x).toBeCloseTo(expectedStartPoint.x, 1);
       expect(actualStartPoint.y).toBeCloseTo(expectedStartPoint.y, 1);
     });
+
+    it("should create connector via click-to-click mode with both origin and destination as images", async () => {
+      // Create two images on the board
+      const image1Id = board.putBoardItem('image', {
+        location: { x: 100, y: 100 },
+        width: 150,
+        height: 100,
+        src: "test-image-1.jpg",
+        dataUrl: "data:image/jpeg;base64,test1",
+        naturalWidth: 300,
+        naturalHeight: 200
+      });
+
+      const image2Id = board.putBoardItem('image', {
+        location: { x: 400, y: 300 },
+        width: 150,
+        height: 100,
+        src: "test-image-2.jpg",
+        dataUrl: "data:image/jpeg;base64,test2",
+        naturalWidth: 300,
+        naturalHeight: 200
+      });
+
+      // Verify images exist
+      const image1 = board.getBoardItemByType('image', image1Id);
+      const image2 = board.getBoardItemByType('image', image2Id);
+      expect(image1).toBeDefined();
+      expect(image2).toBeDefined();
+
+      // Set up DOM elements
+      const image1Container = document.createElement('div');
+      image1Container.className = 'image-container image-' + image1Id;
+      boardElement.appendChild(image1Container);
+
+      const image2Container = document.createElement('div');
+      image2Container.className = 'image-container image-' + image2Id;
+      boardElement.appendChild(image2Container);
+
+      // Set up board element positioning
+      boardElement.style.position = 'relative';
+      boardElement.getBoundingClientRect = jest.fn(() => ({
+        left: 0,
+        top: 0,
+        width: 1000,
+        height: 1000
+      }));
+
+      // Enable connector creation mode
+      mockAppState.ui.nextClickCreatesConnector = true;
+
+      // Calculate image center positions in client coordinates
+      const boardOrigin = board.getOrigin();
+      const boardScale = mockAppState.ui.boardScale || 1;
+      
+      const image1CenterX = image1.location.x + image1.width / 2; // 100 + 75 = 175
+      const image1CenterY = image1.location.y + image1.height / 2; // 100 + 50 = 150
+      const clientX1 = (image1CenterX + boardOrigin.x) * boardScale;
+      const clientY1 = (image1CenterY + boardOrigin.y) * boardScale;
+
+      const image2CenterX = image2.location.x + image2.width / 2; // 400 + 75 = 475
+      const image2CenterY = image2.location.y + image2.height / 2; // 300 + 50 = 350
+      const clientX2 = (image2CenterX + boardOrigin.x) * boardScale;
+      const clientY2 = (image2CenterY + boardOrigin.y) * boardScale;
+
+      // Mock elementsFromPoint to return image containers
+      const originalElementsFromPoint = document.elementsFromPoint;
+      document.elementsFromPoint = jest.fn((x, y) => {
+        // Return the appropriate image container based on coordinates
+        if (Math.abs(x - clientX1) < 10 && Math.abs(y - clientY1) < 10) {
+          return [image1Container];
+        } else if (Math.abs(x - clientX2) < 10 && Math.abs(y - clientY2) < 10) {
+          return [image2Container];
+        }
+        return [];
+      });
+
+      // Step 1: Click on first image to create connector (mousedown)
+      const mousedownEvent1 = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: clientX1,
+        clientY: clientY1
+      });
+      image1Container.dispatchEvent(mousedownEvent1);
+
+      // Wait for state transition to DRAGGING_NEW
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify we're in DRAGGING_NEW state
+      expect(connectorEvents.getCurrentState()).toBe('dragging_new');
+
+      // Verify connector was created
+      const connectorsAfterFirstClick = Object.keys(mockAppState.connectors);
+      expect(connectorsAfterFirstClick.length).toBeGreaterThan(0);
+      const connectorId = connectorsAfterFirstClick[connectorsAfterFirstClick.length - 1];
+      const connectorAfterFirstClick = board.getConnector(connectorId);
+      expect(connectorAfterFirstClick.originItemId).toBe(image1Id);
+      expect(connectorAfterFirstClick.originItemType).toBe('image');
+
+      // Step 2: Release mouse at same position (mouseup) to trigger click-to-click mode
+      // Use minimal movement (same position) to ensure it's treated as a click, not a drag
+      const mouseupEvent1 = new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: clientX1, // Same position - minimal movement
+        clientY: clientY1
+      });
+      boardElement.dispatchEvent(mouseupEvent1);
+
+      // Wait for state transition to CLICK_TO_CLICK_WAITING
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify we're in CLICK_TO_CLICK_WAITING state
+      expect(connectorEvents.getCurrentState()).toBe('click_to_click_waiting');
+
+      // Wait a bit to ensure state is fully initialized
+      // Note: justEntered flag is checked in the handler but doesn't appear to be set anywhere
+      // If the test fails due to justEntered, we may need to investigate this
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Step 3: Click on second image (mousedown) - this should not complete the connector yet
+      const mousedownEvent2 = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: clientX2,
+        clientY: clientY2
+      });
+      image2Container.dispatchEvent(mousedownEvent2);
+
+      // Wait a bit
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Step 4: Release mouse on second image (mouseup) - this should complete the connector
+      const mouseupEvent2 = new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: clientX2,
+        clientY: clientY2
+      });
+      boardElement.dispatchEvent(mouseupEvent2);
+
+      // Wait for the event to be processed and state transition
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify we're back in IDLE state
+      expect(connectorEvents.getCurrentState()).toBe('idle');
+
+      // Verify connector creation mode is disabled
+      expect(mockAppState.ui.nextClickCreatesConnector).toBe(false);
+
+      // Verify the connector has both endpoints connected to images
+      const finalConnector = board.getConnector(connectorId);
+      expect(finalConnector.originItemId).toBe(image1Id);
+      expect(finalConnector.originItemType).toBe('image');
+      expect(finalConnector.originPoint).toBeUndefined(); // Should not have originPoint when connected
+      
+      expect(finalConnector.destinationItemId).toBe(image2Id);
+      expect(finalConnector.destinationItemType).toBe('image');
+      expect(finalConnector.destinationPoint).toBeUndefined(); // Should not have destinationPoint when connected
+
+      // Restore mocks
+      document.elementsFromPoint = originalElementsFromPoint;
+    });
   });
 
   describe("Error Handling and Edge Cases", () => {
