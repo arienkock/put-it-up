@@ -71,14 +71,3 @@ export function getPluginForItem(item) {
   return null;
 }
 
-export function getPluginForElement(element) {
-  try {
-    for (const plugin of getAllPlugins()) {
-      if (plugin.isElement(element)) return plugin;
-    }
-  } catch (e) {
-    // Plugin registry might not be loaded yet
-  }
-  return null;
-}
-

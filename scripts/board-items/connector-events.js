@@ -4,7 +4,7 @@ import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 import { isClickOnConnectorStroke, getConnectorsBelowPoint } from "./connector-hit-testing.js";
 import { getEventCoordinates } from "../ui/movement-utils.js";
-import { getAllPlugins, getPluginForElement, getPlugin } from "./plugin-registry.js";
+import { getAllPlugins } from "./plugin-registry.js";
 
 /**
  * Connector State Machine
