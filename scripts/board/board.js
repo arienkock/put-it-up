@@ -66,6 +66,14 @@ export function Board(aStore) {
   };
 
   this.putConnector = (connector) => {
+    // Validate that types are provided when IDs are provided
+    if (connector.originItemId && !connector.originItemType) {
+      throw new Error('originItemType is required when originItemId is provided');
+    }
+    if (connector.destinationItemId && !connector.destinationItemType) {
+      throw new Error('destinationItemType is required when destinationItemId is provided');
+    }
+    
     // Initialize zIndex if not provided
     if (connector.zIndex === undefined) {
       connector.zIndex = getNextZIndex(store);

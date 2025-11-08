@@ -130,27 +130,40 @@ export class LocalDatastore {
   updateConnectorEndpoint = (id, endpoint, data) => {
     const connector = this.getConnector(id);
     
+    // Validate that types are provided when IDs are provided
+    if (data.itemId && !data.itemType) {
+      throw new Error(`${endpoint}ItemType is required when ${endpoint}ItemId is provided`);
+    }
+    
     if (endpoint === 'origin') {
-      if (data.stickyId) {
-        connector.originId = data.stickyId;
+      if (data.itemId && data.itemType) {
+        connector.originItemId = data.itemId;
+        connector.originItemType = data.itemType;
         delete connector.originPoint;
-      } else if (data.imageId) {
-        connector.originImageId = data.imageId;
-        delete connector.originPoint;
+        // Clear old properties
+        delete connector.originId;
+        delete connector.originImageId;
       } else if (data.point) {
         connector.originPoint = data.point;
+        delete connector.originItemId;
+        delete connector.originItemType;
+        // Clear old properties
         delete connector.originId;
         delete connector.originImageId;
       }
     } else if (endpoint === 'destination') {
-      if (data.stickyId) {
-        connector.destinationId = data.stickyId;
+      if (data.itemId && data.itemType) {
+        connector.destinationItemId = data.itemId;
+        connector.destinationItemType = data.itemType;
         delete connector.destinationPoint;
-      } else if (data.imageId) {
-        connector.destinationImageId = data.imageId;
-        delete connector.destinationPoint;
+        // Clear old properties
+        delete connector.destinationId;
+        delete connector.destinationImageId;
       } else if (data.point) {
         connector.destinationPoint = data.point;
+        delete connector.destinationItemId;
+        delete connector.destinationItemType;
+        // Clear old properties
         delete connector.destinationId;
         delete connector.destinationImageId;
       }

@@ -555,22 +555,10 @@ class ConnectorStateMachine extends StateMachine {
             color: appState.ui.currentConnectorColor,
           };
           
-          // Set connector origin based on plugin type
+          // Set connector origin using generic item properties
           if (originItemId && originItemType) {
-            const plugin = plugins.find(p => p.getType() === originItemType);
-            if (plugin) {
-              // Use plugin-specific connector connection method
-              // TODO: This is a leak - connector system should use generic connection properties
-              const endpointData = createConnectorEndpointData(originItemType, originItemId);
-              if (endpointData) {
-                // Map endpoint data to connector properties (temporary solution)
-                if (endpointData.stickyId) {
-                  connectorData.originId = endpointData.stickyId;
-                } else if (endpointData.imageId) {
-                  connectorData.originImageId = endpointData.imageId;
-                }
-              }
-            }
+            connectorData.originItemId = originItemId;
+            connectorData.originItemType = originItemType;
           } else {
             connectorData.originPoint = point;
           }
@@ -704,11 +692,8 @@ class ConnectorStateMachine extends StateMachine {
           
           if (pluginItem) {
             const { type, id } = pluginItem;
-            // Update connector endpoint based on plugin type
-            const endpointData = createConnectorEndpointData(type, id);
-            if (endpointData) {
-              this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', endpointData);
-            }
+            // Update connector endpoint using generic item properties
+            this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { itemId: id, itemType: type });
           } else {
             this.board.updateConnectorEndpoint(stateData.connectorId, 'destination', { point });
           }
@@ -747,8 +732,8 @@ class ConnectorStateMachine extends StateMachine {
           const connector = this.board.getConnectorSafe(connectorId);
           if (!connector) return false;
           
-          const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
-          const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
+          const hasDisconnectedOrigin = connector.originPoint && (!connector.originItemId || !connector.originItemType);
+          const hasDisconnectedDestination = connector.destinationPoint && (!connector.destinationItemId || !connector.destinationItemType);
           
           return state === ConnectorState.IDLE && 
                  (hasDisconnectedOrigin || hasDisconnectedDestination) &&
@@ -935,11 +920,8 @@ class ConnectorStateMachine extends StateMachine {
     
     if (pluginItem) {
       const { type, id } = pluginItem;
-      // Update connector endpoint based on plugin type
-      const endpointData = createConnectorEndpointData(type, id);
-      if (endpointData) {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', endpointData);
-      }
+      // Update connector endpoint using generic item properties
+      this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { itemId: id, itemType: type });
     } else {
       this.board.updateConnectorEndpoint(this.stateData.connectorId, 'destination', { point });
     }
@@ -1053,11 +1035,8 @@ class ConnectorStateMachine extends StateMachine {
     
     if (pluginItem) {
       const { type, id } = pluginItem;
-      // Update connector endpoint based on plugin type
-      const endpointData = createConnectorEndpointData(type, id);
-      if (endpointData) {
-        this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, endpointData);
-      }
+      // Update connector endpoint using generic item properties
+      this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { itemId: id, itemType: type });
     } else {
       this.board.updateConnectorEndpoint(this.stateData.connectorId, this.stateData.handleType, { point });
     }
@@ -1193,8 +1172,8 @@ class ConnectorStateMachine extends StateMachine {
       // Check if this connector is disconnected - if so, it was handled in mousedown
       const connector = this.board.getConnectorSafe(connectorId);
       if (connector) {
-        const hasDisconnectedOrigin = connector.originPoint && !connector.originId && !connector.originImageId;
-        const hasDisconnectedDestination = connector.destinationPoint && !connector.destinationId && !connector.destinationImageId;
+        const hasDisconnectedOrigin = connector.originPoint && (!connector.originItemId || !connector.originItemType);
+        const hasDisconnectedDestination = connector.destinationPoint && (!connector.destinationItemId || !connector.destinationItemType);
         
         if (hasDisconnectedOrigin || hasDisconnectedDestination) {
           return; // Disconnected connectors are handled in mousedown

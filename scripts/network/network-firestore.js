@@ -634,32 +634,41 @@ export class FirestoreStore {
   };
 
   updateConnectorEndpoint = (id, endpoint, data) => {
+    // Validate that types are provided when IDs are provided
+    if (data.itemId && !data.itemType) {
+      throw new Error(`${endpoint}ItemType is required when ${endpoint}ItemId is provided`);
+    }
+    
     const updateData = {};
     if (endpoint === 'origin') {
-      if (data.stickyId) {
-        updateData.originId = data.stickyId;
+      if (data.itemId && data.itemType) {
+        updateData.originItemId = data.itemId;
+        updateData.originItemType = data.itemType;
         updateData.originPoint = null;
-        updateData.originImageId = null;
-      } else if (data.imageId) {
-        updateData.originImageId = data.imageId;
-        updateData.originPoint = null;
+        // Clear old properties
         updateData.originId = null;
+        updateData.originImageId = null;
       } else if (data.point) {
         updateData.originPoint = data.point;
+        updateData.originItemId = null;
+        updateData.originItemType = null;
+        // Clear old properties
         updateData.originId = null;
         updateData.originImageId = null;
       }
     } else if (endpoint === 'destination') {
-      if (data.stickyId) {
-        updateData.destinationId = data.stickyId;
+      if (data.itemId && data.itemType) {
+        updateData.destinationItemId = data.itemId;
+        updateData.destinationItemType = data.itemType;
         updateData.destinationPoint = null;
-        updateData.destinationImageId = null;
-      } else if (data.imageId) {
-        updateData.destinationImageId = data.imageId;
-        updateData.destinationPoint = null;
+        // Clear old properties
         updateData.destinationId = null;
+        updateData.destinationImageId = null;
       } else if (data.point) {
         updateData.destinationPoint = data.point;
+        updateData.destinationItemId = null;
+        updateData.destinationItemType = null;
+        // Clear old properties
         updateData.destinationId = null;
         updateData.destinationImageId = null;
       }

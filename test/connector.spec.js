@@ -27,8 +27,10 @@ describe("connector self-loop rendering", () => {
 
     const connectorId = "c1";
     const connector = {
-      originId: "s1",
-      destinationId: "s1",
+      originItemId: "s1",
+      originItemType: "sticky",
+      destinationItemId: "s1",
+      destinationItemType: "sticky",
       color: "#000000",
       arrowHead: "filled",
     };
@@ -146,8 +148,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
-        originStickyId: sticky1Id,
-        destinationStickyId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "blue"
       });
 
@@ -164,8 +168,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
-        originStickyId: sticky1Id,
-        destinationStickyId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "red"
       });
 
@@ -186,8 +192,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 }, color: "purple" });
 
       const connectorId = board.putConnector({
-        originStickyId: sticky1Id,
-        destinationStickyId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "green"
       });
 
@@ -207,14 +215,18 @@ describe("Connector Functionality Tests", () => {
       const sticky3Id = board.putBoardItem('sticky', { text: "sticky3", location: { x: 300, y: 300 } });
 
       const connector1Id = board.putConnector({
-        originStickyId: sticky1Id,
-        destinationStickyId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "red"
       });
 
       const connector2Id = board.putConnector({
-        originStickyId: sticky2Id,
-        destinationStickyId: sticky3Id,
+        originItemId: sticky2Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky3Id,
+        destinationItemType: 'sticky',
         color: "green"
       });
 
@@ -313,7 +325,7 @@ describe("Connector Functionality Tests", () => {
       const sticky1Id = board.putBoardItem('sticky', { text: "A", location: { x: 100, y: 100 }, size: { x: 1, y: 1 } });
       const sticky2Id = board.putBoardItem('sticky', { text: "B", location: { x: 350, y: 100 }, size: { x: 1, y: 1 } });
 
-      const connectorId = board.putConnector({ originStickyId: sticky1Id, destinationStickyId: sticky2Id, color: "#000" });
+      const connectorId = board.putConnector({ originItemId: sticky1Id, originItemType: 'sticky', destinationItemId: sticky2Id, destinationItemType: 'sticky', color: "#000" });
       // Bend upward: control point above the midpoint
       const midpointX = (100 + stickySize/2 + 350 + stickySize/2) / 2; // centers used in styling
       const midpointY = (100 + stickySize/2 + 100 + stickySize/2) / 2;
@@ -337,7 +349,7 @@ describe("Connector Functionality Tests", () => {
       const board = new Board(new LocalDatastore());
       const stickyId = board.putBoardItem('sticky', { text: "A", location: { x: 300, y: 300 }, size: { x: 1, y: 1 } });
 
-      const connectorId = board.putConnector({ originPoint: { x: 100, y: 300 }, destinationStickyId: stickyId, color: "#000" });
+      const connectorId = board.putConnector({ originPoint: { x: 100, y: 300 }, destinationItemId: stickyId, destinationItemType: 'sticky', color: "#000" });
       // Control point above midpoint between free point and sticky center
       const stickyCenter = { x: 300 + stickySize/2, y: 300 + stickySize/2 };
       const midpointX = (100 + stickyCenter.x) / 2;
@@ -368,15 +380,18 @@ describe("Connector Functionality Tests", () => {
       });
 
       const connectorId = board.putConnector({
-        originStickyId: stickyId,
-        destinationImageId: imageId,
+        originItemId: stickyId,
+        originItemType: 'sticky',
+        destinationItemId: imageId,
+        destinationItemType: 'image',
         color: "blue"
       });
 
       const connector = board.getConnector(connectorId);
-      expect(connector.originStickyId).toBe(stickyId);
-      expect(connector.destinationImageId).toBe(imageId);
-      expect(connector.destinationStickyId).toBeUndefined();
+      expect(connector.originItemId).toBe(stickyId);
+      expect(connector.originItemType).toBe('sticky');
+      expect(connector.destinationItemId).toBe(imageId);
+      expect(connector.destinationItemType).toBe('image');
     });
 
     it("should create connector from image to sticky", () => {
@@ -392,15 +407,18 @@ describe("Connector Functionality Tests", () => {
       const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
-        originImageId: imageId,
-        destinationStickyId: stickyId,
+        originItemId: imageId,
+        originItemType: 'image',
+        destinationItemId: stickyId,
+        destinationItemType: 'sticky',
         color: "red"
       });
 
       const connector = board.getConnector(connectorId);
-      expect(connector.originImageId).toBe(imageId);
-      expect(connector.destinationStickyId).toBe(stickyId);
-      expect(connector.originStickyId).toBeUndefined();
+      expect(connector.originItemId).toBe(imageId);
+      expect(connector.originItemType).toBe('image');
+      expect(connector.destinationItemId).toBe(stickyId);
+      expect(connector.destinationItemType).toBe('sticky');
     });
 
     it("should create connector from image to image", () => {
@@ -424,16 +442,18 @@ describe("Connector Functionality Tests", () => {
       });
 
       const connectorId = board.putConnector({
-        originImageId: image1Id,
-        destinationImageId: image2Id,
+        originItemId: image1Id,
+        originItemType: 'image',
+        destinationItemId: image2Id,
+        destinationItemType: 'image',
         color: "green"
       });
 
       const connector = board.getConnector(connectorId);
-      expect(connector.originImageId).toBe(image1Id);
-      expect(connector.destinationImageId).toBe(image2Id);
-      expect(connector.originStickyId).toBeUndefined();
-      expect(connector.destinationStickyId).toBeUndefined();
+      expect(connector.originItemId).toBe(image1Id);
+      expect(connector.originItemType).toBe('image');
+      expect(connector.destinationItemId).toBe(image2Id);
+      expect(connector.destinationItemType).toBe('image');
     });
 
     it("should handle connector updates with image connections", () => {
@@ -449,8 +469,10 @@ describe("Connector Functionality Tests", () => {
       });
 
       const connectorId = board.putConnector({
-        originStickyId: stickyId,
-        destinationImageId: imageId,
+        originItemId: stickyId,
+        originItemType: 'sticky',
+        destinationItemId: imageId,
+        destinationItemType: 'image',
         color: "blue"
       });
 
@@ -458,7 +480,8 @@ describe("Connector Functionality Tests", () => {
       board.moveBoardItem('image', imageId, { x: 250, y: 250 });
       
       const connector = board.getConnector(connectorId);
-      expect(connector.destinationImageId).toBe(imageId);
+      expect(connector.destinationItemId).toBe(imageId);
+      expect(connector.destinationItemType).toBe('image');
     });
   });
 
@@ -488,20 +511,23 @@ describe("Connector Functionality Tests", () => {
       
       // Create a connector with one connected and one free endpoint
       const connectorId = board.putConnector({
-        originId: stickyId,
+        originItemId: stickyId,
+        originItemType: 'sticky',
         destinationPoint: { x: 200, y: 200 },
         color: "red"
       });
 
       const originalConnector = board.getConnector(connectorId);
-      expect(originalConnector.originId).toBe(stickyId);
+      expect(originalConnector.originItemId).toBe(stickyId);
+      expect(originalConnector.originItemType).toBe('sticky');
       expect(originalConnector.destinationPoint).toEqual({ x: 200, y: 200 });
 
       // Move the connector - only the free endpoint should move
       board.moveConnector(connectorId, 25, 15);
 
       const movedConnector = board.getConnector(connectorId);
-      expect(movedConnector.originId).toBe(stickyId); // Connected endpoint should not change
+      expect(movedConnector.originItemId).toBe(stickyId); // Connected endpoint should not change
+      expect(movedConnector.originItemType).toBe('sticky');
       expect(movedConnector.destinationPoint).toEqual({ x: 225, y: 215 }); // Free endpoint should move
     });
 
@@ -511,21 +537,27 @@ describe("Connector Functionality Tests", () => {
       
       // Create a fully connected connector
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "green"
       });
 
       const originalConnector = board.getConnector(connectorId);
-      expect(originalConnector.originId).toBe(sticky1Id);
-      expect(originalConnector.destinationId).toBe(sticky2Id);
+      expect(originalConnector.originItemId).toBe(sticky1Id);
+      expect(originalConnector.originItemType).toBe('sticky');
+      expect(originalConnector.destinationItemId).toBe(sticky2Id);
+      expect(originalConnector.destinationItemType).toBe('sticky');
 
       // Try to move the connector - it should not change
       board.moveConnector(connectorId, 50, 30);
 
       const movedConnector = board.getConnector(connectorId);
-      expect(movedConnector.originId).toBe(sticky1Id);
-      expect(movedConnector.destinationId).toBe(sticky2Id);
+      expect(movedConnector.originItemId).toBe(sticky1Id);
+      expect(movedConnector.originItemType).toBe('sticky');
+      expect(movedConnector.destinationItemId).toBe(sticky2Id);
+      expect(movedConnector.destinationItemType).toBe('sticky');
       // No originPoint or destinationPoint should exist
       expect(movedConnector.originPoint).toBeUndefined();
       expect(movedConnector.destinationPoint).toBeUndefined();
@@ -537,8 +569,10 @@ describe("Connector Functionality Tests", () => {
       
       // Create a fully connected connector with curve handle
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 150, y: 150 },
         color: "orange"
       });
@@ -569,15 +603,19 @@ describe("Connector Functionality Tests", () => {
       
       // Create two connectors connected to the same sticky
       const connector1Id = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 150, y: 150 },
         color: "red"
       });
 
       const connector2Id = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky3Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky3Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 180, y: 180 },
         color: "blue"
       });
@@ -623,8 +661,10 @@ describe("Connector Functionality Tests", () => {
       
       // Create a connector between images with curve handle
       const connectorId = board.putConnector({
-        originImageId: image1Id,
-        destinationImageId: image2Id,
+        originItemId: image1Id,
+        originItemType: 'image',
+        destinationItemId: image2Id,
+        destinationItemType: 'image',
         curveControlPoint: { x: 150, y: 150 },
         color: "purple"
       });
@@ -655,8 +695,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 150, y: 150 },
         color: "green"
       });
@@ -702,8 +744,10 @@ describe("Connector Functionality Tests", () => {
       
       // Create connector between the two stickies
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 150, y: 150 },
         color: "red"
       });
@@ -746,8 +790,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 150, y: 150 },
         color: "blue"
       });
@@ -779,8 +825,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         curveControlPoint: { x: 150, y: 150 },
         color: "purple"
       });
@@ -832,8 +880,10 @@ describe("Connector Functionality Tests", () => {
       });
       
       const connectorId = board.putConnector({
-        originId: stickyId,
-        destinationImageId: imageId,
+        originItemId: stickyId,
+        originItemType: 'sticky',
+        destinationItemId: imageId,
+        destinationItemType: 'image',
         curveControlPoint: { x: 150, y: 150 },
         color: "orange"
       });
@@ -864,8 +914,10 @@ describe("Connector Functionality Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
-        originStickyId: sticky1Id,
-        destinationStickyId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "blue"
       });
 

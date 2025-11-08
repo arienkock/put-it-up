@@ -43,14 +43,49 @@ export function convertOldFormatToNewFormat(state) {
     return state || {};
   }
   
-  // If already in new format, return as-is
+  // Always migrate connector properties (even if state is already in new format)
+  const connectors = state.connectors || {};
+  const migratedConnectors = {};
+  
+  // Migrate connector endpoint properties from old format to new format
+  Object.entries(connectors).forEach(([connectorId, connector]) => {
+    const migratedConnector = { ...connector };
+    
+    // Migrate origin properties
+    if (connector.originId && !connector.originItemId) {
+      migratedConnector.originItemId = connector.originId;
+      migratedConnector.originItemType = 'sticky';
+      delete migratedConnector.originId;
+    } else if (connector.originImageId && !connector.originItemId) {
+      migratedConnector.originItemId = connector.originImageId;
+      migratedConnector.originItemType = 'image';
+      delete migratedConnector.originImageId;
+    }
+    
+    // Migrate destination properties
+    if (connector.destinationId && !connector.destinationItemId) {
+      migratedConnector.destinationItemId = connector.destinationId;
+      migratedConnector.destinationItemType = 'sticky';
+      delete migratedConnector.destinationId;
+    } else if (connector.destinationImageId && !connector.destinationItemId) {
+      migratedConnector.destinationItemId = connector.destinationImageId;
+      migratedConnector.destinationItemType = 'image';
+      delete migratedConnector.destinationImageId;
+    }
+    
+    migratedConnectors[connectorId] = migratedConnector;
+  });
+  
+  // If already in new format, just update connectors and return
   if (!isOldFormat(state)) {
-    return state;
+    return {
+      ...state,
+      connectors: migratedConnectors
+    };
   }
   
-  // Create new state object with connectors (unchanged)
   const newState = {
-    connectors: state.connectors || {},
+    connectors: migratedConnectors,
     connectorIdGen: state.connectorIdGen || 0
   };
   

@@ -313,8 +313,10 @@ describe("Datastore Parity Tests", () => {
         describe("Connector Operations", () => {
           it("should create and retrieve connectors", () => {
             const connectorData = { 
-              originId: "sticky1", 
-              destinationId: "sticky2", 
+              originItemId: "sticky1",
+              originItemType: "sticky",
+              destinationItemId: "sticky2",
+              destinationItemType: "sticky",
               color: "#000000",
               arrowHead: "filled"
             };
@@ -322,14 +324,16 @@ describe("Datastore Parity Tests", () => {
             
             expect(typeof id).toBe("string");
             const retrieved = testStore.getConnector(id);
-            expect(retrieved.originId).toBe(connectorData.originId);
-            expect(retrieved.destinationId).toBe(connectorData.destinationId);
+            expect(retrieved.originItemId).toBe(connectorData.originItemId);
+            expect(retrieved.originItemType).toBe(connectorData.originItemType);
+            expect(retrieved.destinationItemId).toBe(connectorData.destinationItemId);
+            expect(retrieved.destinationItemType).toBe(connectorData.destinationItemType);
             expect(retrieved.color).toBe(connectorData.color);
             expect(retrieved.arrowHead).toBe(connectorData.arrowHead);
           });
 
           it("should update connector arrow head", () => {
-            const connectorData = { originId: "sticky1", destinationId: "sticky2", arrowHead: "none" };
+            const connectorData = { originItemId: "sticky1", originItemType: "sticky", destinationItemId: "sticky2", destinationItemType: "sticky", arrowHead: "none" };
             const id = testStore.createConnector(connectorData);
             
             testStore.updateArrowHead(id, "filled");
@@ -338,16 +342,17 @@ describe("Datastore Parity Tests", () => {
           });
 
           it("should update connector endpoint", () => {
-            const connectorData = { originId: "sticky1", destinationId: "sticky2" };
+            const connectorData = { originItemId: "sticky1", originItemType: "sticky", destinationItemId: "sticky2", destinationItemType: "sticky" };
             const id = testStore.createConnector(connectorData);
             
-            testStore.updateConnectorEndpoint(id, "origin", { stickyId: "sticky3" });
+            testStore.updateConnectorEndpoint(id, "origin", { itemId: "sticky3", itemType: "sticky" });
             const updated = testStore.getConnector(id);
-            expect(updated.originId).toBe("sticky3");
+            expect(updated.originItemId).toBe("sticky3");
+            expect(updated.originItemType).toBe("sticky");
           });
 
           it("should delete connectors", () => {
-            const connectorData = { originId: "sticky1", destinationId: "sticky2" };
+            const connectorData = { originItemId: "sticky1", originItemType: "sticky", destinationItemId: "sticky2", destinationItemType: "sticky" };
             const id = testStore.createConnector(connectorData);
             
             testStore.deleteConnector(id);
@@ -430,7 +435,7 @@ describe("Datastore Parity Tests", () => {
           it("should get and set state", () => {
             // Create some test data
             const stickyId = testStore.createBoardItem('sticky',{ text: "Test", location: { x: 100, y: 200 } });
-            const connectorId = testStore.createConnector({ originId: stickyId, destinationId: "other" });
+            const connectorId = testStore.createConnector({ originItemId: stickyId, originItemType: "sticky", destinationItemId: "other", destinationItemType: "sticky" });
             const imageId = testStore.createBoardItem('image',{ src: "test.jpg", location: { x: 100, y: 200 }, width: 200, height: 150 });
             
             const state = testStore.getState();
@@ -486,7 +491,7 @@ describe("Datastore Parity Tests", () => {
             
             testStore.addObserver(observer);
             
-            const id = testStore.createConnector({ originId: "sticky1", destinationId: "sticky2" });
+            const id = testStore.createConnector({ originItemId: "sticky1", originItemType: "sticky", destinationItemId: "sticky2", destinationItemType: "sticky" });
             expect(observer.onConnectorChange).toHaveBeenCalledWith(id);
             
             testStore.updateArrowHead(id, "filled");

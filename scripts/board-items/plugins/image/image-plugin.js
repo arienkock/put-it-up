@@ -57,7 +57,8 @@ export class ImagePlugin extends BoardItemPlugin {
     // Delete all connectors attached to this image
     const state = store.getState();
     Object.entries(state.connectors).forEach(([connectorId, connector]) => {
-      if (connector.originImageId == id || connector.destinationImageId == id) {
+      if ((connector.originItemId == id && connector.originItemType === 'image') ||
+          (connector.destinationItemId == id && connector.destinationItemType === 'image')) {
         store.deleteConnector(connectorId);
       }
     });
@@ -188,14 +189,15 @@ export class ImagePlugin extends BoardItemPlugin {
   }
 
   isConnectorConnectedToItem(connector, itemId) {
-    return (connector.originImageId == itemId || connector.destinationImageId == itemId);
+    return ((connector.originItemId == itemId && connector.originItemType === 'image') ||
+            (connector.destinationItemId == itemId && connector.destinationItemType === 'image'));
   }
 
   isEndpointConnected(connector, endpoint) {
     if (endpoint === 'origin') {
-      return !!connector.originImageId;
+      return !!(connector.originItemId && connector.originItemType === 'image');
     } else if (endpoint === 'destination') {
-      return !!connector.destinationImageId;
+      return !!(connector.destinationItemId && connector.destinationItemType === 'image');
     }
     return false;
   }

@@ -166,9 +166,11 @@ export function setConnectorStyles(
   
   // Resolve control point or self-loop parameters
   // Check if origin and destination are the same item (self-connection)
-  // Only treat as self-connection if IDs actually exist AND match
-  const isSelfConnection = (connector.originId && connector.originId === connector.destinationId) || 
-                           (connector.originImageId && connector.originImageId === connector.destinationImageId);
+  // Only treat as self-connection if IDs and types actually exist AND match
+  const isSelfConnection = (connector.originItemId && connector.originItemType && 
+                            connector.destinationItemId && connector.destinationItemType &&
+                            connector.originItemId === connector.destinationItemId &&
+                            connector.originItemType === connector.destinationItemType);
 
   // Compute an effective control point used for traditional 2-segment curves and handle placement
   let effectiveControlPoint = null;
@@ -446,7 +448,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   const boardEndY = endPoint.y;
   
   // Add handle for unconnected origin
-  if (!connector.originId && !connector.originImageId) {
+  if (!connector.originItemId || !connector.originItemType) {
     const originHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     originHandle.classList.add("connector-handle");
     originHandle.classList.add("origin-handle");
@@ -468,7 +470,7 @@ function updateConnectorHandles(container, connector, localStartX, localStartY, 
   }
   
   // Add handle for unconnected destination
-  if (!connector.destinationId && !connector.destinationImageId) {
+  if (!connector.destinationItemId || !connector.destinationItemType) {
     const destHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     destHandle.classList.add("connector-handle");
     destHandle.classList.add("destination-handle");

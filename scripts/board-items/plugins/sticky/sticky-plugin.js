@@ -50,7 +50,8 @@ export class StickyPlugin extends BoardItemPlugin {
     // Delete all connectors attached to this sticky
     const state = store.getState();
     Object.entries(state.connectors).forEach(([connectorId, connector]) => {
-      if (connector.originId == id || connector.destinationId == id) {
+      if ((connector.originItemId == id && connector.originItemType === 'sticky') ||
+          (connector.destinationItemId == id && connector.destinationItemType === 'sticky')) {
         store.deleteConnector(connectorId);
       }
     });
@@ -142,14 +143,15 @@ export class StickyPlugin extends BoardItemPlugin {
   }
 
   isConnectorConnectedToItem(connector, itemId) {
-    return (connector.originId == itemId || connector.destinationId == itemId);
+    return ((connector.originItemId == itemId && connector.originItemType === 'sticky') ||
+            (connector.destinationItemId == itemId && connector.destinationItemType === 'sticky'));
   }
 
   isEndpointConnected(connector, endpoint) {
     if (endpoint === 'origin') {
-      return !!connector.originId;
+      return !!(connector.originItemId && connector.originItemType === 'sticky');
     } else if (endpoint === 'destination') {
-      return !!connector.destinationId;
+      return !!(connector.destinationItemId && connector.destinationItemType === 'sticky');
     }
     return false;
   }

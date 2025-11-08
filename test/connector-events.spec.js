@@ -134,15 +134,19 @@ describe("Connector Events Logic Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
 
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "#000000",
         arrowHead: "filled"
       });
 
       const connector = board.getConnector(connectorId);
-      expect(connector.originId).toBe(sticky1Id);
-      expect(connector.destinationId).toBe(sticky2Id);
+      expect(connector.originItemId).toBe(sticky1Id);
+      expect(connector.originItemType).toBe('sticky');
+      expect(connector.destinationItemId).toBe(sticky2Id);
+      expect(connector.destinationItemType).toBe('sticky');
       expect(connector.color).toBe("#000000");
       expect(connector.arrowHead).toBe("filled");
     });
@@ -166,14 +170,16 @@ describe("Connector Events Logic Tests", () => {
       const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
 
       const connectorId = board.putConnector({
-        originId: stickyId,
+        originItemId: stickyId,
+        originItemType: 'sticky',
         destinationPoint: { x: 200, y: 200 },
         color: "#00ff00",
         arrowHead: "line"
       });
 
       const connector = board.getConnector(connectorId);
-      expect(connector.originId).toBe(stickyId);
+      expect(connector.originItemId).toBe(stickyId);
+      expect(connector.originItemType).toBe('sticky');
       expect(connector.destinationPoint).toEqual({ x: 200, y: 200 });
       expect(connector.color).toBe("#00ff00");
       expect(connector.arrowHead).toBe("line");
@@ -205,10 +211,11 @@ describe("Connector Events Logic Tests", () => {
       });
 
       // Connect origin to sticky
-      board.updateConnectorEndpoint(connectorId, 'origin', { stickyId });
+      board.updateConnectorEndpoint(connectorId, 'origin', { itemId: stickyId, itemType: 'sticky' });
       
       const connector = board.getConnector(connectorId);
-      expect(connector.originId).toBe(stickyId);
+      expect(connector.originItemId).toBe(stickyId);
+      expect(connector.originItemType).toBe('sticky');
       expect(connector.originPoint).toBeUndefined();
       expect(connector.destinationPoint).toEqual({ x: 200, y: 200 });
     });
@@ -230,10 +237,11 @@ describe("Connector Events Logic Tests", () => {
       });
 
       // Connect destination to image
-      board.updateConnectorEndpoint(connectorId, 'destination', { imageId });
+      board.updateConnectorEndpoint(connectorId, 'destination', { itemId: imageId, itemType: 'image' });
       
       const connector = board.getConnector(connectorId);
-      expect(connector.destinationImageId).toBe(imageId);
+      expect(connector.destinationItemId).toBe(imageId);
+      expect(connector.destinationItemType).toBe('image');
       expect(connector.destinationPoint).toBeUndefined();
       expect(connector.originPoint).toEqual({ x: 50, y: 50 });
     });
@@ -263,20 +271,23 @@ describe("Connector Events Logic Tests", () => {
       const stickyId = board.putBoardItem('sticky', { text: "sticky", location: { x: 100, y: 100 } });
       
       const connectorId = board.putConnector({
-        originId: stickyId,
+        originItemId: stickyId,
+        originItemType: 'sticky',
         destinationPoint: { x: 200, y: 200 },
         color: "#000000"
       });
 
       const originalConnector = board.getConnector(connectorId);
-      expect(originalConnector.originId).toBe(stickyId);
+      expect(originalConnector.originItemId).toBe(stickyId);
+      expect(originalConnector.originItemType).toBe('sticky');
       expect(originalConnector.destinationPoint).toEqual({ x: 200, y: 200 });
 
       // Move the connector - only free endpoint should move
       board.moveConnector(connectorId, 25, 15);
 
       const movedConnector = board.getConnector(connectorId);
-      expect(movedConnector.originId).toBe(stickyId); // Connected endpoint should not change
+      expect(movedConnector.originItemId).toBe(stickyId); // Connected endpoint should not change
+      expect(movedConnector.originItemType).toBe('sticky');
       expect(movedConnector.destinationPoint).toEqual({ x: 225, y: 215 }); // Free endpoint should move
     });
 
@@ -285,21 +296,27 @@ describe("Connector Events Logic Tests", () => {
       const sticky2Id = board.putBoardItem('sticky', { text: "sticky2", location: { x: 200, y: 200 } });
       
       const connectorId = board.putConnector({
-        originId: sticky1Id,
-        destinationId: sticky2Id,
+        originItemId: sticky1Id,
+        originItemType: 'sticky',
+        destinationItemId: sticky2Id,
+        destinationItemType: 'sticky',
         color: "#000000"
       });
 
       const originalConnector = board.getConnector(connectorId);
-      expect(originalConnector.originId).toBe(sticky1Id);
-      expect(originalConnector.destinationId).toBe(sticky2Id);
+      expect(originalConnector.originItemId).toBe(sticky1Id);
+      expect(originalConnector.originItemType).toBe('sticky');
+      expect(originalConnector.destinationItemId).toBe(sticky2Id);
+      expect(originalConnector.destinationItemType).toBe('sticky');
 
       // Try to move the connector - it should not change
       board.moveConnector(connectorId, 50, 30);
 
       const movedConnector = board.getConnector(connectorId);
-      expect(movedConnector.originId).toBe(sticky1Id);
-      expect(movedConnector.destinationId).toBe(sticky2Id);
+      expect(movedConnector.originItemId).toBe(sticky1Id);
+      expect(movedConnector.originItemType).toBe('sticky');
+      expect(movedConnector.destinationItemId).toBe(sticky2Id);
+      expect(movedConnector.destinationItemType).toBe('sticky');
       // No originPoint or destinationPoint should exist
       expect(movedConnector.originPoint).toBeUndefined();
       expect(movedConnector.destinationPoint).toBeUndefined();
@@ -495,7 +512,8 @@ describe("Connector Events Logic Tests", () => {
       
       // Verify the endpoint attached to the sticky
       const connector = board.getConnector(connectorId);
-      expect(connector.destinationId).toBe(stickyId);
+      expect(connector.destinationItemId).toBe(stickyId);
+      expect(connector.destinationItemType).toBe('sticky');
       expect(connector.destinationPoint).toBeUndefined();
       
       // Restore mocks
@@ -579,7 +597,8 @@ describe("Connector Events Logic Tests", () => {
       
       // Verify the endpoint attached to the image
       const connector = board.getConnector(connectorId);
-      expect(connector.destinationImageId).toBe(imageId);
+      expect(connector.destinationItemId).toBe(imageId);
+      expect(connector.destinationItemType).toBe('image');
       expect(connector.destinationPoint).toBeUndefined();
       
       // Restore mocks
@@ -655,24 +674,21 @@ describe("Connector Events Logic Tests", () => {
       const connectorId = connectors[connectors.length - 1];
       const connector = board.getConnector(connectorId);
       
-      // Verify connector has originImageId set
-      expect(connector.originImageId).toBeDefined();
+      // Verify connector has originItemId and originItemType set
+      expect(connector.originItemId).toBeDefined();
+      expect(connector.originItemType).toBe('image');
       expect(connector.originPoint).toBeUndefined(); // Should not have originPoint when connected to image
 
       // Simulate the connector rendering logic to determine the actual start point
       // This is what happens in connector.js renderConnector and connector-styling.js setConnectorStyles
-      const plugins = getAllPlugins();
       let originItem = null;
       
       // Try to resolve the origin item (same logic as connector renderer)
-      if (connector.originImageId) {
-        const imagePlugin = plugins.find(p => p.getType() === 'image');
-        if (imagePlugin) {
-          try {
-            originItem = board.getBoardItemByType('image', connector.originImageId);
-          } catch (e) {
-            // Item not found - this is the bug!
-          }
+      if (connector.originItemId && connector.originItemType) {
+        try {
+          originItem = board.getBoardItemByType(connector.originItemType, connector.originItemId);
+        } catch (e) {
+          // Item not found - this is the bug!
         }
       }
       
