@@ -91,21 +91,6 @@ function findPluginItemAtPoint(x, y) {
   return null;
 }
 
-/**
- * Helper to create connector endpoint data for a plugin type
- * TODO: This is a temporary solution - connector system should be refactored to use generic connection properties
- * @param {string} type - Plugin type
- * @param {string} id - Item ID
- * @returns {Object} Data object for updateConnectorEndpoint
- */
-function createConnectorEndpointData(type, id) {
-  // Use plugin registry to get endpoint data format from the plugin itself
-  const plugin = getPlugin(type);
-  if (plugin && plugin.getConnectorEndpointData) {
-    return plugin.getConnectorEndpointData(id);
-  }
-  return null;
-}
 
 /**
  * Connector State Machine Implementation
@@ -536,13 +521,9 @@ class ConnectorStateMachine extends StateMachine {
             }
           }
           
-          // Store origin data (backward compat format)
-          // TODO: This is a leak - should use generic format
-          const endpointData = originItemId && originItemType ? createConnectorEndpointData(originItemType, originItemId) : null;
+          // Store origin data
           stateData.originData = {
             point,
-            originStickyId: endpointData?.stickyId || null,
-            originImageId: endpointData?.imageId || null,
             originItemId,
             originItemType
           };
