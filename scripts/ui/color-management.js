@@ -1,4 +1,5 @@
 import { getPlugin, getAllPlugins } from '../board-items/plugin-registry.js';
+import { SelectionManager } from './selection-manager.js';
 
 export const stickyColorPalette = [
   "khaki",
@@ -23,30 +24,17 @@ Object.freeze(connectorColorPalette);
 export const colorPalette = stickyColorPalette;
 
 /**
- * Changes the color, either for selected stickies/connectors or the current drawing color
+ * Changes the color, either for selected plugin items/connectors or the current drawing color
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection instance
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Object} selectedConnectors - Selection instance for connectors
  * @param {string} currentColor - Current color (legacy)
  * @param {boolean} reverse - If true, cycle backwards through colors
  * @returns {string} New current color
  */
-export function changeColor(board, selectedStickies, selectedConnectors, currentColor, reverse) {
+export function changeColor(board, selectionManager, selectedConnectors, currentColor, reverse) {
   const plugins = getAllPlugins();
   const appState = board.getAppState ? board.getAppState() : window.appState;
-  
-  // Helper to get selection for a plugin type (backward compatibility)
-  const getSelectionForPlugin = (plugin, selectedStickies) => {
-    const type = plugin.getType();
-    // Backward compatibility: map known types to selection objects
-    // In the future, this should use SelectionManager
-    if (type === 'sticky' && selectedStickies) {
-      return selectedStickies;
-    }
-    // Images don't have colors, so we skip them
-    // In the future, selections could be passed as a map
-    return null;
-  };
   
   // Collect all selections that support colors
   const selectionsWithColors = [];
@@ -54,7 +42,8 @@ export function changeColor(board, selectedStickies, selectedConnectors, current
     const type = plugin.getType();
     const palette = plugin.getColorPalette();
     if (palette && palette.length > 0) {
-      const selection = getSelectionForPlugin(plugin, selectedStickies);
+      const selectionType = plugin.getSelectionType();
+      const selection = selectionManager.getSelection(selectionType);
       if (selection && selection.hasItems && selection.hasItems()) {
         selectionsWithColors.push({ plugin, type, selection, palette });
       }

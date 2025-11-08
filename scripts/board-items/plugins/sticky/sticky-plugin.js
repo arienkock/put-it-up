@@ -154,6 +154,10 @@ export class StickyPlugin extends BoardItemPlugin {
     return false;
   }
 
+  getConnectorEndpointData(id) {
+    return { stickyId: id };
+  }
+
   // UI Integration Methods
 
   getDefaultColor() {

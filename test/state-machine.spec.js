@@ -339,9 +339,8 @@ describe('Connector State Machine', () => {
 
 describe('Keyboard State Machine', () => {
   let mockBoard;
-  let mockSelectedStickies;
+  let mockSelectionManager;
   let mockSelectedConnectors;
-  let mockSelectedImages;
   let mockAppState;
   let mockCallbacks;
   let stateMachine;
@@ -359,7 +358,7 @@ describe('Keyboard State Machine', () => {
       getImageLocation: jest.fn().mockReturnValue({ x: 0, y: 0 })
     };
     
-    mockSelectedStickies = {
+    const stickySelection = {
       forEach: jest.fn(),
       hasItems: jest.fn().mockReturnValue(false)
     };
@@ -369,9 +368,17 @@ describe('Keyboard State Machine', () => {
       hasItems: jest.fn().mockReturnValue(false)
     };
     
-    mockSelectedImages = {
+    const imageSelection = {
       forEach: jest.fn(),
       hasItems: jest.fn().mockReturnValue(false)
+    };
+    
+    mockSelectionManager = {
+      getSelection: jest.fn((selectionType) => {
+        if (selectionType === 'stickies') return stickySelection;
+        if (selectionType === 'images') return imageSelection;
+        return null;
+      })
     };
     
     mockAppState = {
@@ -391,7 +398,7 @@ describe('Keyboard State Machine', () => {
     };
 
     stateMachine = new KeyboardStateMachine(
-      mockBoard, mockSelectedStickies, mockSelectedConnectors, mockSelectedImages, 
+      mockBoard, mockSelectionManager, mockSelectedConnectors, 
       mockAppState, mockCallbacks
     );
   });

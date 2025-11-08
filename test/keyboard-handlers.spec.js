@@ -114,9 +114,8 @@ beforeEach(() => {
 describe("Keyboard Handlers - Refactored Architecture", () => {
   let board;
   let store;
-  let selectedStickies;
+  let selectionManager;
   let selectedConnectors;
-  let selectedImages;
   let appState;
   let callbacks;
 
@@ -124,18 +123,31 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
     store = new LocalDatastore();
     board = new Board(store);
     
-    // Mock selection objects
-    selectedStickies = {
+    // Create mock selections that persist across calls
+    const stickySelection = {
       hasItems: jest.fn(() => false),
       forEach: jest.fn(),
       isSelected: jest.fn(() => false)
     };
+    const imageSelection = {
+      hasItems: jest.fn(() => false),
+      forEach: jest.fn(),
+      isSelected: jest.fn(() => false)
+    };
+    
+    // Create SelectionManager with mock selections
+    selectionManager = {
+      getSelection: jest.fn((selectionType) => {
+        if (selectionType === 'stickies') {
+          return stickySelection;
+        } else if (selectionType === 'images') {
+          return imageSelection;
+        }
+        return null;
+      })
+    };
+    
     selectedConnectors = {
-      hasItems: jest.fn(() => false),
-      forEach: jest.fn(),
-      isSelected: jest.fn(() => false)
-    };
-    selectedImages = {
       hasItems: jest.fn(() => false),
       forEach: jest.fn(),
       isSelected: jest.fn(() => false)
@@ -161,7 +173,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
   describe("State Machine", () => {
     it("should initialize in IDLE state", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       const state = getKeyboardState();
@@ -173,7 +185,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     it("should transition to STICKY_CREATION_MODE when 'n' is pressed", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       const event = new KeyboardEvent('keydown', { key: 'n' });
@@ -189,7 +201,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     it("should transition to CONNECTOR_CREATION_MODE when 'c' is pressed", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       const event = new KeyboardEvent('keydown', { key: 'c' });
@@ -205,7 +217,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     it("should transition back to IDLE when Escape is pressed", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       // First activate sticky creation mode
@@ -225,7 +237,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
       // Set DEBUG_MODE to true for this test
       window.DEBUG_MODE = true;
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       const event = new KeyboardEvent('keydown', { key: 'n' });
@@ -246,7 +258,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
   describe("Handler Precedence", () => {
     beforeEach(() => {
       setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
     });
 
@@ -261,28 +273,30 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
     });
 
     it("should prioritize deleteHandler over movement handlers", () => {
-      selectedStickies.hasItems.mockReturnValue(true);
+      const stickySelection = selectionManager.getSelection('stickies');
+      stickySelection.hasItems.mockReturnValue(true);
       const event = new KeyboardEvent('keydown', { key: 'Delete' });
       
       mockDocument.body.addEventListener.mock.calls[0][1](event);
       
-      expect(selectedStickies.forEach).toHaveBeenCalled();
+      expect(stickySelection.forEach).toHaveBeenCalled();
     });
 
     it("should prioritize movementHandler over zoom handlers", () => {
-      selectedStickies.hasItems.mockReturnValue(true);
+      const stickySelection = selectionManager.getSelection('stickies');
+      stickySelection.hasItems.mockReturnValue(true);
       const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
       
       mockDocument.body.addEventListener.mock.calls[0][1](event);
       
-      expect(selectedStickies.forEach).toHaveBeenCalled();
+      expect(stickySelection.forEach).toHaveBeenCalled();
     });
   });
 
   describe("Individual Handlers", () => {
     beforeEach(() => {
       setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
     });
 
@@ -389,31 +403,35 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     describe("deleteHandler", () => {
       it("should delete selected items with Delete key", () => {
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        const imageSelection = selectionManager.getSelection('images');
+        stickySelection.hasItems.mockReturnValue(true);
         selectedConnectors.hasItems.mockReturnValue(true);
-        selectedImages.hasItems.mockReturnValue(true);
+        imageSelection.hasItems.mockReturnValue(true);
         
         const event = new KeyboardEvent('keydown', { key: 'Delete' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
         expect(selectedConnectors.forEach).toHaveBeenCalled();
-        expect(selectedImages.forEach).toHaveBeenCalled();
+        expect(imageSelection.forEach).toHaveBeenCalled();
       });
 
       it("should delete selected items with Backspace key", () => {
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        const imageSelection = selectionManager.getSelection('images');
+        stickySelection.hasItems.mockReturnValue(true);
         selectedConnectors.hasItems.mockReturnValue(true);
-        selectedImages.hasItems.mockReturnValue(true);
+        imageSelection.hasItems.mockReturnValue(true);
         
         const event = new KeyboardEvent('keydown', { key: 'Backspace' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
         expect(selectedConnectors.forEach).toHaveBeenCalled();
-        expect(selectedImages.forEach).toHaveBeenCalled();
+        expect(imageSelection.forEach).toHaveBeenCalled();
       });
 
       it("should not delete when editing sticky with Backspace", () => {
@@ -423,13 +441,15 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
           }
         };
         mockDocument.querySelector.mockReturnValue(mockElement);
+        const stickySelection = selectionManager.getSelection('stickies');
+        const imageSelection = selectionManager.getSelection('images');
         const event = new KeyboardEvent('keydown', { key: 'Backspace' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
-        expect(selectedStickies.forEach).not.toHaveBeenCalled();
+        expect(stickySelection.forEach).not.toHaveBeenCalled();
         expect(selectedConnectors.forEach).not.toHaveBeenCalled();
-        expect(selectedImages.forEach).not.toHaveBeenCalled();
+        expect(imageSelection.forEach).not.toHaveBeenCalled();
       });
 
       it("should still delete with Delete key when editing sticky", () => {
@@ -439,59 +459,65 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
           }
         };
         mockDocument.querySelector.mockReturnValue(mockElement);
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        const imageSelection = selectionManager.getSelection('images');
+        stickySelection.hasItems.mockReturnValue(true);
         selectedConnectors.hasItems.mockReturnValue(true);
-        selectedImages.hasItems.mockReturnValue(true);
+        imageSelection.hasItems.mockReturnValue(true);
         
         const event = new KeyboardEvent('keydown', { key: 'Delete' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
         expect(selectedConnectors.forEach).toHaveBeenCalled();
-        expect(selectedImages.forEach).toHaveBeenCalled();
+        expect(imageSelection.forEach).toHaveBeenCalled();
       });
     });
 
     describe("movementHandler", () => {
       it("should move selection with ArrowUp", () => {
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        stickySelection.hasItems.mockReturnValue(true);
         const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
       });
 
       it("should move selection with ArrowDown", () => {
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        stickySelection.hasItems.mockReturnValue(true);
         const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
       });
 
       it("should move selection with ArrowLeft", () => {
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        stickySelection.hasItems.mockReturnValue(true);
         const event = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
       });
 
       it("should move selection with ArrowRight", () => {
-        selectedStickies.hasItems.mockReturnValue(true);
+        const stickySelection = selectionManager.getSelection('stickies');
+        stickySelection.hasItems.mockReturnValue(true);
         const event = new KeyboardEvent('keydown', { key: 'ArrowRight' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(selectedStickies.forEach).toHaveBeenCalled();
+        expect(stickySelection.forEach).toHaveBeenCalled();
       });
 
       it("should not move when no items are selected", () => {
@@ -499,16 +525,18 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
-        expect(selectedStickies.forEach).not.toHaveBeenCalled();
+        const stickySelection = selectionManager.getSelection('stickies');
+        expect(stickySelection.forEach).not.toHaveBeenCalled();
       });
 
       it("should move images when selected", () => {
-        selectedImages.hasItems.mockReturnValue(true);
+        const imageSelection = selectionManager.getSelection('images');
+        imageSelection.hasItems.mockReturnValue(true);
         const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
         
         mockDocument.body.addEventListener.mock.calls[0][1](event);
         
-        expect(selectedImages.forEach).toHaveBeenCalled();
+        expect(imageSelection.forEach).toHaveBeenCalled();
       });
 
       it("should move connectors when selected", () => {
@@ -525,7 +553,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
   describe("Error Handling", () => {
     it("should handle errors gracefully and reset to IDLE state", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       // Mock board to throw error
@@ -533,7 +561,8 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
         throw new Error('Test error');
       });
       
-      selectedStickies.hasItems.mockReturnValue(true);
+      const stickySelection = selectionManager.getSelection('stickies');
+      stickySelection.hasItems.mockReturnValue(true);
       const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
       
       expect(() => {
@@ -552,7 +581,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
       // Set DEBUG_MODE to true for this test
       window.DEBUG_MODE = true;
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       const event = new KeyboardEvent('keydown', { key: 'z' });
@@ -578,7 +607,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
   describe("Integration Tests", () => {
     it("should work with real board operations", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       // Test zoom
@@ -601,7 +630,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     it("should properly clean up event listeners", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       expect(mockDocument.body.addEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
@@ -615,7 +644,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
   describe("State Management Functions", () => {
     it("should return current keyboard state", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       const state = getKeyboardState();
@@ -630,7 +659,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     it("should allow forced state transitions", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       forceKeyboardStateTransition('sticky_creation_mode', 'test transition', appState);
@@ -644,7 +673,7 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
     it("should transition back to IDLE when action is completed", () => {
       const cleanup = setupKeyboardHandlers(
-        board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+        board, selectionManager, selectedConnectors, appState, callbacks
       );
       
       // First activate sticky creation mode
@@ -677,9 +706,8 @@ describe("Keyboard Handlers - Refactored Architecture", () => {
 
 describe("deleteSelectedItems", () => {
   let board;
-  let selectedStickies;
+  let selectionManager;
   let selectedConnectors;
-  let selectedImages;
 
   beforeEach(() => {
     board = {
@@ -687,28 +715,38 @@ describe("deleteSelectedItems", () => {
       deleteConnector: jest.fn()
     };
     
-    selectedStickies = {
+    const stickySelection = {
       forEach: jest.fn(),
       hasItems: jest.fn(() => true)
     };
+    const imageSelection = {
+      forEach: jest.fn(),
+      hasItems: jest.fn(() => true)
+    };
+    
+    selectionManager = {
+      getSelection: jest.fn((selectionType) => {
+        if (selectionType === 'stickies') return stickySelection;
+        if (selectionType === 'images') return imageSelection;
+        return null;
+      })
+    };
+    
     selectedConnectors = {
-      forEach: jest.fn(),
-      hasItems: jest.fn(() => true)
-    };
-    selectedImages = {
       forEach: jest.fn(),
       hasItems: jest.fn(() => true)
     };
   });
 
   it("should delete all selected stickies", () => {
-    selectedStickies.hasItems.mockReturnValue(true);
-    selectedStickies.forEach.mockImplementation((callback) => {
+    const stickySelection = selectionManager.getSelection('stickies');
+    stickySelection.hasItems.mockReturnValue(true);
+    stickySelection.forEach.mockImplementation((callback) => {
       callback('sticky1');
       callback('sticky2');
     });
     
-    deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+    deleteSelectedItems(board, selectionManager, selectedConnectors);
     
     expect(board.deleteBoardItem).toHaveBeenCalledWith('sticky', 'sticky1');
     expect(board.deleteBoardItem).toHaveBeenCalledWith('sticky', 'sticky2');
@@ -721,31 +759,34 @@ describe("deleteSelectedItems", () => {
       callback('connector2');
     });
     
-    deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+    deleteSelectedItems(board, selectionManager, selectedConnectors);
     
     expect(board.deleteConnector).toHaveBeenCalledWith('connector1');
     expect(board.deleteConnector).toHaveBeenCalledWith('connector2');
   });
 
   it("should delete all selected images", () => {
-    selectedImages.hasItems.mockReturnValue(true);
-    selectedImages.forEach.mockImplementation((callback) => {
+    const imageSelection = selectionManager.getSelection('images');
+    imageSelection.hasItems.mockReturnValue(true);
+    imageSelection.forEach.mockImplementation((callback) => {
       callback('image1');
       callback('image2');
     });
     
-    deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+    deleteSelectedItems(board, selectionManager, selectedConnectors);
     
     expect(board.deleteBoardItem).toHaveBeenCalledWith('image', 'image1');
     expect(board.deleteBoardItem).toHaveBeenCalledWith('image', 'image2');
   });
 
   it("should handle empty selections", () => {
-    selectedStickies.hasItems.mockReturnValue(false);
+    const stickySelection = selectionManager.getSelection('stickies');
+    const imageSelection = selectionManager.getSelection('images');
+    stickySelection.hasItems.mockReturnValue(false);
     selectedConnectors.hasItems.mockReturnValue(false);
-    selectedImages.hasItems.mockReturnValue(false);
+    imageSelection.hasItems.mockReturnValue(false);
     
-    deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+    deleteSelectedItems(board, selectionManager, selectedConnectors);
     
     expect(board.deleteBoardItem).not.toHaveBeenCalled();
     expect(board.deleteConnector).not.toHaveBeenCalled();

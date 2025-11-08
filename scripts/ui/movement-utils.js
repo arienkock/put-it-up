@@ -5,6 +5,7 @@
  */
 
 import { getAllPlugins } from '../board-items/plugin-registry.js';
+import { SelectionManager } from './selection-manager.js';
 
 /**
  * Extract coordinates from touch or mouse event
@@ -112,32 +113,19 @@ export function moveItem(id, dx, dy, board, type) {
  * @param {number} dx - Delta X movement
  * @param {number} dy - Delta Y movement
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection management object for stickies (for backward compat)
- * @param {Object} selectedImages - Selection management object for images (for backward compat)
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Object} selectedConnectors - Selection management object for connectors
  */
-export function moveSelection(dx, dy, board, selectedStickies, selectedImages, selectedConnectors) {
+export function moveSelection(dx, dy, board, selectionManager, selectedConnectors) {
   const plugins = getAllPlugins();
   const itemIdsByType = {};
   const originalLocationsByType = {};
   
-  // Helper to get selection for a plugin type (backward compatibility)
-  const getSelectionForPlugin = (plugin, selectedStickies, selectedImages) => {
-    const type = plugin.getType();
-    // Backward compatibility: map known types to selection objects
-    // In the future, this should use SelectionManager
-    if (type === 'sticky' && selectedStickies) {
-      return selectedStickies;
-    } else if (type === 'image' && selectedImages) {
-      return selectedImages;
-    }
-    return null;
-  };
-  
   // Collect IDs and track original locations for all plugin types
   plugins.forEach(plugin => {
     const type = plugin.getType();
-    const selection = getSelectionForPlugin(plugin, selectedStickies, selectedImages);
+    const selectionType = plugin.getSelectionType();
+    const selection = selectionManager.getSelection(selectionType);
     
     if (selection && selection.hasItems && selection.hasItems()) {
       itemIdsByType[type] = [];

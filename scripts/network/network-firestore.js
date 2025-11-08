@@ -460,33 +460,17 @@ export class FirestoreStore {
     }
   };
 
+  // Legacy methods - delegate to generic methods
   getSticky = (id) => {
-    const sticky = getAppState().stickies[id];
-    if (!sticky) {
-      throw new Error("No such sticky id=" + id);
-    }
-    return sticky;
+    return this.getBoardItem('sticky', id);
   };
 
   createSticky = (sticky) => {
-    const docRef = this.stickyRef.doc();
-    docRef.set(sticky, { merge: true });
-    getAppState().stickies[docRef.id] = sticky;
-    this.notifyStickyChange(docRef.id);
-    return docRef.id;
+    return this.createBoardItem('sticky', sticky);
   };
 
   deleteSticky = (id) => {
-    if (this.stickyRef) {
-      const docRef = this.stickyRef.doc(id);
-      // Cancel any pending writes for this document
-      this.debouncer.cancelWrite(docRef.path);
-      docRef.delete();
-    }
-    // Update local state immediately
-    const state = getAppState();
-    delete state.stickies[id];
-    this.notifyStickyChange(id);
+    this.deleteBoardItem('sticky', id);
   };
 
   updateText = (id, text) => {
@@ -572,11 +556,7 @@ export class FirestoreStore {
   };
 
   getImage = (id) => {
-    const image = getAppState().images[id];
-    if (!image) {
-      throw new Error("No such image id=" + id);
-    }
-    return image;
+    return this.getBoardItem('image', id);
   };
 
   createConnector = (connector) => {
@@ -588,11 +568,7 @@ export class FirestoreStore {
   };
 
   createImage = (image) => {
-    const docRef = this.imageRef.doc();
-    docRef.set(image, { merge: true });
-    getAppState().images[docRef.id] = image;
-    this.notifyImageChange(docRef.id);
-    return docRef.id;
+    return this.createBoardItem('image', image);
   };
 
   deleteConnector = (id) => {
@@ -609,16 +585,7 @@ export class FirestoreStore {
   };
 
   deleteImage = (id) => {
-    if (this.imageRef) {
-      const docRef = this.imageRef.doc(id);
-      // Cancel any pending writes for this document
-      this.debouncer.cancelWrite(docRef.path);
-      docRef.delete();
-    }
-    // Update local state immediately
-    const state = getAppState();
-    delete state.images[id];
-    this.notifyImageChange(id);
+    this.deleteBoardItem('image', id);
   };
 
   updateArrowHead = (id, arrowHead) => {
@@ -719,26 +686,11 @@ export class FirestoreStore {
   };
 
   setImageLocation = (id, location) => {
-    if (this.imageRef) {
-      const docRef = this.imageRef.doc(id);
-      this.debouncer.debounceUpdate(docRef, { location });
-    }
-    // Update local state immediately
-    const image = this.getImage(id);
-    image.location = location;
-    this.notifyImageChange(id);
+    this.updateBoardItem('image', id, { location });
   };
 
   updateImageSize = (id, width, height) => {
-    if (this.imageRef) {
-      const docRef = this.imageRef.doc(id);
-      this.debouncer.debounceUpdate(docRef, { width, height });
-    }
-    // Update local state immediately
-    const image = this.getImage(id);
-    image.width = width;
-    image.height = height;
-    this.notifyImageChange(id);
+    this.updateBoardItem('image', id, { width, height });
   };
 
   getState = () => {
@@ -783,14 +735,15 @@ export class FirestoreStore {
     this.notifyBoardChange();
   };
 
+  // Legacy notification methods - delegate to generic method
   notifyStickyChange = (id) => {
-    this.observers.forEach((o) => o.onStickyChange(id));
+    this.notifyBoardItemChange('sticky', id);
   };
   notifyConnectorChange = (id) => {
     this.observers.forEach((o) => o.onConnectorChange && o.onConnectorChange(id));
   };
   notifyImageChange = (id) => {
-    this.observers.forEach((o) => o.onImageChange && o.onImageChange(id));
+    this.notifyBoardItemChange('image', id);
   };
   notifyBoardChange = () => {
     this.observers.forEach((o) => o.onBoardChange());

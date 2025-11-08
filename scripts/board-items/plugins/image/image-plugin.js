@@ -200,6 +200,10 @@ export class ImagePlugin extends BoardItemPlugin {
     return false;
   }
 
+  getConnectorEndpointData(id) {
+    return { imageId: id };
+  }
+
   // UI Integration Methods
 
   getDefaultColor() {

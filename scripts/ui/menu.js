@@ -3,6 +3,7 @@ import { changeColor, stickyColorPalette, connectorColorPalette } from "./color-
 import { deleteSelectedItems } from "./keyboard-handlers.js";
 import { ARROW_HEAD_TYPES } from "../board-items/connector-styling.js";
 import { getAllPlugins } from "../board-items/plugin-registry.js";
+import { SelectionManager } from "./selection-manager.js";
 
 /**
  * Changes arrow head type to the next one in rotation
@@ -22,16 +23,15 @@ function changeArrowHead(currentArrowHead, reverse = false) {
  * Creates and manages the board action menu
  * 
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection management object for stickies
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Object} selectedConnectors - Selection management object for connectors
- * @param {Object} selectedImages - Selection management object for images
  * @param {HTMLElement} root - Root element to attach menu to
  * @param {Object} appState - Application state object
  * @param {Function} renderCallback - Callback to trigger re-rendering
  * @param {Object} store - Datastore instance for updating board title
  * @returns {Object} Object with menuElement and render function
  */
-export function createMenu(board, selectedStickies, selectedConnectors, selectedImages, root, appState, renderCallback, store) {
+export function createMenu(board, selectionManager, selectedConnectors, root, appState, renderCallback, store) {
   let menuElement;
   let menuContainer;
   let logoElement;
@@ -80,19 +80,6 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
   }
   
   // Build selection map for easy access
-  // Helper to get selection for a plugin type (backward compatibility)
-  const getSelectionForPlugin = (plugin) => {
-    const type = plugin.getType();
-    // Backward compatibility: map known types to selection objects
-    // In the future, this should use SelectionManager
-    if (type === 'sticky' && selectedStickies) {
-      return selectedStickies;
-    } else if (type === 'image' && selectedImages) {
-      return selectedImages;
-    }
-    return null;
-  };
-  
   const selectionMap = {
     'connectors': selectedConnectors,
     'connector': selectedConnectors
@@ -102,7 +89,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
   plugins.forEach(plugin => {
     const type = plugin.getType();
     const selectionType = plugin.getSelectionType();
-    const selection = getSelectionForPlugin(plugin);
+    const selection = selectionManager.getSelection(selectionType);
     if (selection) {
       selectionMap[type] = selection;
       selectionMap[selectionType] = selection;
@@ -189,15 +176,9 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
           }
         }
         
-        // Get selected stickies for backward compatibility with changeColor function
-        // Find first plugin with color support that has a selection
-        const selectedStickiesForColor = pluginsWithColorSelections.length > 0 
-          ? pluginsWithColorSelections[0].selection 
-          : null;
-        
         const newColor = changeColor(
           board,
-          selectedStickiesForColor || (selectedStickies || { hasItems: () => false }),
+          selectionManager,
           selectedConnectors,
           currentColorToUse,
           event.shiftKey
@@ -306,7 +287,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       icon: "images/delete-icon.svg",
       itemClickHandler: () => {
         // Use the standard deleteSelectedItems function which works with Selection objects
-        deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages);
+        deleteSelectedItems(board, selectionManager, selectedConnectors);
         
         // Trigger full re-render so DOM reflects deletions
         if (typeof renderCallback === 'function') {
@@ -499,7 +480,8 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
       const palette = plugin.getColorPalette();
       if (!palette || palette.length === 0) return;
       
-      const selection = getSelectionForPlugin(plugin);
+      const selectionType = plugin.getSelectionType();
+      const selection = selectionManager.getSelection(selectionType);
       if (selection && selection.hasItems() && selection.size() === 1) {
         let selectedId;
         selection.forEach((id) => (selectedId = id));
@@ -669,14 +651,22 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     menuElement.appendChild(separator);
     
     // Conditionally render selection-dependent items
-    const hasStickiesSelected = selectedStickies.hasItems();
-    const hasConnectorsSelected = selectedConnectors.hasItems();
-    const hasImagesSelected = selectedImages.hasItems();
-    const hasAnySelection = hasStickiesSelected || hasConnectorsSelected || hasImagesSelected;
+    // Check if any plugin selections have items
+    let hasPluginSelection = false;
+    plugins.forEach(plugin => {
+      const selectionType = plugin.getSelectionType();
+      const selection = selectionManager.getSelection(selectionType);
+      if (selection && selection.hasItems && selection.hasItems()) {
+        hasPluginSelection = true;
+      }
+    });
+    
+    const hasConnectorsSelected = selectedConnectors && selectedConnectors.hasItems();
+    const hasAnySelection = hasPluginSelection || hasConnectorsSelected;
     
     if (hasAnySelection) {
       // Show Color button only when a single type is selected (not mixed)
-      if (!(hasStickiesSelected && hasConnectorsSelected)) {
+      if (!(hasPluginSelection && hasConnectorsSelected)) {
         const colorItem = selectionDependentItems.find(item => item.className === "change-color");
         if (colorItem) menuElement.appendChild(renderMenuButton(colorItem));
       }
@@ -736,7 +726,7 @@ export function createMenu(board, selectedStickies, selectedConnectors, selected
     // Add the items that were actually rendered
     if (hasAnySelection) {
       // Add color item only if it was rendered (single type selection)
-      if (!(hasStickiesSelected && hasConnectorsSelected)) {
+      if (!(hasPluginSelection && hasConnectorsSelected)) {
         const colorItem = selectionDependentItems.find(item => item.className === "change-color");
         if (colorItem) allItems.push(colorItem);
       }

@@ -665,18 +665,24 @@ describe("Connector Functionality Tests", () => {
       expect(originalConnector.curveControlPoint).toEqual({ x: 150, y: 150 });
 
       // Simulate moveSelection call (as would happen with arrow keys)
-      const selectedStickies = {
+      const stickySelection = {
         forEach: (callback) => {
           callback(sticky1Id);
         },
         hasItems: () => true
       };
       
-      const selectedImages = { hasItems: () => false, forEach: () => {} };
+      const selectionManager = {
+        getSelection: (selectionType) => {
+          if (selectionType === 'stickies') return stickySelection;
+          return { hasItems: () => false, forEach: () => {} };
+        }
+      };
+      
       const selectedConnectors = { hasItems: () => false, forEach: () => {} };
       
       // Move sticky with arrow key (dx=10, dy=0)
-      moveSelection(10, 0, board, selectedStickies, selectedImages, selectedConnectors);
+      moveSelection(10, 0, board, selectionManager, selectedConnectors);
 
       const connectorAfterMove = board.getConnector(connectorId);
       const newStickyLocation = board.getBoardItemLocationByType('sticky', sticky1Id);

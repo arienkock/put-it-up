@@ -4,6 +4,7 @@ import { changeZoomLevel } from "./zoom.js";
 import { changeColor } from "./color-management.js";
 import { moveSelection } from "./movement-utils.js";
 import { getAllPlugins } from "../board-items/plugin-registry.js";
+import { SelectionManager } from "./selection-manager.js";
 
 /**
  * Centralized Keyboard State Machine
@@ -42,7 +43,7 @@ if (!KeyboardState.STICKY_CREATION_MODE) {
  * Uses the new StateMachine base class for consistent behavior
  */
 class KeyboardStateMachine extends StateMachine {
-  constructor(board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks) {
+  constructor(board, selectionManager, selectedConnectors, appState, callbacks) {
     const stateConfig = createStateConfig(KeyboardState);
     
     // Configure each state
@@ -122,9 +123,8 @@ class KeyboardStateMachine extends StateMachine {
     
     // Initialize properties after super constructor
     this.board = board;
-    this.selectedStickies = selectedStickies;
+    this.selectionManager = selectionManager;
     this.selectedConnectors = selectedConnectors;
-    this.selectedImages = selectedImages;
     this.appState = appState;
     this.callbacks = callbacks;
     
@@ -270,7 +270,7 @@ class KeyboardStateMachine extends StateMachine {
    * Helper function to move selected items using movement-utils
    */
   moveSelection(dx, dy) {
-    moveSelection(dx, dy, this.board, this.selectedStickies, this.selectedImages, this.selectedConnectors);
+    moveSelection(dx, dy, this.board, this.selectionManager, this.selectedConnectors);
   }
   
   /**
@@ -369,8 +369,21 @@ class KeyboardStateMachine extends StateMachine {
       // Handler for arrow key movement
       movementHandler: {
         canHandle: (event, state, appState) => {
-          return event.key.startsWith("Arrow") && 
-                 (this.selectedStickies.hasItems() || this.selectedImages.hasItems() || this.selectedConnectors.hasItems());
+          if (!event.key.startsWith("Arrow")) return false;
+          
+          // Check if any plugin selection has items
+          const plugins = getAllPlugins();
+          let hasPluginSelection = false;
+          for (const plugin of plugins) {
+            const selectionType = plugin.getSelectionType();
+            const selection = this.selectionManager.getSelection(selectionType);
+            if (selection && selection.hasItems && selection.hasItems()) {
+              hasPluginSelection = true;
+              break;
+            }
+          }
+          
+          return hasPluginSelection || (this.selectedConnectors && this.selectedConnectors.hasItems && this.selectedConnectors.hasItems());
         },
         
         onKeyDown: (event, keyboardStateData) => {
@@ -459,27 +472,6 @@ class KeyboardStateMachine extends StateMachine {
   }
   
   /**
-   * Helper to get selection object for a plugin type (backward compatibility)
-   * @param {string} type - Plugin type
-   * @returns {Object|null} Selection object or null
-   */
-  _getSelectionForType(type) {
-    // Backward compatibility: map known types to selection objects
-    // In the future, this should use SelectionManager
-    const plugins = getAllPlugins();
-    const plugin = plugins.find(p => p.getType() === type);
-    if (!plugin) return null;
-    
-    // Map plugin types to selection objects (backward compat)
-    if (type === 'sticky' && this.selectedStickies) {
-      return this.selectedStickies;
-    } else if (type === 'image' && this.selectedImages) {
-      return this.selectedImages;
-    }
-    return null;
-  }
-
-  /**
    * Deletes all selected items (plugins and connectors)
    */
   deleteSelectedItems() {
@@ -488,7 +480,8 @@ class KeyboardStateMachine extends StateMachine {
     // Delete plugin items
     plugins.forEach(plugin => {
       const type = plugin.getType();
-      const selection = this._getSelectionForType(type);
+      const selectionType = plugin.getSelectionType();
+      const selection = this.selectionManager.getSelection(selectionType);
       
       if (selection && selection.hasItems && selection.hasItems()) {
         selection.forEach((id) => {
@@ -553,9 +546,8 @@ let keyboardStateMachine = null;
  * Sets up global keyboard event handlers for board interactions
  * 
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection management object
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Object} selectedConnectors - Selection management object for connectors
- * @param {Object} selectedImages - Selection management object for images
  * @param {Object} appState - Application state object
  * @param {Object} callbacks - Callback functions for various actions
  * @param {Function} callbacks.onZoomChange - Called when zoom changes
@@ -567,15 +559,14 @@ let keyboardStateMachine = null;
  */
 export function setupKeyboardHandlers(
   board,
-  selectedStickies,
+  selectionManager,
   selectedConnectors,
-  selectedImages,
   appState,
   callbacks
 ) {
   // Create keyboard state machine
   keyboardStateMachine = new KeyboardStateMachine(
-    board, selectedStickies, selectedConnectors, selectedImages, appState, callbacks
+    board, selectionManager, selectedConnectors, appState, callbacks
   );
   
   // Return cleanup function
@@ -589,43 +580,20 @@ export function setupKeyboardHandlers(
 export { KeyboardStateMachine };
 
 /**
- * Helper to get selection object for a plugin type (backward compatibility)
- * @param {string} type - Plugin type
- * @param {Object} selectedStickies - Selection for stickies (backward compat)
- * @param {Object} selectedImages - Selection for images (backward compat)
- * @returns {Object|null} Selection object or null
- */
-function getSelectionForType(type, selectedStickies, selectedImages) {
-  // Backward compatibility: map known types to selection objects
-  // In the future, this should use SelectionManager
-  const plugins = getAllPlugins();
-  const plugin = plugins.find(p => p.getType() === type);
-  if (!plugin) return null;
-  
-  // Map plugin types to selection objects (backward compat)
-  if (type === 'sticky' && selectedStickies) {
-    return selectedStickies;
-  } else if (type === 'image' && selectedImages) {
-    return selectedImages;
-  }
-  return null;
-}
-
-/**
- * Deletes all selected items (stickies, connectors, and images)
+ * Deletes all selected items (plugins and connectors)
  * 
  * @param {Object} board - Board instance
- * @param {Object} selectedStickies - Selection management object for stickies
+ * @param {SelectionManager} selectionManager - Selection manager instance
  * @param {Object} selectedConnectors - Selection management object for connectors
- * @param {Object} selectedImages - Selection management object for images
  */
-export function deleteSelectedItems(board, selectedStickies, selectedConnectors, selectedImages) {
+export function deleteSelectedItems(board, selectionManager, selectedConnectors) {
   const plugins = getAllPlugins();
   
   // Delete plugin items
   plugins.forEach(plugin => {
     const type = plugin.getType();
-    const selection = getSelectionForType(type, selectedStickies, selectedImages);
+    const selectionType = plugin.getSelectionType();
+    const selection = selectionManager.getSelection(selectionType);
     
     if (selection && selection.hasItems && selection.hasItems()) {
       selection.forEach((id) => {

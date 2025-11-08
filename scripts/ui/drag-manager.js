@@ -399,22 +399,26 @@ class DragStateMachine extends StateMachine {
       this.justCompletedDrag = false;
     }, 100);
     
-    // Mark items as moved by dragging (for sticky resizing behavior)
-    // TODO: This is a leak - appState.ui.stickiesMovedByDragging is hardcoded
-    // Should use plugin registry to get storage keys dynamically
-    if (this.stateData.originalLocations.stickies) {
-      this.stateData.originalLocations.stickies.forEach((_, id) => {
-        appState.ui.stickiesMovedByDragging.push(id);
-      });
-    }
+    // Mark items as moved by dragging (for plugin-specific behavior like sticky resizing)
+    // Use plugin registry to get storage keys dynamically
+    const plugins = getAllPlugins();
     
-    // Mark items as moved by dragging (for images)
-    // TODO: This is a leak - should use plugin registry to get storage keys dynamically
-    if (this.stateData.originalLocations.images) {
-      this.stateData.originalLocations.images.forEach((_, id) => {
-        // Could add similar tracking here if needed
-      });
-    }
+    plugins.forEach(plugin => {
+      const selectionType = plugin.getSelectionType();
+      const movedByDraggingKey = `${selectionType}MovedByDragging`;
+      
+      // Initialize array if it doesn't exist
+      if (!appState.ui[movedByDraggingKey]) {
+        appState.ui[movedByDraggingKey] = [];
+      }
+      
+      // Mark items as moved if they were in originalLocations
+      if (this.stateData.originalLocations[selectionType]) {
+        this.stateData.originalLocations[selectionType].forEach((_, id) => {
+          appState.ui[movedByDraggingKey].push(id);
+        });
+      }
+    });
     
     // Transition back to idle
     this.transitionTo(DragState.IDLE, 'drag ended');

@@ -4,7 +4,7 @@ import { SelectionManager } from "../ui/selection-manager.js";
 import { completeKeyboardAction } from "../ui/keyboard-handlers.js";
 import { isClickOnConnectorStroke, getConnectorsBelowPoint } from "./connector-hit-testing.js";
 import { getEventCoordinates } from "../ui/movement-utils.js";
-import { getAllPlugins, getPluginForElement } from "./plugin-registry.js";
+import { getAllPlugins, getPluginForElement, getPlugin } from "./plugin-registry.js";
 
 /**
  * Connector State Machine
@@ -99,15 +99,11 @@ function findPluginItemAtPoint(x, y) {
  * @returns {Object} Data object for updateConnectorEndpoint
  */
 function createConnectorEndpointData(type, id) {
-  // Map plugin types to connector endpoint data format
-  // This is a leak that should be fixed by refactoring the connector system
-  if (type === 'sticky') {
-    return { stickyId: id };
-  } else if (type === 'image') {
-    return { imageId: id };
+  // Use plugin registry to get endpoint data format from the plugin itself
+  const plugin = getPlugin(type);
+  if (plugin && plugin.getConnectorEndpointData) {
+    return plugin.getConnectorEndpointData(id);
   }
-  // Future plugins can add their own mapping here
-  // Ideally, this should be handled by the plugin itself
   return null;
 }
 

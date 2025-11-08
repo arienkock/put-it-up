@@ -83,6 +83,14 @@ export class BoardItemPlugin {
    */
   isEndpointConnected(connector, endpoint) { throw new Error('Not implemented'); }
 
+  /**
+   * Get connector endpoint data format for an item ID.
+   * Returns the format expected by updateConnectorEndpoint (e.g., {stickyId: id} or {imageId: id}).
+   * @param {string} id - The item ID
+   * @returns {object} Endpoint data object (e.g., {stickyId: id} or {imageId: id})
+   */
+  getConnectorEndpointData(id) { throw new Error('Not implemented'); }
+
   // UI Integration Methods
 
   /**

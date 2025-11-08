@@ -196,27 +196,9 @@ export function mount(board, root, Observer, store) {
     }
   });
   
-  // Helper functions for backward compatibility
-  function getSelectedStickies() {
-    // Use plugin registry to find sticky plugin and get its selection
-    const stickyPlugin = plugins.find(p => p.getType() === 'sticky');
-    if (stickyPlugin) {
-      const selectionType = stickyPlugin.getSelectionType();
-      return selections[stickyPlugin.getType()] || selections[selectionType];
-    }
-    return null;
-  }
+  // Helper function for connectors (not a plugin)
   function getSelectedConnectors() {
     return selectedConnectors;
-  }
-  function getSelectedImages() {
-    // Use plugin registry to find image plugin and get its selection
-    const imagePlugin = plugins.find(p => p.getType() === 'image');
-    if (imagePlugin) {
-      const selectionType = imagePlugin.getSelectionType();
-      return selections[imagePlugin.getType()] || selections[selectionType];
-    }
-    return null;
   }
   function renderBoard() {
     if (!board.isReadyForUse()) {
@@ -248,7 +230,7 @@ export function mount(board, root, Observer, store) {
       domElement.classList.remove("click-to-connect");
     }
   }
-  const menu = createMenu(board, getSelectedStickies(), selectedConnectors, getSelectedImages(), root, appState, render, store);
+  const menu = createMenu(board, selectionManager, selectedConnectors, root, appState, render, store);
   const renderMenu = menu.render;
   
   // Declare minimap variable before render() so it's in scope
@@ -351,7 +333,7 @@ export function mount(board, root, Observer, store) {
   // No HTML5 drop handlers needed
 
   // Set up keyboard handlers
-  setupKeyboardHandlers(board, getSelectedStickies(), selectedConnectors, getSelectedImages(), appState, {
+  setupKeyboardHandlers(board, selectionManager, selectedConnectors, appState, {
     onZoomChange: () => render(),
     onColorChange: () => renderMenu(),
     onNewStickyRequest: () => renderBoard(),

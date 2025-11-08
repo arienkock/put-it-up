@@ -15,26 +15,17 @@ export class LocalDatastore {
     return clone(state.board);
   };
 
+  // Legacy methods - delegate to generic methods
   getSticky = (id) => {
-    const sticky = getAppState().stickies[id];
-    if (!sticky) {
-      throw new Error("No such sticky id=" + id);
-    }
-    return sticky;
+    return this.getBoardItem('sticky', id);
   };
 
   createSticky = (sticky) => {
-    const state = getAppState();
-    const id = ++state.idGen;
-    state.stickies[id] = sticky;
-    this.notifyStickyChange(id.toString());
-    return id.toString();
+    return this.createBoardItem('sticky', sticky);
   };
 
   deleteSticky = (id) => {
-    const state = getAppState();
-    delete state.stickies[id];
-    this.notifyStickyChange(id);
+    this.deleteBoardItem('sticky', id);
   };
 
   updateText = (id, text) => {
@@ -88,11 +79,7 @@ export class LocalDatastore {
   };
 
   getImage = (id) => {
-    const image = getAppState().images[id];
-    if (!image) {
-      throw new Error("No such image id=" + id);
-    }
-    return image;
+    return this.getBoardItem('image', id);
   };
 
   createConnector = (connector) => {
@@ -104,11 +91,7 @@ export class LocalDatastore {
   };
 
   createImage = (image) => {
-    const state = getAppState();
-    const id = ++state.imageIdGen;
-    state.images[id] = image;
-    this.notifyImageChange(id.toString());
-    return id.toString();
+    return this.createBoardItem('image', image);
   };
 
   deleteConnector = (id) => {
@@ -118,9 +101,7 @@ export class LocalDatastore {
   };
 
   deleteImage = (id) => {
-    const state = getAppState();
-    delete state.images[id];
-    this.notifyImageChange(id);
+    this.deleteBoardItem('image', id);
   };
 
   updateArrowHead = (id, arrowHead) => {
@@ -185,15 +166,11 @@ export class LocalDatastore {
   };
 
   setImageLocation = (id, location) => {
-    this.getImage(id).location = location;
-    this.notifyImageChange(id);
+    this.updateBoardItem('image', id, { location });
   };
 
   updateImageSize = (id, width, height) => {
-    const image = this.getImage(id);
-    image.width = width;
-    image.height = height;
-    this.notifyImageChange(id);
+    this.updateBoardItem('image', id, { width, height });
   };
 
   getState = () => {
@@ -236,14 +213,15 @@ export class LocalDatastore {
     this.notifyBoardChange();
   };
 
+  // Legacy notification methods - delegate to generic method
   notifyStickyChange = (id) => {
-    this.observers.forEach((o) => o.onStickyChange(id));
+    this.notifyBoardItemChange('sticky', id);
   };
   notifyConnectorChange = (id) => {
     this.observers.forEach((o) => o.onConnectorChange && o.onConnectorChange(id));
   };
   notifyImageChange = (id) => {
-    this.observers.forEach((o) => o.onImageChange && o.onImageChange(id));
+    this.notifyBoardItemChange('image', id);
   };
   notifyBoardChange = () => {
     this.observers.forEach((o) => o.onBoardChange());

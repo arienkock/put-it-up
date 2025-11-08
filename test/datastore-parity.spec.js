@@ -126,15 +126,17 @@ describe("Datastore Parity Tests", () => {
 
   describe("Source Code Analysis", () => {
     it("should have consistent error message patterns", () => {
-      const localSource = getSourceCode("scripts/board/local-datastore.js");
-      const firestoreSource = getSourceCode("scripts/network/network-firestore.js");
-
-      // Check for consistent error message patterns
-      const localErrorPattern = /"No such sticky id="/;
-      const firestoreErrorPattern = /"No such sticky id="/;
-
-      expect(localSource).toMatch(localErrorPattern);
-      expect(firestoreSource).toMatch(firestoreErrorPattern);
+      // Test runtime error messages instead of source code patterns
+      // since getSticky/getImage now delegate to generic getBoardItem methods
+      const localStore = new LocalDatastore();
+      const firestoreStore = new FirestoreStore();
+      
+      // Test that both stores throw consistent error messages
+      expect(() => localStore.getSticky('nonexistent')).toThrow(/No such sticky id=/);
+      expect(() => firestoreStore.getSticky('nonexistent')).toThrow(/No such sticky id=/);
+      
+      expect(() => localStore.getImage('nonexistent')).toThrow(/No such image id=/);
+      expect(() => firestoreStore.getImage('nonexistent')).toThrow(/No such image id=/);
     });
 
     it("should have consistent observer notification methods", () => {
