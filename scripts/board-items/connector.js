@@ -1,6 +1,5 @@
 import { createConnectorDOM } from "./connector-dom.js";
 import { setConnectorStyles } from "./connector-styling.js";
-import { reorderBoardElements } from "./z-order-manager.js";
 
 export const CONNECTOR_TYPE = "application/connector";
 export const DEFAULT_ARROW_HEAD = "filled";
@@ -79,13 +78,11 @@ function getConnectorElement(
     }
     container = undefined;
     // Reorder elements after deletion
-    reorderBoardElements(boardElement);
   } else if (!container) {
     container = createConnectorDOM(connectorIdClass, id, selectedConnectors);
     boardElement[connectorIdClass] = container;
     boardElement.appendChild(container);
     // Reorder elements after addition
-    reorderBoardElements(boardElement);
   }
   
   return container;

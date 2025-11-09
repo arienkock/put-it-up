@@ -65,16 +65,3 @@ export function applyZIndexToElements(domElement, store) {
     }
   });
 }
-
-/**
- * Legacy function for backward compatibility.
- * Now just applies z-index instead of reordering DOM.
- * 
- * @param {HTMLElement} domElement - The board container element
- * @deprecated Use applyZIndexToElements instead
- */
-export function reorderBoardElements(domElement) {
-  // This function is kept for backward compatibility but no longer reorders DOM.
-  // Z-index is now applied directly in renderers based on item's zIndex property.
-  // This is a no-op now, but kept to avoid breaking existing code.
-}

@@ -2,7 +2,6 @@ import { fitContentInSticky } from "../../text-fitting.js";
 import { createStickyContainerDOM } from "./sticky-dom.js";
 import { setStickyStyles, DEFAULT_STICKY_COLOR } from "./sticky-styling.js";
 import { setupStickyEvents } from "./sticky-events.js";
-import { reorderBoardElements } from "../../z-order-manager.js";
 import { getPlugin } from "../../plugin-registry.js";
 
 export { DEFAULT_STICKY_COLOR };
@@ -20,7 +19,6 @@ export const createRenderer = (
     if (!reorderScheduled) {
       reorderScheduled = true;
       requestAnimationFrame(() => {
-        reorderBoardElements(domElement);
         reorderScheduled = false;
       });
     }
@@ -101,7 +99,6 @@ function getStickyElement(
     }
     container = undefined;
     // Reorder elements after deletion
-    reorderBoardElements(boardElement);
   } else if (!container) {
     container = createStickyContainerDOM(stickyIdClass);
     boardElement[stickyIdClass] = container;

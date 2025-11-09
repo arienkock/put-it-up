@@ -1,7 +1,6 @@
 import { createImageContainerDOM } from "./image-dom.js";
 import { setImageStyles } from "./image-styling.js";
 import { setupImageEvents } from "./image-events.js";
-import { reorderBoardElements } from "../../z-order-manager.js";
 
 export const IMAGE_TYPE = "application/image";
 
@@ -18,7 +17,6 @@ export const createRenderer = (
     if (!reorderScheduled) {
       reorderScheduled = true;
       requestAnimationFrame(() => {
-        reorderBoardElements(domElement);
         reorderScheduled = false;
       });
     }
@@ -78,7 +76,6 @@ function getImageElement(
     }
     container = undefined;
     // Reorder elements after deletion
-    reorderBoardElements(boardElement);
   } else if (!container) {
     container = createImageContainerDOM(imageIdClass);
     boardElement[imageIdClass] = container;
