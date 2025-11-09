@@ -1549,9 +1549,24 @@ async function setSelected(id, selected) {
 }
 
 async function clickStickyOutsideOfText(id) {
-  await page.hover(`.sticky-${id} .sticky`);
   const sticky = page.locator(`.sticky-${id} .sticky`);
-  const stickyBox = await sticky.boundingBox();
+  // Wait for the sticky to be visible and attached to the DOM
+  await sticky.waitFor({ state: 'visible', timeout: 3000 });
+  await page.hover(`.sticky-${id} .sticky`);
+  
+  // Retry getting bounding box in case of timing issues
+  let stickyBox = await sticky.boundingBox();
+  let retries = 5;
+  while (!stickyBox && retries > 0) {
+    await page.waitForTimeout(100);
+    stickyBox = await sticky.boundingBox();
+    retries--;
+  }
+  
+  if (!stickyBox) {
+    throw new Error(`Failed to get bounding box for sticky-${id} after retries`);
+  }
+  
   return page.mouse.click(stickyBox.x + stickyBox.width / 2, stickyBox.y + 5);
 }
 
