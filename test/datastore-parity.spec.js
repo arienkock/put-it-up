@@ -636,6 +636,17 @@ function getPublicMethods(prototype) {
 
 function getParameterCount(func) {
   if (typeof func !== 'function') return 0;
+  
+  // Primary approach: Use Function.prototype.length
+  // This works even when functions are instrumented for coverage,
+  // because .length is a property of the function object itself,
+  // not derived from the string representation
+  if (typeof func.length === 'number' && func.length >= 0) {
+    return func.length;
+  }
+  
+  // Fallback: Parse function string representation
+  // This handles edge cases where .length might not be reliable
   const funcStr = func.toString();
   
   // Handle arrow functions with parentheses: (param) => { ... }
@@ -655,6 +666,7 @@ function getParameterCount(func) {
   }
   
   // Handle regular functions: function(param) { ... }
+  // Also handles instrumented functions that might have coverage code injected
   const regularMatch = funcStr.match(/function[^(]*\(([^)]*)\)/);
   if (regularMatch) {
     const params = regularMatch[1].trim();
