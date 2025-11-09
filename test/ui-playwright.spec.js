@@ -159,20 +159,35 @@ describe("Board UI", () => {
     });
 
     it("can delete selected stickies with menu button and keyboard", async () => {
-      // Setup: Ensure we have 4 stickies on the board (starter content)
-      await page.waitForSelector(".sticky-1 .sticky");
-      await page.waitForSelector(".sticky-2 .sticky");
-      await page.waitForSelector(".sticky-3 .sticky");
-      await page.waitForSelector(".sticky-4 .sticky");
-      
-      const initialStickyCount = await page.locator(".sticky").count();
-      expect(initialStickyCount).toBe(4);
+      // Helper: Wait for board to be ready after page load
+      const waitForBoardReady = async () => {
+        await page.waitForSelector(".board");
+        await page.waitForFunction(
+          () => window.board && window.board.isReadyForUse(),
+          { timeout: 5000 }
+        );
+        await thingsSettleDown();
+      };
 
       // Helper: Select two stickies (1 and 2) using shift-click
       const selectStickies1And2 = async () => {
+        // Ensure board is ready
+        await waitForBoardReady();
+        
+        // Wait for stickies to be visible (main board only)
+        await page.waitForSelector(".board .sticky-1 .sticky", { timeout: 3000 });
+        await page.waitForSelector(".board .sticky-2 .sticky", { timeout: 3000 });
+        
         // Click first sticky to select it
         await clickStickyOutsideOfText(1);
         await thingsSettleDown();
+        
+        // Verify first sticky is selected with retry
+        let retries = 5;
+        while (retries > 0 && !(await isStickySelected(1))) {
+          await page.waitForTimeout(100);
+          retries--;
+        }
         expect(await isStickySelected(1)).toBe(true);
         
         // Shift-click second sticky to add to selection
@@ -181,7 +196,12 @@ describe("Board UI", () => {
         await page.keyboard.up("Shift");
         await thingsSettleDown();
         
-        // Verify both are selected
+        // Verify both are selected with retry
+        retries = 5;
+        while (retries > 0 && (!(await isStickySelected(1)) || !(await isStickySelected(2)))) {
+          await page.waitForTimeout(100);
+          retries--;
+        }
         expect(await isStickySelected(1)).toBe(true);
         expect(await isStickySelected(2)).toBe(true);
       };
@@ -190,51 +210,78 @@ describe("Board UI", () => {
       const verifyStickies1And2Deleted = async () => {
         await thingsSettleDown();
         
-        // Wait for deleted stickies to actually disappear from DOM
+        // First, wait for selection to be cleared (deletion in progress)
+        await page.waitForFunction(
+          () => {
+            const selected = document.querySelectorAll(".sticky-container.selected");
+            return selected.length === 0;
+          },
+          { timeout: 2000 }
+        ).catch(() => {
+          // Selection might already be cleared, continue
+        });
+        
+        // Wait for deleted stickies to actually disappear from DOM (main board only)
         // This is more reliable than just checking immediately
         await page.waitForFunction(
           () => {
-            const deleted1 = document.querySelector(".sticky-1");
-            const deleted2 = document.querySelector(".sticky-2");
+            const board = document.querySelector(".board");
+            if (!board) return false;
+            const deleted1 = board.querySelector(".sticky-1");
+            const deleted2 = board.querySelector(".sticky-2");
             return !deleted1 && !deleted2;
           },
-          { timeout: 3000 }
+          { timeout: 5000 }
         );
         
-        // Verify deleted stickies are gone
-        const deletedCount = await page.locator(".sticky-1, .sticky-2").count();
+        // Verify deleted stickies are gone (main board only)
+        const deletedCount = await page.locator(".board .sticky-1, .board .sticky-2").count();
         expect(deletedCount).toBe(0);
         
-        // Wait for remaining stickies count to stabilize
+        // Wait for remaining stickies count to stabilize (main board only)
         await page.waitForFunction(
-          () => document.querySelectorAll(".sticky").length === 2,
-          { timeout: 3000 }
+          () => {
+            const board = document.querySelector(".board");
+            if (!board) return false;
+            return board.querySelectorAll(".sticky").length === 2;
+          },
+          { timeout: 5000 }
         );
         
-        // Verify remaining stickies
-        const remainingCount = await page.locator(".sticky").count();
+        // Verify remaining stickies (main board only)
+        const remainingCount = await page.locator(".board .sticky").count();
         expect(remainingCount).toBe(2);
         
-        // Verify stickies 3 and 4 still exist
-        const sticky3Exists = await page.locator(".sticky-3").count();
-        const sticky4Exists = await page.locator(".sticky-4").count();
+        // Verify stickies 3 and 4 still exist (main board only)
+        const sticky3Exists = await page.locator(".board .sticky-3").count();
+        const sticky4Exists = await page.locator(".board .sticky-4").count();
         expect(sticky3Exists).toBe(1);
         expect(sticky4Exists).toBe(1);
       };
 
+      // Setup: Ensure we have 4 stickies on the board (starter content)
+      await waitForBoardReady();
+      await page.waitForSelector(".board .sticky-1 .sticky");
+      await page.waitForSelector(".board .sticky-2 .sticky");
+      await page.waitForSelector(".board .sticky-3 .sticky");
+      await page.waitForSelector(".board .sticky-4 .sticky");
+      
+      const initialStickyCount = await page.locator(".board .sticky").count();
+      expect(initialStickyCount).toBe(4);
+
       // Test 1: Delete with menu button
       await selectStickies1And2();
       
-      await page.waitForSelector(".board-action-menu .delete", { timeout: 1000 });
+      await page.waitForSelector(".board-action-menu .delete", { timeout: 2000 });
       await page.click(".board-action-menu .delete");
       
       await verifyStickies1And2Deleted();
       
       // Test 2: Delete with Delete key
       await page.goto(pageWithBasicContentOnALocalBoard());
-      await page.waitForSelector(".board");
-      await page.waitForSelector(".sticky-1 .sticky");
-      await page.waitForSelector(".sticky-2 .sticky");
+      await waitForBoardReady();
+      await page.waitForSelector(".board .sticky-1 .sticky", { timeout: 3000 });
+      await page.waitForSelector(".board .sticky-2 .sticky", { timeout: 3000 });
       
       await selectStickies1And2();
       
@@ -244,9 +291,9 @@ describe("Board UI", () => {
       
       // Test 3: Delete with Backspace key
       await page.goto(pageWithBasicContentOnALocalBoard());
-      await page.waitForSelector(".board");
-      await page.waitForSelector(".sticky-1 .sticky");
-      await page.waitForSelector(".sticky-2 .sticky");
+      await waitForBoardReady();
+      await page.waitForSelector(".board .sticky-1 .sticky", { timeout: 3000 });
+      await page.waitForSelector(".board .sticky-2 .sticky", { timeout: 3000 });
       
       await selectStickies1And2();
       
@@ -1549,10 +1596,11 @@ async function setSelected(id, selected) {
 }
 
 async function clickStickyOutsideOfText(id) {
-  const sticky = page.locator(`.sticky-${id} .sticky`);
+  // Scope to main board only, not minimap
+  const sticky = page.locator(`.board .sticky-${id} .sticky`).first();
   // Wait for the sticky to be visible and attached to the DOM
   await sticky.waitFor({ state: 'visible', timeout: 3000 });
-  await page.hover(`.sticky-${id} .sticky`);
+  await page.hover(`.board .sticky-${id} .sticky`);
   
   // Retry getting bounding box in case of timing issues
   let stickyBox = await sticky.boundingBox();
