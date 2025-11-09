@@ -159,25 +159,20 @@ describe("Board UI", () => {
     });
 
     it("can delete selected stickies with menu button and keyboard", async () => {
-      // Helper function to verify deletion worked
-      const verifyDeletion = async () => {
-        await thingsSettleDown();
-        const deletedCount = await page.locator(".sticky-1, .sticky-2").count();
-        const remainingCount = await page.locator(".sticky").count();
-        expect(deletedCount).toBe(0);
-        expect(remainingCount).toBe(2); // Should have stickies 3 and 4 remaining
-      };
+      // Setup: Ensure we have 4 stickies on the board (starter content)
+      await page.waitForSelector(".sticky-1 .sticky");
+      await page.waitForSelector(".sticky-2 .sticky");
+      await page.waitForSelector(".sticky-3 .sticky");
+      await page.waitForSelector(".sticky-4 .sticky");
+      
+      const initialStickyCount = await page.locator(".sticky").count();
+      expect(initialStickyCount).toBe(4);
 
-      // Helper function to select two stickies via shift-click
-      const selectTwoStickies = async () => {
-        await page.waitForSelector(".sticky-1 .sticky");
-        await page.waitForSelector(".sticky-2 .sticky");
-        
-        // Click first sticky
+      // Helper: Select two stickies (1 and 2) using shift-click
+      const selectStickies1And2 = async () => {
+        // Click first sticky to select it
         await clickStickyOutsideOfText(1);
         await thingsSettleDown();
-        
-        // Verify first sticky is selected
         expect(await isStickySelected(1)).toBe(true);
         
         // Shift-click second sticky to add to selection
@@ -191,40 +186,80 @@ describe("Board UI", () => {
         expect(await isStickySelected(2)).toBe(true);
       };
 
-      // Test 1: Deletion with menu button
-      await selectTwoStickies();
+      // Helper: Verify stickies 1 and 2 are deleted, 3 and 4 remain
+      const verifyStickies1And2Deleted = async () => {
+        await thingsSettleDown();
+        
+        // Wait for deleted stickies to actually disappear from DOM
+        // This is more reliable than just checking immediately
+        await page.waitForFunction(
+          () => {
+            const deleted1 = document.querySelector(".sticky-1");
+            const deleted2 = document.querySelector(".sticky-2");
+            return !deleted1 && !deleted2;
+          },
+          { timeout: 3000 }
+        );
+        
+        // Verify deleted stickies are gone
+        const deletedCount = await page.locator(".sticky-1, .sticky-2").count();
+        expect(deletedCount).toBe(0);
+        
+        // Wait for remaining stickies count to stabilize
+        await page.waitForFunction(
+          () => document.querySelectorAll(".sticky").length === 2,
+          { timeout: 3000 }
+        );
+        
+        // Verify remaining stickies
+        const remainingCount = await page.locator(".sticky").count();
+        expect(remainingCount).toBe(2);
+        
+        // Verify stickies 3 and 4 still exist
+        const sticky3Exists = await page.locator(".sticky-3").count();
+        const sticky4Exists = await page.locator(".sticky-4").count();
+        expect(sticky3Exists).toBe(1);
+        expect(sticky4Exists).toBe(1);
+      };
+
+      // Test 1: Delete with menu button
+      await selectStickies1And2();
       
-      // Click delete button - wait for it to be available
       await page.waitForSelector(".board-action-menu .delete", { timeout: 1000 });
       await page.click(".board-action-menu .delete");
       
-      await verifyDeletion();
+      await verifyStickies1And2Deleted();
       
-      // Test 2: Deletion with Delete key
+      // Test 2: Delete with Delete key
       await page.goto(pageWithBasicContentOnALocalBoard());
       await page.waitForSelector(".board");
+      await page.waitForSelector(".sticky-1 .sticky");
+      await page.waitForSelector(".sticky-2 .sticky");
       
-      await selectTwoStickies();
+      await selectStickies1And2();
       
-      // Press Delete key
       await page.keyboard.press("Delete");
       
-      await verifyDeletion();
+      await verifyStickies1And2Deleted();
       
-      // Test 3: Deletion with Backspace key
+      // Test 3: Delete with Backspace key
       await page.goto(pageWithBasicContentOnALocalBoard());
       await page.waitForSelector(".board");
+      await page.waitForSelector(".sticky-1 .sticky");
+      await page.waitForSelector(".sticky-2 .sticky");
       
-      await selectTwoStickies();
+      await selectStickies1And2();
       
-      // Press Backspace key (but not while editing - ensure no textarea is focused)
+      // Ensure we're not in edit mode (Backspace should delete, not edit text)
       const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
       if (focusedElement === 'TEXTAREA') {
-        await page.keyboard.press("Escape"); // Exit edit mode if needed
+        await page.keyboard.press("Escape");
+        await thingsSettleDown();
       }
+      
       await page.keyboard.press("Backspace");
       
-      await verifyDeletion();
+      await verifyStickies1And2Deleted();
     });
 
     it("moves sticky with arrow keys when selected", async () => {
