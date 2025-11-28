@@ -546,6 +546,12 @@ export function setupStickyEvents(
   container.inputElement.addEventListener('focus', focusInterceptor, true);
   
   const handlePointerDown = (event) => {
+    // Early return if in connector creation mode - let connector handler take over
+    const currentAppState = store.getAppState();
+    if (currentAppState.ui.nextClickCreatesConnector) {
+      return;
+    }
+    
     const pageCoords = getEventPageCoordinates(event);
     if (!pageCoords) return;
     
@@ -663,6 +669,10 @@ export function setupStickyEvents(
   
   // Also handle pointer down directly on the textarea - use capture phase to intercept BEFORE default behavior
   container.inputElement.addEventListener('mousedown', (event) => {
+    // Check if we're in connector creation mode
+    const currentAppState = store.getAppState();
+    const inConnectorCreationMode = currentAppState.ui.nextClickCreatesConnector;
+    
     // Set preventFocus flag BEFORE handling the event
     if (event.target === container.inputElement) {
       preventFocus = true;
@@ -674,17 +684,28 @@ export function setupStickyEvents(
     
     // Prevent default to stop immediate focus
     event.preventDefault();
-    event.stopPropagation();
-    handlePointerDown(event);
     
-    // Set up global mouseup listener to detect end of interaction
-    if (!pointerUpListener) {
-      pointerUpListener = handlePointerUp;
-      document.addEventListener('mouseup', pointerUpListener);
+    // If in connector creation mode, allow propagation to board element
+    // Otherwise, stop propagation to handle drag/selection normally
+    if (!inConnectorCreationMode) {
+      event.stopPropagation();
+      handlePointerDown(event);
+      
+      // Set up global mouseup listener to detect end of interaction
+      if (!pointerUpListener) {
+        pointerUpListener = handlePointerUp;
+        document.addEventListener('mouseup', pointerUpListener);
+      }
     }
+    // If in connector creation mode, don't call handlePointerDown or stop propagation
+    // This allows the event to bubble to the board element for connector creation
   }, true); // Use capture phase to intercept early
   
   container.inputElement.addEventListener('touchstart', (event) => {
+    // Check if we're in connector creation mode
+    const currentAppState = store.getAppState();
+    const inConnectorCreationMode = currentAppState.ui.nextClickCreatesConnector;
+    
     // Set preventFocus flag BEFORE handling the event
     if (event.target === container.inputElement) {
       preventFocus = true;
@@ -696,14 +717,21 @@ export function setupStickyEvents(
     
     // Prevent default to stop immediate focus
     event.preventDefault();
-    event.stopPropagation();
-    handlePointerDown(event);
     
-    // Set up global touchend listener to detect end of interaction
-    if (!touchEndListener) {
-      touchEndListener = handlePointerUp;
-      document.addEventListener('touchend', touchEndListener);
+    // If in connector creation mode, allow propagation to board element
+    // Otherwise, stop propagation to handle drag/selection normally
+    if (!inConnectorCreationMode) {
+      event.stopPropagation();
+      handlePointerDown(event);
+      
+      // Set up global touchend listener to detect end of interaction
+      if (!touchEndListener) {
+        touchEndListener = handlePointerUp;
+        document.addEventListener('touchend', touchEndListener);
+      }
     }
+    // If in connector creation mode, don't call handlePointerDown or stop propagation
+    // This allows the event to bubble to the board element for connector creation
   }, { passive: false, capture: true }); // Use capture phase to intercept early
   
   // Cleanup function for pointer listeners
