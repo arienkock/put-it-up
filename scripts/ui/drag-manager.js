@@ -83,6 +83,12 @@ class DragStateMachine extends StateMachine {
     // rAF throttling for mousemove
     this.rafPending = false;
     this.lastMoveEvent = null;
+    
+    // Store cleanup functions for window event listeners
+    this._windowBlurHandler = null;
+    this._mouseLeaveHandler = null;
+    
+    this.setupWindowEventListeners();
   }
   
   clearAllListeners() {
@@ -424,7 +430,49 @@ class DragStateMachine extends StateMachine {
     this.transitionTo(DragState.IDLE, 'drag ended');
   }
   
+  /**
+   * Setup window-level event listeners to detect when user loses focus or mouse leaves
+   * This prevents stuck states when mouseup/touchend never fires
+   */
+  setupWindowEventListeners() {
+    // Handle window blur (tab loses focus, window minimized, etc.)
+    this._windowBlurHandler = () => {
+      if (this.currentState !== DragState.IDLE) {
+        if (this.isDebugMode()) {
+          console.log('[DragManager] Window blur detected, forcing transition to IDLE');
+        }
+        this.transitionTo(DragState.IDLE, 'window lost focus');
+      }
+    };
+    if (window && typeof window.addEventListener === 'function') {
+      window.addEventListener('blur', this._windowBlurHandler);
+    }
+    
+    // Handle mouse leaving the window
+    this._mouseLeaveHandler = () => {
+      if (this.currentState !== DragState.IDLE) {
+        if (this.isDebugMode()) {
+          console.log('[DragManager] Mouse left window, forcing transition to IDLE');
+        }
+        this.transitionTo(DragState.IDLE, 'mouse left window');
+      }
+    };
+    if (document && typeof document.addEventListener === 'function') {
+      document.addEventListener('mouseleave', this._mouseLeaveHandler);
+    }
+  }
+  
   cleanup() {
+    // Remove window event listeners
+    if (this._windowBlurHandler && window && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('blur', this._windowBlurHandler);
+      this._windowBlurHandler = null;
+    }
+    if (this._mouseLeaveHandler && document && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('mouseleave', this._mouseLeaveHandler);
+      this._mouseLeaveHandler = null;
+    }
+    
     this.clearAllListeners();
     this.resetCursor();
     this.transitionTo(DragState.IDLE, 'cleanup');

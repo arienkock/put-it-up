@@ -87,7 +87,12 @@ class ImageStateMachine extends StateMachine {
     // Global listener manager
     this.globalListeners = new GlobalListenerManager();
     
+    // Store cleanup functions for window event listeners
+    this._windowBlurHandler = null;
+    this._mouseLeaveHandler = null;
+    
     this.setupEventListeners();
+    this.setupWindowEventListeners();
   }
   
   clearAllListeners() {
@@ -639,7 +644,49 @@ class ImageStateMachine extends StateMachine {
     };
   }
   
+  /**
+   * Setup window-level event listeners to detect when user loses focus or mouse leaves
+   * This prevents stuck states when mouseup/touchend never fires
+   */
+  setupWindowEventListeners() {
+    // Handle window blur (tab loses focus, window minimized, etc.)
+    this._windowBlurHandler = () => {
+      if (this.currentState !== ImageState.IDLE) {
+        if (this.isDebugMode()) {
+          console.log('[ImageResize] Window blur detected, forcing transition to IDLE');
+        }
+        this.transitionTo(ImageState.IDLE, 'window lost focus');
+      }
+    };
+    if (window && typeof window.addEventListener === 'function') {
+      window.addEventListener('blur', this._windowBlurHandler);
+    }
+    
+    // Handle mouse leaving the window
+    this._mouseLeaveHandler = () => {
+      if (this.currentState !== ImageState.IDLE) {
+        if (this.isDebugMode()) {
+          console.log('[ImageResize] Mouse left window, forcing transition to IDLE');
+        }
+        this.transitionTo(ImageState.IDLE, 'mouse left window');
+      }
+    };
+    if (document && typeof document.addEventListener === 'function') {
+      document.addEventListener('mouseleave', this._mouseLeaveHandler);
+    }
+  }
+  
   cleanup() {
+    // Remove window event listeners
+    if (this._windowBlurHandler && window && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('blur', this._windowBlurHandler);
+      this._windowBlurHandler = null;
+    }
+    if (this._mouseLeaveHandler && document && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('mouseleave', this._mouseLeaveHandler);
+      this._mouseLeaveHandler = null;
+    }
+    
     this.clearAllListeners();
     this.resetCursor();
     this.transitionTo(ImageState.IDLE, 'cleanup');

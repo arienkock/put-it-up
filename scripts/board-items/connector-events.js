@@ -216,7 +216,12 @@ class ConnectorStateMachine extends StateMachine {
       curveDragEvent: null
     };
     
+    // Store cleanup functions for window event listeners
+    this._windowBlurHandler = null;
+    this._mouseLeaveHandler = null;
+    
     this.setupEventListeners();
+    this.setupWindowEventListeners();
   }
   
   enableProximityDetection() {
@@ -1256,7 +1261,59 @@ class ConnectorStateMachine extends StateMachine {
     });
   }
   
+  /**
+   * Setup window-level event listeners to detect when user loses focus or mouse leaves
+   * This prevents stuck states when mouseup/touchend never fires
+   */
+  setupWindowEventListeners() {
+    // Handle window blur (tab loses focus, window minimized, etc.)
+    this._windowBlurHandler = () => {
+      if (this.currentState !== ConnectorState.IDLE) {
+        if (this.isDebugMode()) {
+          console.log('[Connector] Window blur detected, forcing transition to IDLE');
+        }
+        // Cancel click-to-click mode if active
+        if (this.currentState === ConnectorState.CLICK_TO_CLICK_WAITING) {
+          this.cancelClickToClickMode();
+        } else {
+          this.transitionTo(ConnectorState.IDLE, 'window lost focus');
+        }
+      }
+    };
+    if (window && typeof window.addEventListener === 'function') {
+      window.addEventListener('blur', this._windowBlurHandler);
+    }
+    
+    // Handle mouse leaving the window
+    this._mouseLeaveHandler = () => {
+      if (this.currentState !== ConnectorState.IDLE) {
+        if (this.isDebugMode()) {
+          console.log('[Connector] Mouse left window, forcing transition to IDLE');
+        }
+        // Cancel click-to-click mode if active
+        if (this.currentState === ConnectorState.CLICK_TO_CLICK_WAITING) {
+          this.cancelClickToClickMode();
+        } else {
+          this.transitionTo(ConnectorState.IDLE, 'mouse left window');
+        }
+      }
+    };
+    if (document && typeof document.addEventListener === 'function') {
+      document.addEventListener('mouseleave', this._mouseLeaveHandler);
+    }
+  }
+  
   cleanup() {
+    // Remove window event listeners
+    if (this._windowBlurHandler && window && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('blur', this._windowBlurHandler);
+      this._windowBlurHandler = null;
+    }
+    if (this._mouseLeaveHandler && document && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('mouseleave', this._mouseLeaveHandler);
+      this._mouseLeaveHandler = null;
+    }
+    
     this.globalListeners.clearAll();
     
     // Disable proximity detection
