@@ -119,10 +119,14 @@ export function createMenu(board, selectionManager, selectedConnectors, root, ap
         renderCallback();
       },
       customLabel: (dom, label) => {
-        if (!appState.ui.boardScale) {
-          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon">`;
-        } else {
-          dom.innerHTML = `<img src="images/zoom-in-icon.svg" alt="${label}" class="menu-icon"> ${(appState.ui.boardScale * 100).toFixed(0)}%`;
+        dom.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = 'images/zoom-in-icon.svg';
+        img.alt = label;
+        img.className = 'menu-icon';
+        dom.appendChild(img);
+        if (appState.ui.boardScale) {
+          dom.appendChild(document.createTextNode(` ${(appState.ui.boardScale * 100).toFixed(0)}%`));
         }
         dom.title = label;
       },
@@ -248,8 +252,17 @@ export function createMenu(board, selectionManager, selectedConnectors, root, ap
           }
         }
         
-        dom.innerHTML = `<img src="images/color-selector-icon.svg" alt="${label}" class="menu-icon"> <div class="color-preview"></div>`;
-        dom.lastChild.style.backgroundColor = currentColorToShow;
+        dom.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = 'images/color-selector-icon.svg';
+        img.alt = label;
+        img.className = 'menu-icon';
+        dom.appendChild(img);
+        dom.appendChild(document.createTextNode(' '));
+        const colorPreview = document.createElement('div');
+        colorPreview.className = 'color-preview';
+        colorPreview.style.backgroundColor = currentColorToShow;
+        dom.appendChild(colorPreview);
         dom.title = label;
       },
     },
@@ -277,7 +290,12 @@ export function createMenu(board, selectionManager, selectedConnectors, root, ap
           "filled": "images/arrow-filled-icon.svg"
         };
         const currentIcon = arrowHeadIcons[appState.ui.currentArrowHead];
-        dom.innerHTML = `<img src="${currentIcon}" alt="${label}" class="menu-icon-only">`;
+        dom.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = currentIcon;
+        img.alt = label;
+        img.className = 'menu-icon-only';
+        dom.appendChild(img);
         dom.title = label;
       },
     },
@@ -391,10 +409,14 @@ export function createMenu(board, selectionManager, selectedConnectors, root, ap
       if (item.icon) {
         if (item.icon.endsWith('.svg')) {
           // Handle SVG icons
-          itemElement.innerHTML = `<img src="${item.icon}" alt="${item.itemLabel}" class="menu-icon">`;
+          const img = document.createElement('img');
+          img.src = item.icon;
+          img.alt = item.itemLabel || '';
+          img.className = 'menu-icon';
+          itemElement.appendChild(img);
         } else {
           // Handle emoji/text icons
-          itemElement.innerHTML = `${item.icon}`;
+          itemElement.textContent = item.icon;
         }
       }
     }
